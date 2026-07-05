@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440, initial-scale=1.0">
+<title>ToolBox - 待办管理</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Design Tokens ── */
+:root {
+  --tool-bg: #f8f9fb;
+  --tool-bg-elevated: #ffffff;
+  --tool-bg-sunken: #f0f1f4;
+  --tool-bg-overlay: rgba(255,255,255,0.92);
+  --tool-bg-hover: #eef0f4;
+  --tool-text: #0f1117;
+  --tool-text-secondary: #5c6370;
+  --tool-text-tertiary: #9ca3af;
+  --tool-text-inverted: #ffffff;
+  --tool-accent: #d63031;
+  --tool-accent-hover: #b71c1c;
+  --tool-accent-soft: rgba(214,48,49,0.08);
+  --tool-accent-medium: rgba(214,48,49,0.15);
+  --tool-success: #00b894;
+  --tool-warning: #fdcb6e;
+  --tool-error: #ff4757;
+  --tool-info: #74b9ff;
+  --tool-border: #e2e4e9;
+  --tool-border-strong: #d0d3da;
+  --tool-sidebar-bg: #12131a;
+  --tool-sidebar-text: #a3a8b8;
+  --tool-sidebar-text-active: #ffffff;
+  --tool-sidebar-accent: #d63031;
+  --tool-sidebar-hover: rgba(255,255,255,0.06);
+  --tool-radius-xs: 4px;
+  --tool-radius-sm: 6px;
+  --tool-radius-md: 10px;
+  --tool-radius-lg: 14px;
+  --tool-radius-xl: 20px;
+  --tool-radius-full: 9999px;
+  --tool-space-1: 4px;
+  --tool-space-2: 8px;
+  --tool-space-3: 12px;
+  --tool-space-4: 16px;
+  --tool-space-5: 20px;
+  --tool-space-6: 24px;
+  --tool-space-8: 32px;
+  --tool-shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --tool-shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --tool-shadow-lg: 0 8px 24px rgba(0,0,0,0.1);
+  --tool-shadow-float: 0 12px 40px rgba(0,0,0,0.12);
+  --tool-font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --tool-font-mono: 'Roboto Mono', 'Cascadia Code', 'Consolas', monospace;
+  --tool-text-xs: 0.6875rem;
+  --tool-text-sm: 0.8125rem;
+  --tool-text-base: 0.875rem;
+  --tool-text-lg: 1rem;
+  --tool-text-xl: 1.125rem;
+  --tool-text-2xl: 1.375rem;
+  --tool-text-3xl: 1.75rem;
+  --tool-transition: 150ms ease;
+  --tool-transition-slow: 250ms ease;
+}
+.dark {
+  --tool-bg: #0c0d10;
+  --tool-bg-elevated: #141519;
+  --tool-bg-sunken: #08090c;
+  --tool-bg-overlay: rgba(20,21,25,0.95);
+  --tool-bg-hover: #1c1d24;
+  --tool-text: #e8ecf4;
+  --tool-text-secondary: #8b91a0;
+  --tool-text-tertiary: #555b6e;
+  --tool-text-inverted: #0f1117;
+  --tool-accent: #e84343;
+  --tool-accent-hover: #ff5c5c;
+  --tool-accent-soft: rgba(232,67,67,0.1);
+  --tool-accent-medium: rgba(232,67,67,0.2);
+  --tool-success: #00d2a0;
+  --tool-warning: #ffc107;
+  --tool-error: #ff5252;
+  --tool-info: #64b5f6;
+  --tool-border: #222430;
+  --tool-border-strong: #2d3040;
+  --tool-sidebar-bg: #08090c;
+  --tool-sidebar-text: #6b7280;
+  --tool-sidebar-text-active: #ffffff;
+  --tool-sidebar-accent: #e84343;
+  --tool-sidebar-hover: rgba(255,255,255,0.04);
+  --tool-shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --tool-shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --tool-shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+  --tool-shadow-float: 0 12px 40px rgba(0,0,0,0.6);
+}
+
+/* ── Reset ── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1440px; height:900px; overflow:hidden; }
+body {
+  font-family: var(--tool-font-sans);
+  font-size: var(--tool-text-base);
+  color: var(--tool-text);
+  background: var(--tool-bg);
+  display: flex;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, textarea, select { font-family: inherit; color: inherit; background: none; border: none; outline: none; }
+a { color: inherit; text-decoration: none; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--tool-border-strong); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--tool-text-tertiary); }
+
+/* ── Layout ── */
+.app-shell { display:flex; width:100%; height:100%; }
+
+/* ── Sidebar 64px ── */
+.sidebar {
+  width: 64px; min-width:64px; height:100%;
+  background: var(--tool-sidebar-bg);
+  display: flex; flex-direction: column; align-items: center;
+  padding: var(--tool-space-4) 0;
+  border-right: 1px solid var(--tool-border);
+  z-index: 10;
+}
+.sidebar-logo {
+  width: 36px; height: 36px;
+  background: var(--tool-sidebar-accent);
+  border-radius: var(--tool-radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: var(--tool-space-6);
+}
+.sidebar-logo svg { color: #fff; }
+.sidebar-nav { display:flex; flex-direction:column; gap: var(--tool-space-1); flex:1; width:100%; padding:0 var(--tool-space-2); }
+.sidebar-item {
+  width: 100%; aspect-ratio: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: var(--tool-radius-sm);
+  color: var(--tool-sidebar-text);
+  transition: var(--tool-transition);
+  position: relative;
+  gap: 3px;
+}
+.sidebar-item svg { width:20px; height:20px; }
+.sidebar-item span { font-size: 9px; letter-spacing:0.3px; }
+.sidebar-item:hover { background: var(--tool-sidebar-hover); color: var(--tool-sidebar-text-active); }
+.sidebar-item.active {
+  background: var(--tool-accent-soft);
+  color: var(--tool-sidebar-text-active);
+}
+.sidebar-item.active::before {
+  content:''; position:absolute; left:-8px; top:50%; transform:translateY(-50%);
+  width:3px; height:20px; border-radius:0 3px 3px 0;
+  background: var(--tool-sidebar-accent);
+}
+.sidebar-bottom { margin-top:auto; display:flex; flex-direction:column; gap:var(--tool-space-1); padding:0 var(--tool-space-2); width:100%; }
+.sidebar-avatar {
+  width:32px; height:32px; border-radius:var(--tool-radius-full);
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  display:flex; align-items:center; justify-content:center;
+  font-size: var(--tool-text-xs); color:#fff; font-weight:600;
+  margin: 0 auto;
+}
+
+/* ── Main Content ── */
+.main-content {
+  flex:1; display:flex; flex-direction:column; overflow:hidden;
+  background: var(--tool-bg);
+}
+
+/* ── Top Header ── */
+.top-header {
+  height: 52px; min-height:52px;
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 0 var(--tool-space-6);
+  border-bottom: 1px solid var(--tool-border);
+  background: var(--tool-bg-elevated);
+}
+.header-left { display:flex; align-items:center; gap:var(--tool-space-3); }
+.header-title { font-size: var(--tool-text-lg); font-weight:600; }
+.header-stats { font-size: var(--tool-text-sm); color:var(--tool-text-secondary); display:flex; gap:var(--tool-space-2); align-items:center; }
+.header-stats .sep { color:var(--tool-border-strong); }
+.header-right { display:flex; align-items:center; gap:var(--tool-space-3); }
+.header-btn {
+  width:32px; height:32px; border-radius:var(--tool-radius-sm);
+  display:flex; align-items:center; justify-content:center;
+  color:var(--tool-text-secondary);
+  transition: var(--tool-transition);
+}
+.header-btn:hover { background:var(--tool-bg-hover); color:var(--tool-text); }
+.header-btn svg { width:16px; height:16px; }
+
+/* ── Body Split ── */
+.body-split {
+  flex:1; display:flex; overflow:hidden;
+}
+
+/* ── Left Panel (Todo List) ── */
+.panel-left {
+  flex: 0 0 65%;
+  display:flex; flex-direction:column;
+  border-right: 1px solid var(--tool-border);
+  overflow: hidden;
+}
+
+/* Filter Bar */
+.filter-bar {
+  display:flex; align-items:center; gap:var(--tool-space-3);
+  padding: var(--tool-space-3) var(--tool-space-5);
+  border-bottom: 1px solid var(--tool-border);
+  background: var(--tool-bg-elevated);
+  min-height: 44px;
+}
+.filter-tabs { display:flex; gap:var(--tool-space-1); }
+.filter-tab {
+  padding: var(--tool-space-1) var(--tool-space-3);
+  font-size: var(--tool-text-sm);
+  border-radius: var(--tool-radius-full);
+  color: var(--tool-text-secondary);
+  transition: var(--tool-transition);
+  font-weight: 500;
+}
+.filter-tab:hover { background:var(--tool-bg-hover); color:var(--tool-text); }
+.filter-tab.active {
+  background: var(--tool-accent-soft);
+  color: var(--tool-accent);
+}
+.filter-divider { width:1px; height:20px; background:var(--tool-border); }
+.sort-dropdown {
+  display:flex; align-items:center; gap:var(--tool-space-1);
+  padding: var(--tool-space-1) var(--tool-space-2);
+  font-size: var(--tool-text-xs);
+  color:var(--tool-text-secondary);
+  border-radius:var(--tool-radius-xs);
+  cursor:pointer;
+  transition:var(--tool-transition);
+}
+.sort-dropdown:hover { background:var(--tool-bg-hover); color:var(--tool-text); }
+.sort-dropdown svg { width:12px; height:12px; }
+.search-box {
+  margin-left:auto;
+  display:flex; align-items:center; gap:var(--tool-space-2);
+  padding: var(--tool-space-1) var(--tool-space-3);
+  background:var(--tool-bg-sunken);
+  border-radius:var(--tool-radius-sm);
+  border:1px solid transparent;
+  transition:var(--tool-transition);
+}
+.search-box:focus-within { border-color:var(--tool-accent); background:var(--tool-bg-elevated); }
+.search-box svg { width:14px; height:14px; color:var(--tool-text-tertiary); flex-shrink:0; }
+.search-box input { font-size:var(--tool-text-sm); width:160px; color:var(--tool-text); }
+.search-box input::placeholder { color:var(--tool-text-tertiary); }
+
+/* Quick Add */
+.quick-add {
+  display:flex; align-items:center; gap:var(--tool-space-2);
+  padding: var(--tool-space-3) var(--tool-space-5);
+  border-bottom: 1px solid var(--tool-border);
+  background: var(--tool-bg-elevated);
+}
+.quick-add-icon {
+  width:28px; height:28px; border-radius:var(--tool-radius-sm);
+  background:var(--tool-accent);
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.quick-add-icon svg { width:16px; height:16px; color:#fff; }
+.quick-add input {
+  flex:1; font-size:var(--tool-text-base);
+  padding: var(--tool-space-2) 0;
+  color:var(--tool-text);
+}
+.quick-add input::placeholder { color:var(--tool-text-tertiary); }
+.quick-add-hint { font-size:var(--tool-text-xs); color:var(--tool-text-tertiary); white-space:nowrap; }
+
+/* Todo List */
+.todo-list {
+  flex:1; overflow-y:auto;
+  padding: var(--tool-space-2) var(--tool-space-3);
+  display:flex; flex-direction:column; gap:var(--tool-space-1);
+}
+
+/* Todo Item */
+.todo-item {
+  display:flex; align-items:flex-start; gap:var(--tool-space-3);
+  padding: var(--tool-space-3) var(--tool-space-4);
+  border-radius:var(--tool-radius-md);
+  transition:var(--tool-transition);
+  cursor:pointer;
+  position:relative;
+  min-height: 48px;
+}
+.todo-item:hover { background:var(--tool-bg-hover); }
+.todo-item.selected { background:var(--tool-accent-soft); }
+
+/* Checkbox */
+.todo-checkbox {
+  width:18px; height:18px; min-width:18px;
+  border: 2px solid var(--tool-border-strong);
+  border-radius: var(--tool-radius-xs);
+  display:flex; align-items:center; justify-content:center;
+  margin-top: 3px;
+  transition: var(--tool-transition);
+  cursor:pointer;
+}
+.todo-checkbox:hover { border-color:var(--tool-accent); }
+.todo-checkbox.checked {
+  background:var(--tool-accent);
+  border-color:var(--tool-accent);
+}
+.todo-checkbox.checked svg { color:#fff; }
+.todo-checkbox svg { width:12px; height:12px; display:none; }
+.todo-checkbox.checked svg { display:block; }
+
+/* Priority Dot */
+.priority-dot {
+  width:8px; height:8px; min-width:8px;
+  border-radius:50%;
+  margin-top:7px;
+}
+.priority-dot.urgent { background:var(--tool-error); box-shadow:0 0 6px rgba(255,82,82,0.4); }
+.priority-dot.important { background:var(--tool-warning); }
+.priority-dot.normal { background:transparent; }
+
+/* Todo Content */
+.todo-content { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.todo-title-row { display:flex; align-items:center; gap:var(--tool-space-2); }
+.todo-title {
+  font-size: var(--tool-text-base);
+  font-weight: 500;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.todo-item.completed .todo-title {
+  text-decoration: line-through;
+  color: var(--tool-text-tertiary);
+}
+.todo-tags { display:flex; gap:4px; flex-wrap:wrap; }
+.todo-tag {
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  border-radius: var(--tool-radius-full);
+  letter-spacing: 0.2px;
+}
+.todo-tag.frontend { background:rgba(100,181,246,0.12); color:var(--tool-info); }
+.todo-tag.backend { background:rgba(0,210,160,0.12); color:var(--tool-success); }
+.todo-tag.urgent { background:rgba(255,82,82,0.12); color:var(--tool-error); }
+.todo-tag.docs { background:rgba(255,193,7,0.12); color:var(--tool-warning); }
+.todo-tag.review { background:rgba(206,147,216,0.12); color:#ce93d8; }
+.todo-tag.db { background:rgba(129,199,132,0.12); color:#81c784; }
+.todo-tag.design { background:rgba(255,138,101,0.12); color:#ff8a65; }
+.todo-tag.test { background:rgba(77,208,225,0.12); color:#4dd0e1; }
+.todo-tag.deploy { background:rgba(186,104,200,0.12); color:#ba68c8; }
+
+/* Todo Meta (right side) */
+.todo-meta {
+  display:flex; align-items:center; gap:var(--tool-space-2);
+  flex-shrink:0;
+}
+.due-badge {
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  border-radius: var(--tool-radius-full);
+  white-space:nowrap;
+}
+.due-badge.overdue { background:rgba(255,82,82,0.12); color:var(--tool-error); }
+.due-badge.today { background:rgba(255,193,7,0.12); color:var(--tool-warning); }
+.due-badge.upcoming { background:rgba(100,181,246,0.08); color:var(--tool-info); }
+.due-badge.completed { background:rgba(0,210,160,0.08); color:var(--tool-success); }
+
+/* Hover Actions */
+.todo-actions {
+  display:flex; gap:var(--tool-space-1);
+  opacity:0; transition:var(--tool-transition);
+}
+.todo-item:hover .todo-actions { opacity:1; }
+.todo-action-btn {
+  width:24px; height:24px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:var(--tool-radius-xs);
+  color:var(--tool-text-tertiary);
+  transition:var(--tool-transition);
+}
+.todo-action-btn:hover { background:var(--tool-bg-sunken); color:var(--tool-text-secondary); }
+.todo-action-btn svg { width:14px; height:14px; }
+
+/* ── Right Panel (Detail) ── */
+.panel-right {
+  flex: 0 0 35%;
+  display:flex; flex-direction:column;
+  overflow-y:auto;
+  background: var(--tool-bg-elevated);
+}
+.detail-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: var(--tool-space-4) var(--tool-space-5);
+  border-bottom: 1px solid var(--tool-border);
+  min-height: 52px;
+}
+.detail-header-title { font-size:var(--tool-text-sm); font-weight:600; color:var(--tool-text-secondary); text-transform:uppercase; letter-spacing:0.5px; }
+.detail-close-btn {
+  width:28px; height:28px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:var(--tool-radius-xs);
+  color:var(--tool-text-tertiary);
+  transition:var(--tool-transition);
+}
+.detail-close-btn:hover { background:var(--tool-bg-hover); color:var(--tool-text); }
+.detail-close-btn svg { width:16px; height:16px; }
+
+.detail-body { padding:var(--tool-space-5); display:flex; flex-direction:column; gap:var(--tool-space-5); flex:1; }
+
+/* Detail: Title */
+.detail-title-input {
+  font-size: var(--tool-text-xl);
+  font-weight: 600;
+  padding: var(--tool-space-2) 0;
+  border-bottom: 2px solid transparent;
+  transition: var(--tool-transition);
+  width:100%;
+}
+.detail-title-input:focus { border-bottom-color: var(--tool-accent); }
+
+/* Detail: Status Badge */
+.detail-status-row { display:flex; align-items:center; gap:var(--tool-space-3); }
+.status-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  padding: 3px 12px;
+  font-size: var(--tool-text-xs);
+  font-weight: 600;
+  border-radius: var(--tool-radius-full);
+  letter-spacing:0.3px;
+}
+.status-badge.in-progress { background:rgba(100,181,246,0.12); color:var(--tool-info); }
+.status-badge.pending { background:rgba(255,193,7,0.1); color:var(--tool-warning); }
+.status-badge.completed { background:rgba(0,210,160,0.1); color:var(--tool-success); }
+.status-badge .dot { width:6px; height:6px; border-radius:50%; }
+.status-badge.in-progress .dot { background:var(--tool-info); }
+.status-badge.pending .dot { background:var(--tool-warning); }
+.status-badge.completed .dot { background:var(--tool-success); }
+
+/* Detail: Priority Selector */
+.detail-section { display:flex; flex-direction:column; gap:var(--tool-space-2); }
+.detail-label { font-size:var(--tool-text-xs); font-weight:600; color:var(--tool-text-secondary); text-transform:uppercase; letter-spacing:0.5px; }
+.priority-options { display:flex; gap:var(--tool-space-2); }
+.priority-option {
+  display:flex; align-items:center; gap:6px;
+  padding: 6px 14px;
+  border: 1px solid var(--tool-border);
+  border-radius: var(--tool-radius-sm);
+  font-size: var(--tool-text-sm);
+  transition: var(--tool-transition);
+  cursor:pointer;
+}
+.priority-option:hover { border-color:var(--tool-border-strong); background:var(--tool-bg-hover); }
+.priority-option.active { border-color:var(--tool-accent); background:var(--tool-accent-soft); color:var(--tool-accent); }
+.priority-option .p-dot { width:8px; height:8px; border-radius:50%; }
+.priority-option .p-dot.urgent { background:var(--tool-error); }
+.priority-option .p-dot.important { background:var(--tool-warning); }
+.priority-option .p-dot.normal { background:var(--tool-text-tertiary); }
+
+/* Detail: Textarea */
+.detail-textarea {
+  width:100%;
+  min-height:100px;
+  padding: var(--tool-space-3);
+  background:var(--tool-bg-sunken);
+  border: 1px solid var(--tool-border);
+  border-radius: var(--tool-radius-sm);
+  font-size: var(--tool-text-sm);
+  color:var(--tool-text);
+  resize: vertical;
+  transition:var(--tool-transition);
+  line-height:1.6;
+}
+.detail-textarea:focus { border-color:var(--tool-accent); background:var(--tool-bg-elevated); }
+
+/* Detail: Tags Editable */
+.detail-tags { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.detail-tag-item {
+  display:flex; align-items:center; gap:4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight:500;
+  border-radius: var(--tool-radius-full);
+  background:rgba(100,181,246,0.12);
+  color:var(--tool-info);
+}
+.detail-tag-remove {
+  width:14px; height:14px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:50%;
+  cursor:pointer;
+  transition:var(--tool-transition);
+}
+.detail-tag-remove:hover { background:rgba(255,255,255,0.1); }
+.detail-tag-remove svg { width:10px; height:10px; }
+.detail-add-tag {
+  padding: 3px 10px;
+  font-size:11px;
+  border:1px dashed var(--tool-border-strong);
+  border-radius:var(--tool-radius-full);
+  color:var(--tool-text-tertiary);
+  transition:var(--tool-transition);
+  cursor:pointer;
+}
+.detail-add-tag:hover { border-color:var(--tool-accent); color:var(--tool-accent); }
+
+/* Detail: Date Picker */
+.detail-date-row { display:flex; align-items:center; gap:var(--tool-space-2); }
+.date-picker-btn {
+  display:flex; align-items:center; gap:6px;
+  padding: 6px 12px;
+  background:var(--tool-bg-sunken);
+  border:1px solid var(--tool-border);
+  border-radius:var(--tool-radius-sm);
+  font-size:var(--tool-text-sm);
+  color:var(--tool-text);
+  transition:var(--tool-transition);
+  cursor:pointer;
+}
+.date-picker-btn:hover { border-color:var(--tool-border-strong); }
+.date-picker-btn svg { width:14px; height:14px; color:var(--tool-text-tertiary); }
+
+/* Detail: Timestamps */
+.detail-timestamps {
+  display:flex; flex-direction:column; gap:4px;
+  padding: var(--tool-space-3);
+  background:var(--tool-bg-sunken);
+  border-radius:var(--tool-radius-sm);
+}
+.detail-ts-row {
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:var(--tool-text-xs);
+}
+.detail-ts-label { color:var(--tool-text-tertiary); }
+.detail-ts-value { font-family:var(--tool-font-mono); color:var(--tool-text-secondary); font-size:11px; }
+
+/* Detail: Related Session */
+.detail-link {
+  display:flex; align-items:center; gap:6px;
+  font-size:var(--tool-text-sm);
+  color:var(--tool-info);
+  padding: var(--tool-space-2) 0;
+  transition:var(--tool-transition);
+}
+.detail-link:hover { color:var(--tool-accent); }
+.detail-link svg { width:14px; height:14px; }
+
+/* Detail: Delete */
+.detail-delete-btn {
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  padding: var(--tool-space-2) var(--tool-space-4);
+  border:1px solid var(--tool-error);
+  border-radius:var(--tool-radius-sm);
+  color:var(--tool-error);
+  font-size:var(--tool-text-sm);
+  font-weight:500;
+  transition:var(--tool-transition);
+  margin-top:auto;
+  width:fit-content;
+}
+.detail-delete-btn:hover { background:rgba(255,82,82,0.1); }
+.detail-delete-btn svg { width:14px; height:14px; }
+
+/* Separator */
+.detail-sep { height:1px; background:var(--tool-border); margin:var(--tool-space-1) 0; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ── Sidebar ── -->
+  <nav class="sidebar">
+    <div class="sidebar-logo" data-dom-id="nav-dashboard">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    </div>
+
+    <div class="sidebar-nav">
+      <!-- Chat -->
+      <button class="sidebar-item" data-dom-id="nav-assistant">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>对话</span>
+      </button>
+      <!-- Tasks (Active) -->
+      <button class="sidebar-item active" data-dom-id="nav-todos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>任务</span>
+      </button>
+      <!-- Screenshots -->
+      <button class="sidebar-item" data-dom-id="nav-screenshots">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span>截图</span>
+      </button>
+      <!-- Tools -->
+      <button class="sidebar-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        <span>工具</span>
+      </button>
+      <!-- Files -->
+      <button class="sidebar-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span>文件</span>
+      </button>
+      <!-- Calendar -->
+      <button class="sidebar-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>日程</span>
+      </button>
+      <!-- Notes -->
+      <button class="sidebar-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>笔记</span>
+      </button>
+    </div>
+
+    <div class="sidebar-bottom">
+      <!-- Settings -->
+      <button class="sidebar-item" data-dom-id="nav-settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>设置</span>
+      </button>
+      <!-- Avatar -->
+      <div class="sidebar-avatar">林</div>
+    </div>
+  </nav>
+
+  <!-- ── Main ── -->
+  <div class="main-content">
+
+    <!-- ── Top Header ── -->
+    <header class="top-header">
+      <div class="header-left">
+        <h1 class="header-title">待办管理</h1>
+        <div class="header-stats">
+          <span style="color:var(--tool-text-secondary)">12 待办</span>
+          <span class="sep">|</span>
+          <span style="color:var(--tool-info)">3 进行中</span>
+          <span class="sep">|</span>
+          <span style="color:var(--tool-success)">34 已完成</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="header-btn" title="通知">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+        <button class="header-btn" title="更多">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ── Body Split ── -->
+    <div class="body-split">
+
+      <!-- ── Left Panel: Todo List ── -->
+      <div class="panel-left">
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+          <div class="filter-tabs">
+            <button class="filter-tab active" data-dom-id="filter-all">全部</button>
+            <button class="filter-tab" data-dom-id="filter-pending">待办</button>
+            <button class="filter-tab">进行中</button>
+            <button class="filter-tab" data-dom-id="filter-completed">已完成</button>
+          </div>
+          <div class="filter-divider"></div>
+          <button class="sort-dropdown">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><line x1="4" y1="12" x2="12" y2="12"/><line x1="4" y1="18" x2="8" y2="18"/></svg>
+            优先级
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" placeholder="搜索任务...">
+          </div>
+        </div>
+
+        <!-- Quick Add -->
+        <div class="quick-add">
+          <button class="quick-add-icon" data-dom-id="btn-add-todo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <input type="text" placeholder="添加新任务... (Enter 确认)">
+          <span class="quick-add-hint">Ctrl+Enter 快速创建</span>
+        </div>
+
+        <!-- Todo List -->
+        <div class="todo-list">
+
+          <!-- Item 1: Urgent + Overdue (selected) -->
+          <div class="todo-item selected">
+            <div class="todo-checkbox"></div>
+            <div class="priority-dot urgent"></div>
+            <div class="todo-content">
+              <div class="todo-title-row">
+                <span class="todo-title">修复登录页的样式问题</span>
+              </div>
+              <div class="todo-tags">
+                <span class="todo-tag frontend">前端</span>
+                <span class="todo-tag urgent">紧急</span>
+              </div>
+            </div>
+            <div class="todo-meta">
+              <span class="due-badge overdue">已逾期 2天</span>
+              <div class="todo-actions">
+                <button class="todo-action-btn" title="编辑">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="todo-action-btn" title="删除">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 2: Important + Due Today -->
+          <div class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="priority-dot important"></div>
+            <div class="todo-content">
+              <div class="todo-title-row">
+                <span class="todo-title">编写 API 文档</span>
+              </div>
+              <div class="todo-tags">
+                <span class="todo-tag docs">文档</span>
+                <span class="todo-tag backend">后端</span>
+              </div>
+            </div>
+            <div class="todo-meta">
+              <span class="due-badge today">今天截止</span>
+              <div class="todo-actions">
+                <button class="todo-action-btn" title="编辑">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="todo-action-btn" title="删除">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 3: In Progress -->
+          <div class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="priority-dot important"></div>
+            <div class="todo-content">
+              <div class="todo-title-row">
+                <span class="todo-title">重构用户权限模块</span>
+              </div>
+              <div class="todo-tags">
+                <span class="todo-tag backend">后端</span>
+              </div>
+            </div>
+            <div class="todo-meta">
+              <span class="due-badge upcoming">7月10日</span>
+              <div class="todo-actions">
+                <button class="todo-action-btn" title="编辑">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="todo-action-btn" title="删除">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 4: Normal -->
+          <div class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="priority-dot normal"></div>
+            <div class="todo-content">
+              <div class="todo-title-row">
+                <span class="todo-title">审查 PR #127</span>
+              </div>
+              <div class="todo-tags">
+                <span class="todo-tag review">代码审查</span>
+              </div>
+            </div>
+            <div class="todo-meta">
+              <span class="due-badge upcoming">7月8日</span>
+              <div class="todo-actions">
+                <button class="todo-action-btn" title="编辑">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="todo-action-btn" title="删除">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 5: Completed -->
+          <div class="todo-item completed">
+            <div class="todo-checkbox checked">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="priority-dot normal"></div>
+            <div class="todo-content">
+              <div class="todo-title-row">
+                <span class="todo-title">更新数据库迁移脚本</span>
+              </div>
+              <div class="todo-tags">
+                <span class="todo-tag db">数据库</span>
+              </div>
+            </div>
+            <div class="todo-meta">
+              <span class="due-badge completed">已完成</span>
+              <div class="todo-actions">
+                <button class="todo-action-btn" title="编辑">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="todo-action-btn" title="删除">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 6: In Progress -->
+          <div class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="priority-dot urgent"></div>
+            <div class="todo-content">
+              <div class="todo-title-row">
+                <span class="todo-title">优化首页加载性能</span>
+              </div>
+              <div class="todo-tags">
+                <span class="todo-tag frontend">前端</span>
+                <span class="todo-tag urgent">紧急</span>
+              </div>
+            </div>
+            <div class="todo-meta">
+              <span class="due-badge overdue">已逾期 1天</span>
+              <div class="todo-actions">
+                <button class="todo-action-btn" title="编辑">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="todo-action-btn" title="删除">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 7: Normal -->
+          <div class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="priority-dot normal"></div>
+            <div class="todo-content">
+              <div class="todo-title-row">
+                <span class="todo-title">设计新版通知中心 UI</span>
+              </div>
+              <div class="todo-tags">
+                <span class="todo-tag design">设计</span>
+                <span class="todo-tag frontend">前端</span>
+              </div>
+            </div>
+            <div class="todo-meta">
+              <span class="due-badge upcoming">7月15日</span>
+              <div class="todo-actions">
+                <button class="todo-action-btn" title="编辑">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="todo-action-btn" title="删除">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 8: Completed -->
+          <div class="todo-item completed">
+            <div class="todo-checkbox checked">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="priority-dot important"></div>
+            <div class="todo-content">
+              <div class="todo-title-row">
+                <span class="todo-title">完成单元测试覆盖率提升</span>
+              </div>
+              <div class="todo-tags">
+                <span class="todo-tag test">测试</span>
+              </div>
+            </div>
+            <div class="todo-meta">
+              <span class="due-badge completed">已完成</span>
+              <div class="todo-actions">
+                <button class="todo-action-btn" title="编辑">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="todo-action-btn" title="删除">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 9: Normal -->
+          <div class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="priority-dot normal"></div>
+            <div class="todo-content">
+              <div class="todo-title-row">
+                <span class="todo-title">配置 CI/CD 流水线</span>
+              </div>
+              <div class="todo-tags">
+                <span class="todo-tag deploy">部署</span>
+              </div>
+            </div>
+            <div class="todo-meta">
+              <span class="due-badge upcoming">7月20日</span>
+              <div class="todo-actions">
+                <button class="todo-action-btn" title="编辑">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="todo-action-btn" title="删除">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item 10: Completed -->
+          <div class="todo-item completed">
+            <div class="todo-checkbox checked">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="priority-dot normal"></div>
+            <div class="todo-content">
+              <div class="todo-title-row">
+                <span class="todo-title">清理废弃的旧版接口</span>
+              </div>
+              <div class="todo-tags">
+                <span class="todo-tag backend">后端</span>
+              </div>
+            </div>
+            <div class="todo-meta">
+              <span class="due-badge completed">已完成</span>
+              <div class="todo-actions">
+                <button class="todo-action-btn" title="编辑">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="todo-action-btn" title="删除">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /todo-list -->
+      </div><!-- /panel-left -->
+
+      <!-- ── Right Panel: Detail ── -->
+      <div class="panel-right">
+        <div class="detail-header">
+          <span class="detail-header-title">任务详情</span>
+          <button class="detail-close-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div class="detail-body">
+          <!-- Title -->
+          <input class="detail-title-input" type="text" value="修复登录页的样式问题">
+
+          <!-- Status -->
+          <div class="detail-status-row">
+            <div class="status-badge pending">
+              <span class="dot"></span> 待办
+            </div>
+            <span style="font-size:var(--tool-text-xs); color:var(--tool-error); font-weight:500;">已逾期</span>
+          </div>
+
+          <!-- Priority -->
+          <div class="detail-section">
+            <label class="detail-label">优先级</label>
+            <div class="priority-options">
+              <button class="priority-option active">
+                <span class="p-dot urgent"></span> 紧急
+              </button>
+              <button class="priority-option">
+                <span class="p-dot important"></span> 重要
+              </button>
+              <button class="priority-option">
+                <span class="p-dot normal"></span> 普通
+              </button>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="detail-section">
+            <label class="detail-label">描述</label>
+            <textarea class="detail-textarea" rows="4">登录页面在移动端设备上出现布局错乱，输入框和按钮的位置偏移明显。需要排查 CSS 响应式相关的问题，并修复 Safari 和 Chrome 的兼容性差异。</textarea>
+          </div>
+
+          <!-- Tags -->
+          <div class="detail-section">
+            <label class="detail-label">标签</label>
+            <div class="detail-tags">
+              <span class="detail-tag-item" style="background:rgba(100,181,246,0.12); color:var(--tool-info);">
+                前端
+                <span class="detail-tag-remove">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </span>
+              </span>
+              <span class="detail-tag-item" style="background:rgba(255,82,82,0.12); color:var(--tool-error);">
+                紧急
+                <span class="detail-tag-remove">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </span>
+              </span>
+              <button class="detail-add-tag">+ 添加</button>
+            </div>
+          </div>
+
+          <!-- Due Date -->
+          <div class="detail-section">
+            <label class="detail-label">截止日期</label>
+            <div class="detail-date-row">
+              <button class="date-picker-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                2026-07-03
+              </button>
+              <span style="font-size:var(--tool-text-xs); color:var(--tool-error);">已逾期 2天</span>
+            </div>
+          </div>
+
+          <!-- Timestamps -->
+          <div class="detail-timestamps">
+            <div class="detail-ts-row">
+              <span class="detail-ts-label">创建时间</span>
+              <span class="detail-ts-value">2026-06-28 09:32:14</span>
+            </div>
+            <div class="detail-ts-row">
+              <span class="detail-ts-label">更新时间</span>
+              <span class="detail-ts-value">2026-07-04 16:45:03</span>
+            </div>
+          </div>
+
+          <div class="detail-sep"></div>
+
+          <!-- Related Session -->
+          <a class="detail-link" href="#">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            关联会话: 前端样式问题排查 #23
+          </a>
+
+          <!-- Delete -->
+          <button class="detail-delete-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            删除任务
+          </button>
+        </div>
+      </div><!-- /panel-right -->
+
+    </div><!-- /body-split -->
+  </div><!-- /main-content -->
+
+</div><!-- /app-shell -->
+
+</body>
+</html>

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ToolBox — Splash Screen</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --tool-bg: #0c0d10;
+  --tool-bg-elevated: #141519;
+  --tool-bg-sunken: #08090c;
+  --tool-text: #e8ecf4;
+  --tool-text-secondary: #8b91a0;
+  --tool-text-tertiary: #555b6e;
+  --tool-accent: #e84343;
+  --tool-accent-hover: #ff5c5c;
+  --tool-accent-soft: rgba(232,67,67,0.1);
+  --tool-accent-medium: rgba(232,67,67,0.2);
+  --tool-success: #00d2a0;
+  --tool-error: #ff5252;
+  --tool-border: #222430;
+  --tool-radius-xs: 4px;
+  --tool-radius-sm: 6px;
+  --tool-radius-md: 10px;
+  --tool-radius-lg: 14px;
+  --tool-radius-xl: 20px;
+  --tool-radius-full: 9999px;
+  --tool-space-1: 4px;
+  --tool-space-2: 8px;
+  --tool-space-3: 12px;
+  --tool-space-4: 16px;
+  --tool-space-5: 20px;
+  --tool-space-6: 24px;
+  --tool-space-8: 32px;
+  --tool-shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+  --tool-font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --tool-font-mono: 'Roboto Mono', 'Cascadia Code', 'Consolas', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--tool-font-sans);
+  background: var(--tool-bg);
+  color: var(--tool-text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 24px;
+  gap: 80px;
+}
+
+/* ── Variant label ── */
+.variant-label {
+  font-family: var(--tool-font-mono);
+  font-size: 11px;
+  color: var(--tool-text-tertiary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: -40px;
+  align-self: flex-start;
+  padding-left: calc(50% - 240px);
+}
+
+/* ── Splash card ── */
+.splash-card {
+  width: 480px;
+  height: 360px;
+  background: var(--tool-bg-elevated);
+  border-radius: var(--tool-radius-xl);
+  box-shadow: var(--tool-shadow-lg);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* ── Logo area ── */
+.logo-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tool-space-3);
+  margin-bottom: var(--tool-space-5);
+}
+
+.logo-icon svg {
+  display: block;
+}
+
+.app-name {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--tool-text);
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.tagline {
+  font-size: 13px;
+  color: var(--tool-text-secondary);
+  margin-top: var(--tool-space-1);
+  letter-spacing: 0.02em;
+}
+
+/* ── Loading bar ── */
+.loading-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--tool-space-3);
+  margin-top: var(--tool-space-5);
+}
+
+.loading-bar-track {
+  width: 200px;
+  height: 4px;
+  background: var(--tool-bg-sunken);
+  border-radius: var(--tool-radius-full);
+  overflow: hidden;
+  position: relative;
+}
+
+.loading-bar-fill {
+  height: 100%;
+  border-radius: var(--tool-radius-full);
+  transition: width 600ms ease;
+}
+
+.fill-loading {
+  width: 70%;
+  background: var(--tool-accent);
+}
+
+.fill-error {
+  width: 100%;
+  background: var(--tool-error);
+}
+
+.fill-complete {
+  width: 100%;
+  background: var(--tool-success);
+}
+
+/* ── Status text ── */
+.status-text {
+  font-family: var(--tool-font-mono);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.status-loading {
+  color: var(--tool-text-tertiary);
+}
+
+.status-error {
+  color: var(--tool-error);
+}
+
+.status-complete {
+  color: var(--tool-success);
+}
+
+/* ── Buttons ── */
+.button-row {
+  display: flex;
+  gap: var(--tool-space-3);
+  margin-top: var(--tool-space-4);
+}
+
+.btn {
+  font-family: var(--tool-font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 20px;
+  border-radius: var(--tool-radius-sm);
+  border: none;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+  line-height: 1.4;
+}
+
+.btn-solid {
+  background: var(--tool-accent);
+  color: #fff;
+}
+
+.btn-solid:hover {
+  background: var(--tool-accent-hover);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--tool-text-secondary);
+  border: 1px solid var(--tool-border);
+}
+
+.btn-outline:hover {
+  border-color: var(--tool-text-tertiary);
+  color: var(--tool-text);
+}
+
+/* ── Countdown ── */
+.countdown {
+  font-family: var(--tool-font-mono);
+  font-size: 11px;
+  color: var(--tool-text-tertiary);
+  margin-top: var(--tool-space-2);
+}
+
+/* ── Version badge ── */
+.version {
+  position: absolute;
+  bottom: var(--tool-space-3);
+  right: var(--tool-space-4);
+  font-family: var(--tool-font-mono);
+  font-size: 10px;
+  color: var(--tool-text-tertiary);
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
+/* ── Pulse animation on loading fill ── */
+@keyframes pulse-bar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.fill-loading {
+  animation: pulse-bar 1.6s ease-in-out infinite;
+}
+
+/* ── Success check animation ── */
+@keyframes fade-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.splash-card.state-complete .loading-section,
+.splash-card.state-error .loading-section {
+  animation: fade-in 300ms ease both;
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     Variant 1 — Loading State
+     ══════════════════════════════════════════════ -->
+<div class="variant-label">Loading State</div>
+<div class="splash-card">
+  <div class="logo-area">
+    <div class="logo-icon">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Hexagonal shield shape -->
+        <path d="M32 4L56 18V46L32 60L8 46V18L32 4Z" stroke="var(--tool-accent)" stroke-width="2.5" fill="none"/>
+        <path d="M32 10L50 21.5V44.5L32 56L14 44.5V21.5L32 10Z" fill="var(--tool-accent)" opacity="0.12"/>
+        <!-- Inner icon — stylized T+B monogram -->
+        <path d="M24 24H40V28H35V42H29V28H24V24Z" fill="var(--tool-accent)" opacity="0.9"/>
+        <rect x="28" y="36" width="8" height="3" rx="1.5" fill="var(--tool-accent)" opacity="0.5"/>
+      </svg>
+    </div>
+    <div class="app-name">ToolBox</div>
+    <div class="tagline">截图 · 贴图 · AI 助手</div>
+  </div>
+
+  <div class="loading-section">
+    <div class="loading-bar-track">
+      <div class="loading-bar-fill fill-loading"></div>
+    </div>
+    <div class="status-text status-loading">正在加载会话数据...</div>
+  </div>
+
+  <div class="version">v2.0.0</div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     Variant 2 — Error State
+     ══════════════════════════════════════════════ -->
+<div class="variant-label">Error State</div>
+<div class="splash-card state-error">
+  <div class="logo-area">
+    <div class="logo-icon">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M32 4L56 18V46L32 60L8 46V18L32 4Z" stroke="var(--tool-error)" stroke-width="2.5" fill="none"/>
+        <path d="M32 10L50 21.5V44.5L32 56L14 44.5V21.5L32 10Z" fill="var(--tool-error)" opacity="0.1"/>
+        <!-- Error X icon -->
+        <path d="M26 26L38 38M38 26L26 38" stroke="var(--tool-error)" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="app-name">ToolBox</div>
+    <div class="tagline">截图 · 贴图 · AI 助手</div>
+  </div>
+
+  <div class="loading-section">
+    <div class="loading-bar-track">
+      <div class="loading-bar-fill fill-error"></div>
+    </div>
+    <div class="status-text status-error">加载失败: 无法连接到 LLM 服务</div>
+    <div class="button-row">
+      <button class="btn btn-solid">重试</button>
+      <button class="btn btn-outline">跳过</button>
+    </div>
+  </div>
+
+  <div class="version">v2.0.0</div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     Variant 3 — Complete State
+     ══════════════════════════════════════════════ -->
+<div class="variant-label">Complete State</div>
+<div class="splash-card state-complete">
+  <div class="logo-area">
+    <div class="logo-icon">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M32 4L56 18V46L32 60L8 46V18L32 4Z" stroke="var(--tool-success)" stroke-width="2.5" fill="none"/>
+        <path d="M32 10L50 21.5V44.5L32 56L14 44.5V21.5L32 10Z" fill="var(--tool-success)" opacity="0.08"/>
+        <!-- Success checkmark -->
+        <path d="M24 33L30 39L40 27" stroke="var(--tool-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+    </div>
+    <div class="app-name">ToolBox</div>
+    <div class="tagline">截图 · 贴图 · AI 助手</div>
+  </div>
+
+  <div class="loading-section">
+    <div class="loading-bar-track">
+      <div class="loading-bar-fill fill-complete"></div>
+    </div>
+    <div class="status-text status-complete">准备就绪</div>
+    <div class="countdown">3 秒后自动关闭</div>
+  </div>
+
+  <div class="version">v2.0.0</div>
+</div>
+
+</body>
+</html>

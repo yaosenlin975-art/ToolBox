@@ -1,0 +1,20 @@
+﻿<Window x:Class="ToolBox.Views.MagnifierWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="放大镜" Height="270" Width="270"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True">
+    <Grid>
+        <Border BorderBrush="Black" BorderThickness="2" CornerRadius="5">
+            <Grid>
+                <Image x:Name="magnifierImage" Stretch="Fill"/>
+                <TextBlock x:Name="txtInfo" Foreground="White" FontSize="12"
+                           HorizontalAlignment="Left" VerticalAlignment="Top"
+                           Margin="5,5,0,0" Background="#80000000" Padding="3"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

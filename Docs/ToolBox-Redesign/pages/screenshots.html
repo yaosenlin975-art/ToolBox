@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ToolBox — 截图历史</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--tool-font-sans);
+    color: var(--tool-text);
+    background: var(--tool-bg);
+    width: 1440px;
+    height: 900px;
+    overflow: hidden;
+    display: flex;
+  }
+
+  /* ── Sidebar (64px) ── */
+  .sidebar {
+    width: 64px;
+    height: 900px;
+    background: var(--tool-sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0;
+    flex-shrink: 0;
+    border-right: 1px solid var(--tool-border);
+  }
+  .sidebar-app-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--tool-radius-md);
+    background: var(--tool-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    flex-shrink: 0;
+  }
+  .sidebar-app-icon svg { width: 20px; height: 20px; fill: #fff; }
+  .sidebar-divider {
+    width: 32px;
+    height: 1px;
+    background: rgba(255,255,255,0.08);
+    margin: 6px 0;
+    flex-shrink: 0;
+  }
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    padding: 0 10px;
+  }
+  .sidebar-item {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--tool-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background var(--tool-transition);
+    position: relative;
+    color: var(--tool-sidebar-text);
+  }
+  .sidebar-item:hover { background: var(--tool-sidebar-hover); }
+  .sidebar-item.active {
+    background: var(--tool-sidebar-hover);
+    color: var(--tool-sidebar-text-active);
+  }
+  .sidebar-item.active::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    border-radius: 0 2px 2px 0;
+    background: var(--tool-sidebar-accent);
+  }
+  .sidebar-item svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    min-width: 14px;
+    height: 14px;
+    border-radius: var(--tool-radius-full);
+    background: var(--tool-accent);
+    font-size: 8px;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 3px;
+    line-height: 1;
+  }
+
+  /* ── Main Area ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--tool-bg);
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 24px 32px 0 32px;
+    flex-shrink: 0;
+  }
+  .header h1 {
+    font-size: var(--tool-text-2xl);
+    font-weight: 600;
+    color: var(--tool-text);
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+  .header .subtitle {
+    font-size: var(--tool-text-sm);
+    color: var(--tool-text-tertiary);
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 32px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--tool-border);
+  }
+  .view-toggle {
+    display: flex;
+    background: var(--tool-bg-sunken);
+    border-radius: var(--tool-radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--tool-border);
+  }
+  .view-btn {
+    width: 34px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--tool-transition);
+    color: var(--tool-text-tertiary);
+    background: transparent;
+    border: none;
+  }
+  .view-btn:hover { color: var(--tool-text-secondary); }
+  .view-btn.active {
+    background: var(--tool-bg-elevated);
+    color: var(--tool-accent);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .view-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+  .toolbar-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--tool-border);
+    flex-shrink: 0;
+  }
+
+  .date-filters {
+    display: flex;
+    gap: 2px;
+    background: var(--tool-bg-sunken);
+    border-radius: var(--tool-radius-sm);
+    padding: 2px;
+    border: 1px solid var(--tool-border);
+  }
+  .date-btn {
+    height: 28px;
+    padding: 0 12px;
+    border-radius: var(--tool-radius-xs);
+    font-size: var(--tool-text-xs);
+    font-family: var(--tool-font-sans);
+    border: none;
+    cursor: pointer;
+    transition: all var(--tool-transition);
+    background: transparent;
+    color: var(--tool-text-tertiary);
+    white-space: nowrap;
+  }
+  .date-btn:hover { color: var(--tool-text-secondary); }
+  .date-btn.active {
+    background: var(--tool-bg-elevated);
+    color: var(--tool-text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  .search-box {
+    flex: 1;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    background: var(--tool-bg-elevated);
+    border: 1px solid var(--tool-border);
+    border-radius: var(--tool-radius-sm);
+    padding: 0 10px;
+    gap: 6px;
+    transition: border-color var(--tool-transition);
+  }
+  .search-box:focus-within { border-color: var(--tool-accent); }
+  .search-box svg { width: 14px; height: 14px; stroke: var(--tool-text-tertiary); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  .search-box input {
+    border: none;
+    background: transparent;
+    font-size: var(--tool-text-sm);
+    font-family: var(--tool-font-sans);
+    color: var(--tool-text);
+    outline: none;
+    width: 100%;
+  }
+  .search-box input::placeholder { color: var(--tool-text-tertiary); }
+
+  .filter-btn {
+    height: 34px;
+    padding: 0 12px;
+    border-radius: var(--tool-radius-sm);
+    font-size: var(--tool-text-xs);
+    font-family: var(--tool-font-sans);
+    border: 1px solid var(--tool-border);
+    cursor: pointer;
+    transition: all var(--tool-transition);
+    background: var(--tool-bg-elevated);
+    color: var(--tool-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+  }
+  .filter-btn:hover { border-color: var(--tool-border-strong); color: var(--tool-text); }
+  .filter-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+  .sort-btn {
+    height: 34px;
+    padding: 0 12px;
+    border-radius: var(--tool-radius-sm);
+    font-size: var(--tool-text-xs);
+    font-family: var(--tool-font-sans);
+    border: 1px solid var(--tool-border);
+    cursor: pointer;
+    transition: all var(--tool-transition);
+    background: var(--tool-bg-elevated);
+    color: var(--tool-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+  }
+  .sort-btn:hover { border-color: var(--tool-border-strong); color: var(--tool-text); }
+  .sort-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ── Grid Area ── */
+  .grid-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 32px;
+  }
+  .grid-container::-webkit-scrollbar { width: 6px; }
+  .grid-container::-webkit-scrollbar-track { background: transparent; }
+  .grid-container::-webkit-scrollbar-thumb { background: var(--tool-border-strong); border-radius: 3px; }
+  .grid-container::-webkit-scrollbar-thumb:hover { background: var(--tool-text-tertiary); }
+
+  .screenshot-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  /* ── Screenshot Card ── */
+  .ss-card {
+    position: relative;
+    border-radius: var(--tool-radius-md);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform var(--tool-transition), box-shadow var(--tool-transition);
+    background: var(--tool-bg-elevated);
+    border: 1px solid var(--tool-border);
+  }
+  .ss-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--tool-shadow-lg);
+    border-color: var(--tool-border-strong);
+  }
+
+  .ss-thumb {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Gradient variety for different screenshot types */
+  .ss-thumb.grad-blue { background: linear-gradient(135deg, #1a3a5c 0%, #2962a8 40%, #5c6bc0 70%, #7c4dff 100%); }
+  .ss-thumb.grad-green { background: linear-gradient(135deg, #1b3a2d 0%, #2e7d4f 40%, #43a047 70%, #66bb6a 100%); }
+  .ss-thumb.grad-warm { background: linear-gradient(135deg, #3e2723 0%, #bf360c 30%, #e64a19 60%, #ff8a65 100%); }
+  .ss-thumb.grad-dark { background: linear-gradient(135deg, #0a0a0c 0%, #1a1a2e 40%, #16213e 70%, #1a1a2e 100%); }
+  .ss-thumb.grad-purple { background: linear-gradient(135deg, #1a0a2e 0%, #4a148c 40%, #7b1fa2 70%, #ab47bc 100%); }
+  .ss-thumb.grad-teal { background: linear-gradient(135deg, #004d40 0%, #00695c 40%, #00897b 70%, #26a69a 100%); }
+  .ss-thumb.grad-indigo { background: linear-gradient(135deg, #1a237e 0%, #283593 40%, #3949ab 70%, #5c6bc0 100%); }
+  .ss-thumb.grad-orange { background: linear-gradient(135deg, #331900 0%, #e65100 30%, #ff6d00 60%, #ffa726 100%); }
+  .ss-thumb.grad-pink { background: linear-gradient(135deg, #38002e 0%, #880e4f 40%, #c2185b 70%, #ec407a 100%); }
+  .ss-thumb.grad-cyan { background: linear-gradient(135deg, #002b36 0%, #006064 40%, #00838f 70%, #00acc1 100%); }
+  .ss-thumb.grad-slate { background: linear-gradient(135deg, #1a1d23 0%, #2d3239 40%, #454b54 70%, #606873 100%); }
+  .ss-thumb.grad-amber { background: linear-gradient(135deg, #2a1f00 0%, #c67c00 40%, #e6a700 70%, #ffd54f 100%); }
+  .ss-thumb.grad-red { background: linear-gradient(135deg, #2c0a0a 0%, #b71c1c 40%, #d32f2f 70%, #ef5350 100%); }
+  .ss-thumb.grad-lime { background: linear-gradient(135deg, #1a2e05 0%, #558b2f 40%, #7cb342 70%, #9ccc65 100%); }
+  .ss-thumb.grad-deepblue { background: linear-gradient(135deg, #0d1b2a 0%, #1b2838 40%, #2c3e50 70%, #415a77 100%); }
+  .ss-thumb.grad-coral { background: linear-gradient(135deg, #2a1215 0%, #bf4040 40%, #e06060 70%, #ff8a80 100%); }
+
+  /* Simulated UI elements on screenshots */
+  .ss-thumb::before {
+    content: '';
+    position: absolute;
+    top: 8%;
+    left: 6%;
+    right: 6%;
+    bottom: 6%;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .ss-thumb::after {
+    content: '';
+    position: absolute;
+    top: 8%;
+    left: 6%;
+    width: 55%;
+    height: 8%;
+    border-radius: 3px 3px 0 0;
+    background: rgba(0,0,0,0.2);
+  }
+
+  /* Selection checkbox */
+  .ss-checkbox {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--tool-radius-xs);
+    border: 2px solid rgba(255,255,255,0.5);
+    background: rgba(0,0,0,0.3);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity var(--tool-transition);
+    cursor: pointer;
+    z-index: 3;
+  }
+  .ss-card:hover .ss-checkbox { opacity: 1; }
+  .ss-checkbox.checked {
+    opacity: 1;
+    background: var(--tool-accent);
+    border-color: var(--tool-accent);
+  }
+  .ss-checkbox svg { width: 12px; height: 12px; stroke: #fff; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Hover overlay with actions */
+  .ss-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.7) 100%);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 12px;
+    opacity: 0;
+    transition: opacity var(--tool-transition);
+    z-index: 2;
+  }
+  .ss-card:hover .ss-overlay { opacity: 1; }
+
+  .ss-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .ss-action-btn {
+    height: 28px;
+    padding: 0 10px;
+    border-radius: var(--tool-radius-full);
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 11px;
+    font-family: var(--tool-font-sans);
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all var(--tool-transition);
+    white-space: nowrap;
+  }
+  .ss-action-btn:hover {
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(255,255,255,0.2);
+  }
+  .ss-action-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ss-action-btn.danger:hover { background: rgba(232,67,67,0.6); border-color: rgba(232,67,67,0.4); }
+
+  /* Card info */
+  .ss-info {
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ss-info-left { display: flex; flex-direction: column; gap: 2px; }
+  .ss-time {
+    font-size: var(--tool-text-xs);
+    color: var(--tool-text-secondary);
+    font-weight: 500;
+  }
+  .ss-meta {
+    font-size: 10px;
+    color: var(--tool-text-tertiary);
+    font-family: var(--tool-font-mono);
+  }
+  .ss-size {
+    font-size: 10px;
+    color: var(--tool-text-tertiary);
+    font-family: var(--tool-font-mono);
+    background: var(--tool-bg-sunken);
+    padding: 2px 6px;
+    border-radius: var(--tool-radius-xs);
+  }
+
+  /* ── Bottom Bar: Load More ── */
+  .bottom-bar {
+    padding: 16px 32px 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--tool-border);
+  }
+  .load-more-btn {
+    height: 36px;
+    padding: 0 24px;
+    border-radius: var(--tool-radius-sm);
+    font-size: var(--tool-text-sm);
+    font-family: var(--tool-font-sans);
+    font-weight: 500;
+    border: 1px solid var(--tool-border);
+    background: var(--tool-bg-elevated);
+    color: var(--tool-text-secondary);
+    cursor: pointer;
+    transition: all var(--tool-transition);
+  }
+  .load-more-btn:hover { border-color: var(--tool-accent); color: var(--tool-accent); background: var(--tool-accent-soft); }
+  .load-counter {
+    font-size: var(--tool-text-xs);
+    color: var(--tool-text-tertiary);
+  }
+
+  /* ── Batch Action Bar ── */
+  .batch-bar {
+    position: absolute;
+    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 48px;
+    background: var(--tool-bg-elevated);
+    border: 1px solid var(--tool-border-strong);
+    border-radius: var(--tool-radius-lg);
+    box-shadow: var(--tool-shadow-float);
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 4px;
+    z-index: 100;
+  }
+  .batch-count {
+    font-size: var(--tool-text-sm);
+    font-weight: 600;
+    color: var(--tool-accent);
+    padding: 0 12px;
+    white-space: nowrap;
+    border-right: 1px solid var(--tool-border);
+    height: 28px;
+    display: flex;
+    align-items: center;
+  }
+  .batch-btn {
+    height: 34px;
+    padding: 0 14px;
+    border-radius: var(--tool-radius-sm);
+    font-size: var(--tool-text-xs);
+    font-family: var(--tool-font-sans);
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all var(--tool-transition);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    background: transparent;
+    color: var(--tool-text-secondary);
+  }
+  .batch-btn:hover { background: var(--tool-bg-hover); color: var(--tool-text); }
+  .batch-btn.danger { color: var(--tool-error); }
+  .batch-btn.danger:hover { background: rgba(255,82,82,0.1); }
+  .batch-btn.primary {
+    background: var(--tool-accent);
+    color: #fff;
+  }
+  .batch-btn.primary:hover { background: var(--tool-accent-hover); }
+  .batch-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+  .batch-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--tool-border);
+    flex-shrink: 0;
+  }
+
+  /* ── Relative container for batch bar positioning ── */
+  .main-inner {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ Sidebar ═══════════ -->
+<aside class="sidebar">
+  <div class="sidebar-app-icon" data-dom-id="nav-dashboard">
+    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+  </div>
+  <nav class="sidebar-nav">
+    <!-- 粘贴/贴图 -->
+    <div class="sidebar-item" data-dom-id="nav-sticker" title="贴图管理">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+    </div>
+    <!-- 截图历史 (active) -->
+    <div class="sidebar-item active" data-dom-id="nav-screenshots" title="截图历史">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    </div>
+    <!-- 颜色工具 -->
+    <div class="sidebar-item" data-dom-id="nav-colors" title="颜色工具">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/><path d="M12 2a10 10 0 0 0 0 20"/></svg>
+    </div>
+    <!-- 尺子/测量 -->
+    <div class="sidebar-item" data-dom-id="nav-ruler" title="测量工具">
+      <svg viewBox="0 0 24 24"><path d="M2 12h20"/><path d="M6 8v8"/><path d="M10 10v4"/><path d="M14 10v4"/><path d="M18 8v8"/></svg>
+    </div>
+    <!-- 文字识别 -->
+    <div class="sidebar-item" data-dom-id="nav-ocr" title="文字识别">
+      <svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- 画板 -->
+    <div class="sidebar-item" data-dom-id="nav-canvas" title="画板">
+      <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    </div>
+    <!-- AI助手 -->
+    <div class="sidebar-item" data-dom-id="nav-assistant" title="AI助手">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="sidebar-badge">3</span>
+    </div>
+    <!-- 待办 -->
+    <div class="sidebar-item" data-dom-id="nav-todos" title="待办事项">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </div>
+
+    <div class="sidebar-spacer"></div>
+
+    <!-- 设置 -->
+    <div class="sidebar-item" data-dom-id="nav-settings" title="设置">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </div>
+  </nav>
+</aside>
+
+<!-- ═══════════ Main Area ═══════════ -->
+<main class="main">
+  <div class="main-inner">
+    <!-- Header -->
+    <div class="header">
+      <h1>截图历史</h1>
+      <p class="subtitle">共 156 张截图 · 占用 234 MB</p>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="view-toggle">
+        <button class="view-btn active" data-dom-id="view-grid" title="网格视图">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </button>
+        <button class="view-btn" data-dom-id="view-list" title="列表视图">
+          <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <div class="date-filters">
+        <button class="date-btn">今日</button>
+        <button class="date-btn">本周</button>
+        <button class="date-btn active">本月</button>
+        <button class="date-btn">全部</button>
+      </div>
+
+      <div class="toolbar-divider"></div>
+
+      <div class="search-box">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="搜索截图...">
+      </div>
+
+      <button class="filter-btn">
+        <svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        尺寸筛选
+        <svg viewBox="0 0 24 24" style="width:10px;height:10px"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+
+      <button class="sort-btn">
+        <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        最新优先
+      </button>
+    </div>
+
+    <!-- Grid -->
+    <div class="grid-container">
+      <div class="screenshot-grid">
+
+        <!-- Card 1 - IDE (selected) -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-blue"></div>
+          <div class="ss-checkbox checked">
+            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">今天 14:32</span>
+              <span class="ss-meta">1920×1080</span>
+            </div>
+            <span class="ss-size">1.8 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 2 - Browser -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-warm"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">今天 13:18</span>
+              <span class="ss-meta">2560×1440</span>
+            </div>
+            <span class="ss-size">2.4 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 3 - Terminal (selected) -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-dark"></div>
+          <div class="ss-checkbox checked">
+            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">今天 11:05</span>
+              <span class="ss-meta">1920×1080</span>
+            </div>
+            <span class="ss-size">0.6 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 4 -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-purple"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">今天 09:47</span>
+              <span class="ss-meta">3840×2160</span>
+            </div>
+            <span class="ss-size">4.2 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 5 -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-teal"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">昨天 22:14</span>
+              <span class="ss-meta">1920×1080</span>
+            </div>
+            <span class="ss-size">1.5 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 6 -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-indigo"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">昨天 18:33</span>
+              <span class="ss-meta">2560×1440</span>
+            </div>
+            <span class="ss-size">2.1 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 7 -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-green"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">昨天 16:21</span>
+              <span class="ss-meta">1920×1080</span>
+            </div>
+            <span class="ss-size">1.3 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 8 -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-orange"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">昨天 14:09</span>
+              <span class="ss-meta">3840×2160</span>
+            </div>
+            <span class="ss-size">3.8 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 9 -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-pink"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">7月3日 20:45</span>
+              <span class="ss-meta">1920×1080</span>
+            </div>
+            <span class="ss-size">1.7 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 10 -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-cyan"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">7月3日 15:12</span>
+              <span class="ss-meta">2560×1440</span>
+            </div>
+            <span class="ss-size">2.0 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 11 -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-slate"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">7月3日 11:38</span>
+              <span class="ss-meta">1920×1080</span>
+            </div>
+            <span class="ss-size">0.9 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 12 -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-amber"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">7月2日 19:26</span>
+              <span class="ss-meta">3840×2160</span>
+            </div>
+            <span class="ss-size">3.5 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 13 -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-red"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">7月2日 14:50</span>
+              <span class="ss-meta">1920×1080</span>
+            </div>
+            <span class="ss-size">1.6 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 14 -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-lime"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">7月2日 10:17</span>
+              <span class="ss-meta">2560×1440</span>
+            </div>
+            <span class="ss-size">2.3 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 15 -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-deepblue"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">7月1日 21:33</span>
+              <span class="ss-meta">1920×1080</span>
+            </div>
+            <span class="ss-size">1.1 MB</span>
+          </div>
+        </div>
+
+        <!-- Card 16 -->
+        <div class="ss-card">
+          <div class="ss-thumb grad-coral"></div>
+          <div class="ss-checkbox"></div>
+          <div class="ss-overlay">
+            <div class="ss-actions">
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>加载</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>贴图</button>
+              <button class="ss-action-btn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>发给AI</button>
+              <button class="ss-action-btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>删除</button>
+            </div>
+          </div>
+          <div class="ss-info">
+            <div class="ss-info-left">
+              <span class="ss-time">7月1日 16:08</span>
+              <span class="ss-meta">3840×2160</span>
+            </div>
+            <span class="ss-size">4.0 MB</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+      <button class="load-more-btn" data-dom-id="btn-load-more">加载更多</button>
+      <span class="load-counter">已显示 16 / 156</span>
+    </div>
+
+    <!-- Batch Action Bar -->
+    <div class="batch-bar">
+      <span class="batch-count">已选择 3 项</span>
+      <div class="batch-divider"></div>
+      <button class="batch-btn danger">
+        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        批量删除
+      </button>
+      <button class="batch-btn">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        批量导出
+      </button>
+      <div class="batch-divider"></div>
+      <button class="batch-btn primary">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        发给AI分析
+      </button>
+    </div>
+  </div>
+</main>
+
+</body>
+</html>

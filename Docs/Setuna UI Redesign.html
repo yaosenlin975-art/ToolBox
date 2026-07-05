@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Setuna 2.0 UI Redesign</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap");
+:root{--bg:#FAFAFA;--bg2:#FFF;--bg3:#F5F5F5;--bgH:#F0F0F0;--t1:#1A1A1A;--t2:#666;--t3:#999;--ac:#E8734A;--acL:#FFF0EB;--acD:#C45A35;--bd:#E8E8E8;--bdL:#F0F0F0;--rS:6px;--rM:10px;--rL:14px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Inter","Noto Sans SC",-apple-system,sans-serif;background:#E8E8E8;color:var(--t1);line-height:1.5}
+.page{padding:48px;display:flex;flex-direction:column;align-items:center;gap:48px}
+.ptitle{font-size:13px;font-weight:500;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:-24px}
+.slabel{font-size:11px;font-weight:600;color:var(--t3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px;align-self:flex-start;padding-left:4px}
+.srow{display:flex;gap:32px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.slbl{font-size:12px;color:var(--t3);font-style:italic;margin-bottom:8px;text-align:center}
+.ow{width:680px;background:var(--bg2);border-radius:var(--rL);box-shadow:0 8px 24px rgba(0,0,0,.08);overflow:hidden;border:1px solid var(--bd)}
+.oh{padding:20px 24px 0;border-bottom:1px solid var(--bdL)}
+.otabs{display:flex;overflow-x:auto}
+.otab{padding:10px 16px;font-size:13px;font-weight:500;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;user-select:none}
+.otab:hover{color:var(--t2)}.otab.a{color:var(--ac);border-bottom-color:var(--ac)}
+.ob{padding:24px;min-height:380px}
+.of{padding:16px 24px;border-top:1px solid var(--bdL);display:flex;justify-content:flex-end;gap:8px}
+.btn{padding:8px 20px;border-radius:var(--rS);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--bd);background:var(--bg2);color:var(--t1);transition:all .15s}
+.btn:hover{background:var(--bgH)}.bp{background:var(--ac);color:#fff;border-color:var(--ac)}.bp:hover{background:var(--acD)}
+.gb{border:1px solid var(--bdL);border-radius:var(--rM);padding:16px;margin-bottom:16px}
+.gt{font-size:12px;font-weight:600;color:var(--t2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.04em}
+.ck{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t1);cursor:pointer;padding:4px 0}
+.ckb{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--bd);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ckb.on{background:var(--ac);border-color:var(--ac)}.ckb.on::after{content:"";width:8px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translateY(-1px)}
+.rd{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t1);cursor:pointer;padding:4px 0}
+.rdot{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--bd);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rdot.on{border-color:var(--ac)}.rdot.on::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--ac)}
+.csw{width:28px;height:28px;border-radius:6px;border:1.5px solid var(--bd);cursor:pointer}
+.sl{width:160px;height:4px;background:var(--bd);border-radius:2px;position:relative}
+.sf{height:100%;background:var(--ac);border-radius:2px}
+.sth{width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--ac);position:absolute;top:50%;transform:translate(-50%,-50%)}
+.hkr{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--bg3);border-radius:var(--rS);margin-bottom:8px}
+.hkl{font-size:13px;color:var(--t2);min-width:120px}
+.hkv{font-size:13px;font-weight:600;color:var(--t1);background:var(--bg2);padding:4px 12px;border-radius:4px;border:1px solid var(--bd);min-width:100px;text-align:center;font-family:Consolas,monospace}
+.hkc{margin-left:auto;padding:4px 12px;font-size:12px;border-radius:4px;border:1px solid var(--bd);background:var(--bg2);cursor:pointer;color:var(--ac);font-weight:500}.hkc:hover{background:var(--acL)}
+.hw{width:420px;background:var(--bg2);border-radius:var(--rL);box-shadow:0 8px 24px rgba(0,0,0,.08);overflow:hidden;border:1px solid var(--bd)}
+.hh{padding:20px 20px 0}.ht{font-size:16px;font-weight:600;color:var(--t1)}.hsb{font-size:12px;color:var(--t3);margin-top:2px}
+.hl{padding:16px 20px;max-height:440px;overflow-y:auto}
+.hi{display:flex;align-items:center;gap:14px;padding:12px;border-radius:var(--rM);cursor:pointer;transition:background .12s;margin-bottom:4px}.hi:hover{background:var(--bg3)}
+.him{width:64px;height:48px;border-radius:6px;border:1px solid var(--bdL);flex-shrink:0;background:var(--bg3)}
+.hif{flex:1;min-width:0}.hit{font-size:13px;font-weight:500;color:var(--t1)}.himt{font-size:11px;color:var(--t3);margin-top:2px}
+.hia{width:28px;height:28px;border-radius:6px;border:none;background:transparent;color:var(--t3);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}.hia:hover{background:var(--acL);color:var(--ac)}
+.hf{padding:12px 20px;border-top:1px solid var(--bdL);text-align:center}
+.lm{font-size:13px;color:var(--ac);cursor:pointer;font-weight:500;background:none;border:none;padding:6px 16px;border-radius:var(--rS)}.lm:hover{background:var(--acL)}
+.hc{font-size:11px;color:var(--t3);margin-top:4px}
+.sp{width:360px;height:240px;background:var(--bg2);border-radius:var(--rL);box-shadow:0 8px 24px rgba(0,0,0,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid var(--bd);position:relative;overflow:hidden}
+.sp::before{content:"";position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:var(--acL);opacity:.5}
+.sp::after{content:"";position:absolute;bottom:-40px;left:-40px;width:160px;height:160px;border-radius:50%;background:var(--acL);opacity:.3}
+.spc{position:relative;z-index:1;text-align:center}
+.spl{font-size:32px;font-weight:700;color:var(--t1);letter-spacing:-.02em}.spl span{color:var(--ac)}
+.spd{font-size:13px;color:var(--t3);margin-top:6px}.spv{font-size:11px;color:var(--t3);margin-top:12px;opacity:.6}
+.co{width:640px;height:360px;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);border-radius:var(--rL);box-shadow:0 8px 24px rgba(0,0,0,.08);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.cc{width:24px;height:24px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.cc::before,.cc::after{content:"";position:absolute;background:rgba(255,255,255,.8)}
+.cc::before{width:1px;height:100%;left:50%;transform:translateX(-50%)}
+.cc::after{width:100%;height:1px;top:50%;transform:translateY(-50%)}
+.ch{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font-size:12px;color:rgba(255,255,255,.5);background:rgba(0,0,0,.3);padding:6px 16px;border-radius:20px;backdrop-filter:blur(8px)}
+.csel{position:absolute;border:2px solid var(--ac);background:rgba(232,115,74,.15);border-radius:2px;display:none}
+.csz{position:absolute;bottom:-24px;left:50%;transform:translateX(-50%);font-size:11px;color:#fff;background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;white-space:nowrap}
+.scw{width:280px;background:var(--bg2);border-radius:var(--rM);box-shadow:0 4px 20px rgba(0,0,0,.12),0 0 0 1px rgba(0,0,0,.04);overflow:hidden}
+.sct{display:flex;align-items:center;padding:6px 10px;background:var(--bg3);border-bottom:1px solid var(--bdL);cursor:grab}
+.scn{font-size:12px;color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scc{display:flex;gap:4px}
+.scb{width:18px;height:18px;border-radius:4px;border:none;background:transparent;color:var(--t3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px}.scb:hover{background:var(--bd);color:var(--t1)}.scb.x:hover{background:#E85D4A;color:#fff}
+.pi{width:100%;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:12px}
+.scs{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-top:1px solid var(--bdL)}
+.scst{font-size:11px;color:var(--t3)}
+.scsb{font-size:10px;padding:2px 8px;border-radius:10px;background:var(--acL);color:var(--ac);font-weight:500}
+.cps{width:160px;border-radius:var(--rM);overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.12),0 0 0 1px rgba(0,0,0,.04)}
+.cpo{position:absolute;inset:0;background:transparent;transition:background .15s}.cps:hover .cpo{background:rgba(0,0,0,.05)}
+.tm{width:220px;background:var(--bg2);border-radius:var(--rM);box-shadow:0 8px 32px rgba(0,0,0,.12),0 0 0 1px rgba(0,0,0,.04);padding:6px}
+.tmi{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--rS);cursor:pointer;font-size:13px;color:var(--t1);transition:background .1s}.tmi:hover{background:var(--bgH)}
+.tmii{width:16px;text-align:center;color:var(--t3);font-size:14px}
+.tms{height:1px;background:var(--bdL);margin:4px 8px}
+.tmi.d{color:#E85D4A}.tmi.d .tmii{color:#E85D4A}
+.stli{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:var(--rS);border:1px solid var(--bdL);margin-bottom:6px;cursor:pointer}.stli:hover{border-color:var(--ac);background:var(--acL)}
+.stlii{width:32px;height:32px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.stlin{font-size:13px;font-weight:500;color:var(--t1)}.stlik{font-size:11px;color:var(--t3);margin-top:1px;font-family:Consolas,monospace}
+.stlia{margin-left:auto;color:var(--t3);font-size:12px}
+</style></head>
+<body>
+<div class="page">
+<div class="ptitle">Setuna 2.0 — UI Redesign Prototype</div>
+<div class="slabel">SPLASH</div>
+<div class="srow"><div><div class="slbl">Splash</div>
+<div class="sp"><div class="spc"><div class="spl">Setu<span>na</span></div><div class="spd">Screenshots &amp; Pins</div><div class="spv">v2.0.0</div></div></div></div></div>
+<div class="slabel">CAPTURE</div>
+<div class="srow"><div><div class="slbl">Fullscreen Overlay (drag to select)</div>
+<div class="co" id="co"><div class="cc"></div><div class="csel" id="cs"><div class="csz" id="csz"></div></div><div class="ch">Drag to select · ESC cancel</div></div></div></div>
+<div class="slabel">OPTIONS</div>
+<div class="srow">
+<div><div class="slbl">Hotkey</div>
+<div class="ow"><div class="oh"><div class="otabs"><div class="otab">General</div><div class="otab a">Hotkey</div><div class="otab">Capture</div><div class="otab">Scrap</div><div class="otab">Style</div></div></div>
+<div class="ob"><div style="margin-bottom:16px"><label class="ck"><div class="ckb on"></div><span>Enable Global Hotkeys</span></label></div>
+<div class="gb"><div class="gt">Settings</div>
+<div class="hkr"><span class="hkl">Capture</span><span class="hkv">Ctrl+1</span><button class="hkc">Change</button></div>
+<div class="hkr"><span class="hkl">Show/Hide</span><span class="hkv">Ctrl+2</span><button class="hkc">Change</button></div></div></div>
+<div class="of"><button class="btn">Cancel</button><button class="btn bp">Save</button></div></div></div>
+<div><div class="slbl">Capture</div>
+<div class="ow"><div class="oh"><div class="otabs"><div class="otab">General</div><div class="otab">Hotkey</div><div class="otab a">Capture</div><div class="otab">Scrap</div><div class="otab">Style</div></div></div>
+<div class="ob"><div class="gb"><div class="gt">Selection</div>
+<div style="display:flex;gap:20px"><label class="rd"><div class="rdot"></div><span>Dashed</span></label><label class="rd"><div class="rdot on"></div><span>Solid</span></label></div></div>
+<div class="gb"><div class="gt">Colors</div>
+<div class="ck" style="margin-bottom:8px"><div class="csw" style="background:#0066FF"></div><span style="font-size:12px;color:var(--t3)">Line</span></div>
+<div class="ck"><div class="sl"><div class="sf" style="width:31%"></div><div class="sth" style="left:31%"></div></div><span style="font-size:12px;color:var(--t3)">80</span></div></div>
+<div style="display:flex;flex-direction:column;gap:4"><label class="ck"><div class="ckb on"></div><span>Cursor</span></label><label class="ck"><div class="ckb on"></div><span>Crosshair</span></label><label class="ck"><div class="ckb on"></div><span>Magnifier</span></label></div></div>
+<div class="of"><button class="btn">Cancel</button><button class="btn bp">Save</button></div></div></div>
+<div><div class="slbl">Styles</div>
+<div class="ow"><div class="oh"><div class="otabs"><div class="otab">General</div><div class="otab">Hotkey</div><div class="otab">Capture</div><div class="otab">Scrap</div><div class="otab a">Style</div></div></div>
+<div class="ob"><div style="display:flex;gap:8;margin-bottom:12px"><button class="btn" style="font-size:12px">Add</button><button class="btn" style="font-size:12px">Edit</button><button class="btn" style="font-size:12px;color:#E85D4A">Delete</button></div>
+<div class="stli"><div class="stlii">📋</div><div><div class="stlin">Copy</div><div class="stlik">Ctrl+1</div></div><span class="stlia">›</span></div>
+<div class="stli"><div class="stlii">📋</div><div><div class="stlin">Copy (border)</div><div class="stlik">Ctrl+2</div></div><span class="stlia">›</span></div>
+<div class="stli"><div class="stlii">✂️</div><div><div class="stlin">Cut</div><div class="stlik">Ctrl+X</div></div><span class="stlia">›</span></div>
+<div class="stli"><div class="stlii">📥</div><div><div class="stlin">Paste</div><div class="stlik">Ctrl+V</div></div><span class="stlia">›</span></div>
+<div class="stli"><div class="stlii">💾</div><div><div class="stlin">Save</div><div class="stlik">Ctrl+S</div></div><span class="stlia">›</span></div></div>
+<div class="of"><button class="btn">Cancel</button><button class="btn bp">Save</button></div></div></div></div>
+<div class="slabel">HISTORY + TRAY</div>
+<div class="srow">
+<div><div class="slbl">History</div>
+<div class="hw"><div class="hh"><div class="ht">Screenshot History</div><div class="hsb">12 records</div></div>
+<div class="hl">
+<div class="hi"><div class="him" style="background:linear-gradient(135deg,#c9b896,#bfad84)"></div><div class="hif"><div class="hit">2026-07-04 15:32</div><div class="himt">1920×1080</div></div><button class="hia">↗</button><button class="hia">✕</button></div>
+<div class="hi"><div class="him" style="background:linear-gradient(135deg,#bfad84,#a89878)"></div><div class="hif"><div class="hit">2026-07-04 15:28</div><div class="himt">800×600</div></div><button class="hia">↗</button><button class="hia">✕</button></div>
+<div class="hi"><div class="him" style="background:linear-gradient(135deg,#d4c4a8,#c4b490)"></div><div class="hif"><div class="hit">2026-07-04 14:55</div><div class="himt">1280×720</div></div><button class="hia">↗</button><button class="hia">✕</button></div>
+<div class="hi"><div class="him" style="background:linear-gradient(135deg,#a89878,#8a7a60)"></div><div class="hif"><div class="hit">2026-07-04 14:20</div><div class="himt">640×480</div></div><button class="hia">↗</button><button class="hia">✕</button></div>
+<div class="hi"><div class="him" style="background:linear-gradient(135deg,#c4b490,#bfa87a)"></div><div class="hif"><div class="hit">2026-07-04 13:45</div><div class="himt">1920×1080</div></div><button class="hia">↗</button><button class="hia">✕</button></div>
+</div><div class="hf"><button class="lm">Load More ↓</button><div class="hc">5 / 12</div></div></div></div>
+<div><div class="slbl">Tray Menu</div>
+<div class="tm">
+<div class="tmi"><span class="tmii">📸</span><span>Capture</span><span style="margin-left:auto;font-size:11px;color:var(--t3)">Ctrl+1</span></div>
+<div class="tmi"><span class="tmii">📋</span><span>Paste</span></div>
+<div class="tms"></div>
+<div class="tmi"><span class="tmii">🕐</span><span>History</span></div>
+<div class="tmi"><span class="tmii">📑</span><span>Scrap List</span></div>
+<div class="tms"></div>
+<div class="tmi"><span class="tmii">⚙️</span><span>Options</span></div>
+<div class="tms"></div>
+<div class="tmi"><span class="tmii">🔄</span><span>Show/Hide All</span></div>
+<div class="tms"></div>
+<div class="tmi d"><span class="tmii">✕</span><span>Exit</span></div></div></div></div>
+<div class="slabel">SCRAP + HOTKEY</div>
+<div class="srow">
+<div><div class="slbl">Standard Pin</div>
+<div class="scw"><div class="sct"><span class="scn">Reference 1</span><div class="scc"><button class="scb">⊞</button><button class="scb">◐</button><button class="scb x">✕</button></div></div>
+<div class="pi" style="height:180px;background:linear-gradient(135deg,#e8d5b7,#d4c4a8 30%,#c9b896 60%,#bfad84)"><span style="opacity:.5">280×180</span></div>
+<div class="scs"><span class="scst">280×180</span><span class="scsb">Copy</span></div></div></div>
+<div><div class="slbl">Compact</div>
+<div class="cps"><div class="pi" style="height:120px;background:linear-gradient(135deg,#d4c4a8,#bfad84)"></div></div></div>
+<div><div class="slbl">Styled Pin</div>
+<div class="scw" style="border:2px solid var(--ac)"><div class="sct"><span class="scn">Design Ref</span><div class="scc"><button class="scb">⊞</button><button class="scb">◐</button><button class="scb x">✕</button></div></div>
+<div class="pi" style="height:200px;background:linear-gradient(135deg,#c9b896,#a89878)"><span style="opacity:.5">320×200</span></div>
+<div class="scs"><span class="scst">320×200</span><span class="scsb">Copy (border)</span></div></div></div>
+<div><div class="slbl">Hotkey Dialog</div>
+<div style="width:300px;background:var(--bg2);border-radius:var(--rL);box-shadow:0 8px 24px rgba(0,0,0,.08);overflow:hidden;border:1px solid var(--bd)">
+<div style="padding:32px 24px;text-align:center"><div style="font-size:13px;color:var(--t2);margin-bottom:16px">Press key combination</div>
+<div style="font-size:24px;font-weight:700;color:var(--t1);font-family:Consolas,monospace">Ctrl+Shift+<span style="color:var(--ac)">A</span></div>
+<div style="font-size:11px;color:var(--t3);margin-top:12px">ESC to cancel</div></div>
+<div style="padding:12px 24px;border-top:1px solid var(--bdL);display:flex;justify-content:flex-end;gap:8px"><button class="btn" style="flex:1">Cancel</button><button class="btn bp" style="flex:1">OK</button></div></div></div>
+</div></div>
+<script>
+var co=document.getElementById("co"),cs=document.getElementById("cs"),csz=document.getElementById("csz");
+var drag=false,sx=0,sy=0;
+co.onmousedown=function(e){var r=co.getBoundingClientRect();sx=e.clientX-r.left;sy=e.clientY-r.top;drag=true;cs.style.display="block";cs.style.left=sx+"px";cs.style.top=sy+"px";cs.style.width="0";cs.style.height="0"};
+co.onmousemove=function(e){if(!drag)return;var r=co.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,l=Math.min(sx,x),t=Math.min(sy,y),w=Math.abs(x-sx),h=Math.abs(y-sy);cs.style.left=l+"px";cs.style.top=t+"px";cs.style.width=w+"px";cs.style.height=h+"px";csz.textContent=w+" x "+h};
+co.onmouseup=function(){drag=false};co.onmouseleave=function(){drag=false};
+</script></body></html>

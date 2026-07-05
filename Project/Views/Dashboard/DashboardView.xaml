@@ -1,0 +1,128 @@
+<UserControl x:Class="ToolBox.Views.Dashboard.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BgBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="32,24">
+        <StackPanel MaxWidth="960" HorizontalAlignment="Stretch">
+
+            <!-- 欢迎区 -->
+            <StackPanel Margin="0,0,0,24">
+                <TextBlock Text="欢迎使用 ToolBox" FontSize="28" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <TextBlock x:Name="WelcomeHint" Text="今天也要保持高效" FontSize="13" Margin="0,6,0,0"
+                           Foreground="{DynamicResource TextTertiaryBrush}"/>
+            </StackPanel>
+
+            <!-- 统计卡片 -->
+            <UniformGrid Columns="4" Margin="0,0,0,28">
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,12,0" Cursor="Hand"
+                        MouseLeftButtonUp="StatCard_Click" Tag="todos">
+                    <StackPanel>
+                        <TextBlock Text="待办" FontSize="12" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                        <TextBlock x:Name="StatTodo" Text="0" FontSize="28" FontWeight="Bold" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock x:Name="StatTodoHint" Text="进行中" FontSize="11" Margin="0,2,0,0"
+                                   Foreground="{DynamicResource TextTertiaryBrush}"/>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Margin="6,0,12,0" Cursor="Hand"
+                        MouseLeftButtonUp="StatCard_Click" Tag="assistant">
+                    <StackPanel>
+                        <TextBlock Text="会话" FontSize="12" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                        <TextBlock x:Name="StatChat" Text="0" FontSize="28" FontWeight="Bold" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="AI 助手" FontSize="11" Margin="0,2,0,0"
+                                   Foreground="{DynamicResource TextTertiaryBrush}"/>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Margin="6,0,12,0" Cursor="Hand"
+                        MouseLeftButtonUp="StatCard_Click" Tag="screenshots">
+                    <StackPanel>
+                        <TextBlock Text="截图" FontSize="12" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                        <TextBlock x:Name="StatShot" Text="0" FontSize="28" FontWeight="Bold" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="已缓存" FontSize="11" Margin="0,2,0,0"
+                                   Foreground="{DynamicResource TextTertiaryBrush}"/>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Margin="6,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="主题" FontSize="12" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                        <TextBlock x:Name="StatTheme" Text="System" FontSize="20" FontWeight="Bold" Margin="0,8,0,0"
+                                   Foreground="{DynamicResource AccentBrush}"/>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <!-- 快捷入口 -->
+            <TextBlock Text="快捷入口" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"
+                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+            <UniformGrid Columns="2" Rows="2">
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,12,12" Cursor="Hand"
+                        MouseLeftButtonUp="QuickAction_Click" Tag="assistant">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="36" Height="36" CornerRadius="8"
+                                Background="{DynamicResource AccentBrush}" Opacity="0.12">
+                            <TextBlock Text="✦" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentBrush}"/>
+                        </Border>
+                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="打开 AI 助手" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="开始一段新对话" FontSize="11" Margin="0,2,0,0"
+                                       Foreground="{DynamicResource TextTertiaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Margin="6,0,0,12" Cursor="Hand"
+                        MouseLeftButtonUp="QuickAction_Click" Tag="todos">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="36" Height="36" CornerRadius="8"
+                                Background="{DynamicResource AccentBrush}" Opacity="0.12">
+                            <TextBlock Text="✓" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentBrush}"/>
+                        </Border>
+                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="新建待办" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="记录今天要做的事" FontSize="11" Margin="0,2,0,0"
+                                       Foreground="{DynamicResource TextTertiaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,12,0" Cursor="Hand"
+                        MouseLeftButtonUp="QuickAction_Click" Tag="screenshots">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="36" Height="36" CornerRadius="8"
+                                Background="{DynamicResource AccentBrush}" Opacity="0.12">
+                            <TextBlock Text="▣" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentBrush}"/>
+                        </Border>
+                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="查看截图" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="浏览历史截图" FontSize="11" Margin="0,2,0,0"
+                                       Foreground="{DynamicResource TextTertiaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Margin="6,0,0,0" Cursor="Hand"
+                        MouseLeftButtonUp="QuickAction_Click" Tag="settings">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="36" Height="36" CornerRadius="8"
+                                Background="{DynamicResource AccentBrush}" Opacity="0.12">
+                            <TextBlock Text="⚙" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentBrush}"/>
+                        </Border>
+                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="设置" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="配置 ToolBox" FontSize="11" Margin="0,2,0,0"
+                                       Foreground="{DynamicResource TextTertiaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

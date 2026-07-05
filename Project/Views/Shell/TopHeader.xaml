@@ -1,0 +1,24 @@
+<UserControl x:Class="ToolBox.Views.Shell.TopHeader"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="52">
+    <Border Background="{DynamicResource BgElevatedBrush}"
+            BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,0,0,1">
+        <Grid Margin="24,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock x:Name="TitleText" FontSize="16" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <TextBlock x:Name="SubtitleText" FontSize="13" Margin="12,0,0,0"
+                           Foreground="{DynamicResource TextTertiaryBrush}"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <ContentPresenter x:Name="RightContent"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

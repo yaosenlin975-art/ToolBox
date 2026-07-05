@@ -1,0 +1,12 @@
+﻿<UserControl x:Class="ToolBox.Views.Chat.MessageBubble"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Margin="16,4">
+    <Border x:Name="BubbleBorder" CornerRadius="8" Padding="12,10" MaxWidth="500" HorizontalAlignment="Left">
+        <StackPanel>
+            <TextBlock x:Name="RoleLabel" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4" Visibility="Collapsed"/>
+            <TextBlock x:Name="ContentText" TextWrapping="Wrap" FontSize="13" LineHeight="20"/>
+            <TextBlock x:Name="StreamingDot" Text="●" FontSize="10" Foreground="{StaticResource ChatStreamingDotBrush}" Visibility="Collapsed" Margin="0,4,0,0"/>
+        </StackPanel>
+    </Border>
+</UserControl>

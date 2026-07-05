@@ -1,0 +1,138 @@
+/* ToolBox Design System — Nerv-inspired dual theme */
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Surface */
+  --tool-bg: #f8f9fb;
+  --tool-bg-elevated: #ffffff;
+  --tool-bg-sunken: #f0f1f4;
+  --tool-bg-overlay: rgba(255,255,255,0.92);
+  --tool-bg-hover: #eef0f4;
+
+  /* Text */
+  --tool-text: #0f1117;
+  --tool-text-secondary: #5c6370;
+  --tool-text-tertiary: #9ca3af;
+  --tool-text-inverted: #ffffff;
+
+  /* Accent */
+  --tool-accent: #d63031;
+  --tool-accent-hover: #b71c1c;
+  --tool-accent-soft: rgba(214,48,49,0.08);
+  --tool-accent-medium: rgba(214,48,49,0.15);
+
+  /* Status */
+  --tool-success: #00b894;
+  --tool-warning: #fdcb6e;
+  --tool-error: #ff4757;
+  --tool-info: #74b9ff;
+
+  /* Border */
+  --tool-border: #e2e4e9;
+  --tool-border-strong: #d0d3da;
+
+  /* Sidebar */
+  --tool-sidebar-bg: #12131a;
+  --tool-sidebar-text: #a3a8b8;
+  --tool-sidebar-text-active: #ffffff;
+  --tool-sidebar-accent: #d63031;
+  --tool-sidebar-hover: rgba(255,255,255,0.06);
+
+  /* Chat */
+  --tool-chat-user-bg: #d63031;
+  --tool-chat-user-text: #ffffff;
+  --tool-chat-ai-bg: var(--tool-bg-elevated);
+  --tool-chat-ai-text: var(--tool-text);
+  --tool-chat-tool-bg: #f3e5f5;
+  --tool-chat-tool-text: #6a1b9a;
+  --tool-chat-input-bg: var(--tool-bg-elevated);
+  --tool-chat-input-border: var(--tool-border);
+
+  /* Radius */
+  --tool-radius-xs: 4px;
+  --tool-radius-sm: 6px;
+  --tool-radius-md: 10px;
+  --tool-radius-lg: 14px;
+  --tool-radius-xl: 20px;
+  --tool-radius-full: 9999px;
+
+  /* Spacing */
+  --tool-space-1: 4px;
+  --tool-space-2: 8px;
+  --tool-space-3: 12px;
+  --tool-space-4: 16px;
+  --tool-space-5: 20px;
+  --tool-space-6: 24px;
+  --tool-space-8: 32px;
+
+  /* Shadow */
+  --tool-shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --tool-shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --tool-shadow-lg: 0 8px 24px rgba(0,0,0,0.1);
+  --tool-shadow-float: 0 12px 40px rgba(0,0,0,0.12);
+
+  /* Font */
+  --tool-font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --tool-font-mono: 'Roboto Mono', 'Cascadia Code', 'Consolas', monospace;
+  --tool-font-serif: 'Aleo', Georgia, serif;
+
+  /* Type Scale */
+  --tool-text-xs: 0.6875rem;
+  --tool-text-sm: 0.8125rem;
+  --tool-text-base: 0.875rem;
+  --tool-text-lg: 1rem;
+  --tool-text-xl: 1.125rem;
+  --tool-text-2xl: 1.375rem;
+  --tool-text-3xl: 1.75rem;
+
+  /* Transition */
+  --tool-transition: 150ms ease;
+  --tool-transition-slow: 250ms ease;
+}
+
+/* Dark theme */
+.dark {
+  --tool-bg: #0c0d10;
+  --tool-bg-elevated: #141519;
+  --tool-bg-sunken: #08090c;
+  --tool-bg-overlay: rgba(20,21,25,0.95);
+  --tool-bg-hover: #1c1d24;
+
+  --tool-text: #e8ecf4;
+  --tool-text-secondary: #8b91a0;
+  --tool-text-tertiary: #555b6e;
+  --tool-text-inverted: #0f1117;
+
+  --tool-accent: #e84343;
+  --tool-accent-hover: #ff5c5c;
+  --tool-accent-soft: rgba(232,67,67,0.1);
+  --tool-accent-medium: rgba(232,67,67,0.2);
+
+  --tool-success: #00d2a0;
+  --tool-warning: #ffc107;
+  --tool-error: #ff5252;
+  --tool-info: #64b5f6;
+
+  --tool-border: #222430;
+  --tool-border-strong: #2d3040;
+
+  --tool-sidebar-bg: #08090c;
+  --tool-sidebar-text: #6b7280;
+  --tool-sidebar-text-active: #ffffff;
+  --tool-sidebar-accent: #e84343;
+  --tool-sidebar-hover: rgba(255,255,255,0.04);
+
+  --tool-chat-user-bg: #e84343;
+  --tool-chat-user-text: #ffffff;
+  --tool-chat-ai-bg: var(--tool-bg-elevated);
+  --tool-chat-ai-text: var(--tool-text);
+  --tool-chat-tool-bg: #1a1030;
+  --tool-chat-tool-text: #ce93d8;
+  --tool-chat-input-bg: var(--tool-bg-elevated);
+  --tool-chat-input-border: var(--tool-border);
+
+  --tool-shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --tool-shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --tool-shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+  --tool-shadow-float: 0 12px 40px rgba(0,0,0,0.6);
+}

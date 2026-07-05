@@ -1,0 +1,246 @@
+<UserControl x:Class="ToolBox.Views.Todo.TodoView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BgBrush}">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="65*"/>
+            <ColumnDefinition Width="35*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ── 左:列表区 ── -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Filter Bar -->
+            <Border Grid.Row="0" Padding="20,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+                    Background="{DynamicResource BgElevatedBrush}">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton x:Name="FilterAll" Content="全部" IsChecked="True" Margin="0,0,4,0"
+                                 Style="{StaticResource FilterTabStyle}" Click="Filter_Changed"/>
+                    <RadioButton x:Name="FilterPending" Content="待办" Margin="0,0,4,0"
+                                 Style="{StaticResource FilterTabStyle}" Click="Filter_Changed"/>
+                    <RadioButton x:Name="FilterCompleted" Content="已完成"
+                                 Style="{StaticResource FilterTabStyle}" Click="Filter_Changed"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Quick Add -->
+            <Border Grid.Row="1" Padding="20,10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+                    Background="{DynamicResource BgElevatedBrush}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="24" Height="24" CornerRadius="4"
+                            Background="{DynamicResource AccentBrush}" Margin="0,0,10,0">
+                        <TextBlock Text="+" Foreground="{DynamicResource TextInvertedBrush}" FontSize="16"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBox x:Name="NewTodoInput" Grid.Column="1" Margin="0,0,10,0"
+                             FontSize="13" Padding="0,4"
+                             Background="Transparent" BorderThickness="0"
+                             Foreground="{DynamicResource TextPrimaryBrush}"
+                             CaretBrush="{DynamicResource AccentBrush}"
+                             KeyDown="NewTodoInput_KeyDown"/>
+                    <Button x:Name="AddBtn" Grid.Column="2" Content="添加" Padding="12,4" FontSize="12"
+                            Style="{StaticResource BtnPrimary}" Click="AddBtn_Click"/>
+                </Grid>
+            </Border>
+
+            <!-- Todo List -->
+            <ListBox x:Name="TodoList" Grid.Row="2" Background="Transparent" BorderThickness="0"
+                     Padding="8,8,8,8" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     SelectionChanged="TodoList_SelectionChanged">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0,1"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="Bd" Background="Transparent" CornerRadius="8"
+                                            Padding="12,10" Cursor="Hand">
+                                        <ContentPresenter/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background"
+                                                    Value="{DynamicResource BgHoverBrush}"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Bd" Property="Background"
+                                                    Value="{DynamicResource AccentSoftBrush}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0" IsChecked="{Binding IsCompleted}" Margin="0,0,10,0"
+                                      Style="{StaticResource ModernCheckBox}"
+                                      Checked="DoneCheck_Changed" Unchecked="DoneCheck_Changed"/>
+                            <Ellipse Grid.Column="1" Width="8" Height="8" Margin="0,0,10,0"
+                                     Fill="{DynamicResource AccentBrush}" VerticalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Priority}" Value="0">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Title}" FontSize="13" TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource TextPrimaryBrush}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <ItemsControl ItemsSource="{Binding Tags}" Margin="0,4,0,0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource AccentSoftBrush}" CornerRadius="8"
+                                                    Padding="6,1" Margin="0,0,4,0">
+                                                <TextBlock Text="{Binding}" FontSize="10"
+                                                           Foreground="{DynamicResource AccentBrush}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                            <TextBlock Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0"
+                                       FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"
+                                       Text="{Binding DueDate, StringFormat='{}{0:MM-dd}'}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+
+        <!-- ── 右:详情面板 ── -->
+        <Border Grid.Column="1" Background="{DynamicResource BgElevatedBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Border Grid.Row="0" Padding="20,14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                    <TextBlock Text="任务详情" FontSize="12" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </Border>
+
+                <!-- 空状态 / 详情 -->
+                <Grid x:Name="DetailContainer" Grid.Row="1">
+                    <TextBlock x:Name="EmptyHint" Text="选择左侧任务查看详情"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextTertiaryBrush}" FontSize="13"/>
+
+                    <StackPanel x:Name="DetailPanel" Visibility="Collapsed" Margin="20,16">
+                        <!-- 标题 -->
+                        <TextBox x:Name="DetailTitle" FontSize="16" FontWeight="SemiBold"
+                                 Background="Transparent" BorderThickness="0,0,0,2" BorderBrush="Transparent"
+                                 Padding="0,4" Margin="0,0,0,16"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 CaretBrush="{DynamicResource AccentBrush}"
+                                 LostFocus="DetailTitle_LostFocus"/>
+
+                        <!-- 状态 -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <Border x:Name="DetailStatusBadge" CornerRadius="10" Padding="10,2"
+                                    Background="{DynamicResource AccentSoftBrush}">
+                                <TextBlock x:Name="DetailStatusText" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AccentBrush}"/>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- 优先级 -->
+                        <TextBlock Text="优先级" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <RadioButton x:Name="PriLow" Content="普通" Margin="0,0,6,0"
+                                         Style="{StaticResource PriOptionStyle}" Click="Priority_Changed"/>
+                            <RadioButton x:Name="PriMid" Content="重要" Margin="0,0,6,0"
+                                         Style="{StaticResource PriOptionStyle}" Click="Priority_Changed"/>
+                            <RadioButton x:Name="PriHigh" Content="紧急"
+                                         Style="{StaticResource PriOptionStyle}" Click="Priority_Changed"/>
+                        </StackPanel>
+
+                        <!-- 描述 -->
+                        <TextBlock Text="描述" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                        <TextBox x:Name="DetailDesc" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80"
+                                 FontSize="13" Padding="10" Margin="0,0,0,16"
+                                 Background="{DynamicResource BgSunkenBrush}"
+                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 CaretBrush="{DynamicResource AccentBrush}"
+                                 LostFocus="DetailDesc_LostFocus"/>
+
+                        <!-- 时间戳 -->
+                        <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="6" Padding="10">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="创建时间" FontSize="11"
+                                               Foreground="{DynamicResource TextTertiaryBrush}" Width="60"/>
+                                    <TextBlock x:Name="DetailCreated" FontSize="11"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="完成时间" FontSize="11"
+                                               Foreground="{DynamicResource TextTertiaryBrush}" Width="60"/>
+                                    <TextBlock x:Name="DetailCompleted" FontSize="11"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 删除 -->
+                        <Button x:Name="DetailDeleteBtn" Content="删除任务" HorizontalAlignment="Left"
+                                Margin="0,20,0,0" Padding="14,6" FontSize="12"
+                                Style="{StaticResource OutlineButton}"
+                                Foreground="{DynamicResource DangerBrush}"
+                                BorderBrush="{DynamicResource DangerBrush}"
+                                Click="DetailDelete_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

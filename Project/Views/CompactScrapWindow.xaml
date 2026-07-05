@@ -1,0 +1,24 @@
+﻿<Window x:Class="ToolBox.Views.CompactScrapWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ResizeMode="NoResize">
+    <Border CornerRadius="10" BorderBrush="#10000000" BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="16" Opacity="0.12" ShadowDepth="4" Color="Black"/>
+        </Border.Effect>
+        <Grid>
+            <Border CornerRadius="10" ClipToBounds="True">
+                <Image x:Name="compactImage" Stretch="Uniform"
+                       MouseLeftButtonDown="OnMouseLeftButtonDown"
+                       MouseMove="OnMouseMove"
+                       MouseLeftButtonUp="OnMouseLeftButtonUp"
+                       MouseRightButtonDown="OnMouseRightButtonDown"/>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

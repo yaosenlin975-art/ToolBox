@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ToolBox — AI Assistant</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    font-family: var(--tool-font-sans);
+    color: var(--tool-text);
+    background: var(--tool-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  /* ── Window Shell ── */
+  .window-shell {
+    width: 1440px; height: 900px;
+    background: var(--tool-bg);
+    border: 1px solid var(--tool-border);
+    border-radius: var(--tool-radius-lg);
+    overflow: hidden;
+    display: flex;
+    box-shadow: var(--tool-shadow-float);
+    position: relative;
+  }
+
+  /* ── Sidebar (64px) ── */
+  .sidebar {
+    width: 64px; flex-shrink: 0;
+    background: var(--tool-sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0;
+    z-index: 10;
+    border-right: 1px solid var(--tool-border);
+  }
+
+  .sidebar-logo {
+    width: 32px; height: 32px;
+    border-radius: var(--tool-radius-sm);
+    background: var(--tool-accent);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+    flex-shrink: 0;
+  }
+  .sidebar-logo svg { width: 18px; height: 18px; fill: #fff; }
+
+  .sidebar-nav {
+    display: flex; flex-direction: column; gap: 2px;
+    flex: 1; width: 100%; padding: 0 8px;
+  }
+
+  .sidebar-item {
+    width: 48px; height: 44px;
+    border-radius: var(--tool-radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; cursor: pointer;
+    transition: background var(--tool-transition);
+    flex-shrink: 0;
+    margin: 0 auto;
+  }
+  .sidebar-item:hover { background: var(--tool-sidebar-hover); }
+  .sidebar-item svg {
+    width: 20px; height: 20px;
+    stroke: var(--tool-sidebar-text);
+    fill: none; stroke-width: 1.5;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .sidebar-item.active {
+    background: rgba(232,67,67,0.12);
+  }
+  .sidebar-item.active::before {
+    content: '';
+    position: absolute;
+    left: -8px; top: 50%; transform: translateY(-50%);
+    width: 3px; height: 20px;
+    background: var(--tool-accent);
+    border-radius: 0 2px 2px 0;
+  }
+  .sidebar-item.active svg {
+    stroke: #fff;
+  }
+
+  .sidebar-bottom {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 0 8px; width: 100%;
+  }
+
+  /* ── Session Sidebar (240px) ── */
+  .session-sidebar {
+    width: 240px; flex-shrink: 0;
+    background: var(--tool-bg-sunken);
+    display: flex; flex-direction: column;
+    border-right: 1px solid var(--tool-border);
+  }
+
+  .session-header {
+    padding: 16px 16px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .session-header h2 {
+    font-size: var(--tool-text-lg);
+    font-weight: 600;
+    color: var(--tool-text);
+  }
+  .btn-new-session {
+    width: 28px; height: 28px;
+    border-radius: var(--tool-radius-sm);
+    background: var(--tool-accent);
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background var(--tool-transition);
+  }
+  .btn-new-session:hover { background: var(--tool-accent-hover); }
+  .btn-new-session svg { width: 14px; height: 14px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; }
+
+  .session-search {
+    padding: 0 12px 12px;
+    flex-shrink: 0;
+  }
+  .session-search input {
+    width: 100%; height: 32px;
+    background: var(--tool-bg);
+    border: 1px solid var(--tool-border);
+    border-radius: var(--tool-radius-sm);
+    padding: 0 10px 0 30px;
+    font-family: var(--tool-font-sans);
+    font-size: var(--tool-text-xs);
+    color: var(--tool-text);
+    outline: none;
+    transition: border-color var(--tool-transition);
+  }
+  .session-search input::placeholder { color: var(--tool-text-tertiary); }
+  .session-search input:focus { border-color: var(--tool-accent); }
+  .search-wrap {
+    position: relative;
+  }
+  .search-wrap svg {
+    position: absolute;
+    left: 8px; top: 50%; transform: translateY(-50%);
+    width: 14px; height: 14px;
+    stroke: var(--tool-text-tertiary);
+    fill: none; stroke-width: 1.5;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  .session-list {
+    flex: 1; overflow-y: auto;
+    padding: 0 8px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .session-list::-webkit-scrollbar { width: 4px; }
+  .session-list::-webkit-scrollbar-thumb { background: var(--tool-border-strong); border-radius: 4px; }
+  .session-list::-webkit-scrollbar-track { background: transparent; }
+
+  .session-item {
+    padding: 10px 10px;
+    border-radius: var(--tool-radius-sm);
+    cursor: pointer;
+    transition: background var(--tool-transition);
+    position: relative;
+  }
+  .session-item:hover { background: var(--tool-bg-hover); }
+  .session-item.active { background: var(--tool-accent-soft); }
+
+  .session-item-title {
+    font-size: var(--tool-text-sm);
+    font-weight: 500;
+    color: var(--tool-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 20px;
+  }
+  .session-item.active .session-item-title { color: var(--tool-text); }
+
+  .session-item-time {
+    font-size: var(--tool-text-xs);
+    color: var(--tool-text-tertiary);
+    margin-top: 3px;
+  }
+
+  .session-pin {
+    position: absolute;
+    top: 10px; right: 10px;
+    width: 14px; height: 14px;
+  }
+  .session-pin svg {
+    width: 14px; height: 14px;
+    fill: var(--tool-text-tertiary);
+  }
+
+  .session-new-btn {
+    margin: 8px 12px 12px;
+    padding: 8px 0;
+    border-radius: var(--tool-radius-sm);
+    border: 1px dashed var(--tool-border-strong);
+    background: transparent;
+    color: var(--tool-text-secondary);
+    font-family: var(--tool-font-sans);
+    font-size: var(--tool-text-sm);
+    cursor: pointer;
+    text-align: center;
+    transition: all var(--tool-transition);
+    flex-shrink: 0;
+  }
+  .session-new-btn:hover {
+    border-color: var(--tool-accent);
+    color: var(--tool-accent);
+    background: var(--tool-accent-soft);
+  }
+
+  /* ── Chat Area ── */
+  .chat-area {
+    flex: 1;
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+
+  .chat-header {
+    height: 52px; flex-shrink: 0;
+    padding: 0 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--tool-border);
+    background: var(--tool-bg-elevated);
+  }
+  .chat-header-left {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .chat-title {
+    font-size: var(--tool-text-base);
+    font-weight: 600;
+    color: var(--tool-text);
+  }
+  .model-badge {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--tool-accent);
+    background: var(--tool-accent-soft);
+    padding: 2px 8px;
+    border-radius: var(--tool-radius-full);
+    letter-spacing: 0.02em;
+  }
+  .chat-header-right {
+    display: flex; align-items: center; gap: 4px;
+  }
+  .header-btn {
+    width: 32px; height: 32px;
+    border-radius: var(--tool-radius-sm);
+    border: none; background: transparent;
+    cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+    transition: background var(--tool-transition);
+  }
+  .header-btn:hover { background: var(--tool-bg-hover); }
+  .header-btn svg {
+    width: 16px; height: 16px;
+    stroke: var(--tool-text-secondary);
+    fill: none; stroke-width: 1.5;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  /* ── Messages ── */
+  .chat-messages {
+    flex: 1; overflow-y: auto;
+    padding: 20px 24px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .chat-messages::-webkit-scrollbar { width: 6px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--tool-border-strong); border-radius: 6px; }
+  .chat-messages::-webkit-scrollbar-track { background: transparent; }
+
+  /* System */
+  .msg-system {
+    text-align: center;
+    padding: 8px 16px;
+    font-size: var(--tool-text-xs);
+    color: var(--tool-text-tertiary);
+    background: var(--tool-bg-sunken);
+    border-radius: var(--tool-radius-full);
+    align-self: center;
+    letter-spacing: 0.02em;
+  }
+
+  /* User message */
+  .msg-user {
+    align-self: flex-end;
+    max-width: 60%;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+  }
+  .msg-user-bubble {
+    background: var(--tool-chat-user-bg);
+    color: var(--tool-chat-user-text);
+    padding: 12px 16px;
+    font-size: var(--tool-text-base);
+    line-height: 1.6;
+    border-radius: var(--tool-radius-md) var(--tool-radius-xs) var(--tool-radius-md) var(--tool-radius-md);
+  }
+  .msg-time {
+    font-size: 10px;
+    color: var(--tool-text-tertiary);
+    padding: 0 4px;
+  }
+
+  /* Assistant message */
+  .msg-assistant {
+    align-self: flex-start;
+    max-width: 70%;
+    display: flex; gap: 10px;
+  }
+  .msg-avatar {
+    width: 32px; height: 32px; flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--tool-bg-sunken);
+    border: 1px solid var(--tool-border);
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 2px;
+  }
+  .msg-avatar svg {
+    width: 16px; height: 16px;
+    stroke: var(--tool-accent);
+    fill: none; stroke-width: 1.5;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .msg-content {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .msg-ai-bubble {
+    background: var(--tool-chat-ai-bg);
+    color: var(--tool-chat-ai-text);
+    padding: 12px 16px;
+    font-size: var(--tool-text-base);
+    line-height: 1.7;
+    border-radius: var(--tool-radius-xs) var(--tool-radius-md) var(--tool-radius-md) var(--tool-radius-md);
+    border: 1px solid var(--tool-border);
+  }
+  .msg-ai-bubble p { margin-bottom: 8px; }
+  .msg-ai-bubble p:last-child { margin-bottom: 0; }
+
+  /* Code block inside message */
+  .code-block {
+    background: var(--tool-bg-sunken);
+    border: 1px solid var(--tool-border);
+    border-radius: var(--tool-radius-sm);
+    padding: 10px 12px;
+    margin: 8px 0;
+    font-family: var(--tool-font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--tool-text-secondary);
+    overflow-x: auto;
+  }
+  .code-block .kw { color: #c792ea; }
+  .code-block .fn { color: #82aaff; }
+  .code-block .str { color: #c3e88d; }
+  .code-block .cm { color: #546e7a; }
+  .code-block .tp { color: #ffcb6b; }
+
+  /* Tool call card */
+  .tool-card {
+    background: var(--tool-chat-tool-bg);
+    border: 1px solid rgba(206,147,216,0.15);
+    border-radius: var(--tool-radius-md);
+    padding: 12px 14px;
+    margin-top: 8px;
+    max-width: 420px;
+  }
+  .tool-card-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .tool-card-icon {
+    width: 22px; height: 22px;
+    border-radius: var(--tool-radius-xs);
+    background: rgba(206,147,216,0.15);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tool-card-icon svg {
+    width: 12px; height: 12px;
+    stroke: var(--tool-chat-tool-text);
+    fill: none; stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .tool-card-name {
+    font-family: var(--tool-font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--tool-chat-tool-text);
+  }
+  .tool-card-status {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--tool-success);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .tool-card-status .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--tool-success);
+  }
+  .tool-card-args {
+    font-family: var(--tool-font-mono);
+    font-size: 11px;
+    color: var(--tool-text-secondary);
+    background: rgba(0,0,0,0.2);
+    border-radius: var(--tool-radius-xs);
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    line-height: 1.5;
+  }
+  .tool-card-result {
+    font-family: var(--tool-font-mono);
+    font-size: 11px;
+    color: var(--tool-text-tertiary);
+    background: rgba(0,0,0,0.15);
+    border-radius: var(--tool-radius-xs);
+    padding: 6px 8px;
+    line-height: 1.5;
+    max-height: 60px;
+    overflow: hidden;
+    position: relative;
+  }
+  .tool-card-result::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 20px;
+    background: linear-gradient(transparent, rgba(26,16,48,0.9));
+  }
+  .tool-card-expand {
+    font-size: 11px;
+    color: var(--tool-chat-tool-text);
+    cursor: pointer;
+    margin-top: 6px;
+    display: flex; align-items: center; gap: 4px;
+    opacity: 0.7;
+    transition: opacity var(--tool-transition);
+  }
+  .tool-card-expand:hover { opacity: 1; }
+  .tool-card-expand svg {
+    width: 12px; height: 12px;
+    stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  /* Image attachment */
+  .msg-attachment {
+    margin-top: 8px;
+    border-radius: var(--tool-radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--tool-border);
+    max-width: 280px;
+  }
+  .msg-attachment-img {
+    width: 100%;
+    display: block;
+    background: var(--tool-bg-sunken);
+    height: 140px;
+    object-fit: cover;
+    position: relative;
+  }
+  .attachment-placeholder {
+    width: 100%; height: 140px;
+    background: var(--tool-bg-sunken);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 6px;
+  }
+  .attachment-placeholder svg {
+    width: 24px; height: 24px;
+    stroke: var(--tool-text-tertiary);
+    fill: none; stroke-width: 1.5;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .attachment-placeholder span {
+    font-size: 10px;
+    color: var(--tool-text-tertiary);
+  }
+  .attachment-label {
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--tool-text-secondary);
+    background: var(--tool-bg);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .attachment-label svg {
+    width: 12px; height: 12px;
+    stroke: var(--tool-text-tertiary);
+    fill: none; stroke-width: 1.5;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  /* Streaming dots */
+  .msg-streaming {
+    display: flex; gap: 10px;
+    align-self: flex-start;
+  }
+  .streaming-dots {
+    display: flex; align-items: center; gap: 5px;
+    padding: 12px 16px;
+    background: var(--tool-chat-ai-bg);
+    border: 1px solid var(--tool-border);
+    border-radius: var(--tool-radius-xs) var(--tool-radius-md) var(--tool-radius-md) var(--tool-radius-md);
+  }
+  .streaming-dots .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--tool-accent);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .streaming-dots .dot:nth-child(2) { animation-delay: 0.2s; }
+  .streaming-dots .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse {
+    0%, 80%, 100% { opacity: 0.3; transform: scale(0.85); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+
+  /* ── Input Area ── */
+  .chat-input-area {
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--tool-border);
+    background: var(--tool-bg-elevated);
+    flex-shrink: 0;
+  }
+  .input-container {
+    background: var(--tool-chat-input-bg);
+    border: 1px solid var(--tool-chat-input-border);
+    border-radius: var(--tool-radius-md);
+    overflow: hidden;
+    transition: border-color var(--tool-transition);
+  }
+  .input-container:focus-within {
+    border-color: var(--tool-accent);
+  }
+
+  .input-textarea {
+    width: 100%;
+    min-height: 56px;
+    max-height: 120px;
+    padding: 12px 14px 8px;
+    font-family: var(--tool-font-sans);
+    font-size: var(--tool-text-base);
+    line-height: 1.5;
+    color: var(--tool-text);
+    background: transparent;
+    border: none; outline: none;
+    resize: none;
+  }
+  .input-textarea::placeholder { color: var(--tool-text-tertiary); }
+
+  .input-toolbar {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+  }
+  .input-toolbar-left {
+    display: flex; align-items: center; gap: 4px;
+  }
+  .input-toolbar-right {
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .toolbar-btn {
+    width: 30px; height: 30px;
+    border-radius: var(--tool-radius-xs);
+    border: none; background: transparent;
+    cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+    transition: background var(--tool-transition);
+  }
+  .toolbar-btn:hover { background: var(--tool-bg-hover); }
+  .toolbar-btn svg {
+    width: 16px; height: 16px;
+    stroke: var(--tool-text-secondary);
+    fill: none; stroke-width: 1.5;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  .model-selector {
+    display: flex; align-items: center; gap: 4px;
+    padding: 4px 8px;
+    border-radius: var(--tool-radius-xs);
+    border: 1px solid var(--tool-border);
+    background: transparent;
+    cursor: pointer;
+    transition: all var(--tool-transition);
+    font-family: var(--tool-font-sans);
+    font-size: 11px;
+    color: var(--tool-text-secondary);
+  }
+  .model-selector:hover {
+    border-color: var(--tool-text-tertiary);
+    background: var(--tool-bg-hover);
+  }
+  .model-selector svg {
+    width: 12px; height: 12px;
+    stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  .send-btn {
+    width: 32px; height: 32px;
+    border-radius: var(--tool-radius-sm);
+    background: var(--tool-accent);
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background var(--tool-transition);
+  }
+  .send-btn:hover { background: var(--tool-accent-hover); }
+  .send-btn svg {
+    width: 16px; height: 16px;
+    stroke: #fff; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  .input-status {
+    font-size: 10px;
+    color: var(--tool-text-tertiary);
+    letter-spacing: 0.02em;
+  }
+  .input-status .status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--tool-success);
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  /* ── Tooltip ── */
+  .sidebar-item[data-tooltip] {
+    position: relative;
+  }
+  .sidebar-item[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 56px; top: 50%; transform: translateY(-50%);
+    padding: 4px 10px;
+    background: var(--tool-bg-overlay);
+    border: 1px solid var(--tool-border);
+    border-radius: var(--tool-radius-xs);
+    font-size: 11px;
+    color: var(--tool-text);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 150ms ease;
+    z-index: 100;
+    box-shadow: var(--tool-shadow-md);
+  }
+  .sidebar-item[data-tooltip]:hover::after {
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+
+<div class="window-shell">
+
+  <!-- ═══ SIDEBAR (64px) ═══ -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+    <div class="sidebar-nav">
+      <!-- Dashboard -->
+      <div class="sidebar-item" data-dom-id="nav-dashboard" data-tooltip="工作台">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      </div>
+      <!-- AI Assistant — ACTIVE -->
+      <div class="sidebar-item active" data-dom-id="nav-assistant" data-tooltip="AI 助手">
+        <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="10" y1="22" x2="14" y2="22"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+      </div>
+      <!-- Files -->
+      <div class="sidebar-item" data-tooltip="文件管理">
+        <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <!-- Tasks -->
+      <div class="sidebar-item" data-dom-id="nav-todos" data-tooltip="任务">
+        <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      </div>
+      <!-- Screenshots -->
+      <div class="sidebar-item" data-dom-id="nav-screenshots" data-tooltip="截图">
+        <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </div>
+      <!-- Terminal -->
+      <div class="sidebar-item" data-tooltip="终端">
+        <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      </div>
+    </div>
+    <div class="sidebar-bottom">
+      <!-- Settings -->
+      <div class="sidebar-item" data-dom-id="nav-settings" data-tooltip="设置">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══ SESSION SIDEBAR (240px) ═══ -->
+  <aside class="session-sidebar">
+    <div class="session-header">
+      <h2>会话</h2>
+      <button class="btn-new-session" data-dom-id="btn-new-session" title="新建会话">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+    <div class="session-search">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="搜索会话..." />
+      </div>
+    </div>
+    <div class="session-list">
+      <!-- Pinned session -->
+      <div class="session-item">
+        <div class="session-item-title">WPF 项目架构讨论</div>
+        <div class="session-item-time">昨天 18:30</div>
+        <div class="session-pin">
+          <svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26z"/></svg>
+        </div>
+      </div>
+      <!-- Active session -->
+      <div class="session-item active">
+        <div class="session-item-title">MVVM 绑定问题排查</div>
+        <div class="session-item-time">今天 14:22</div>
+      </div>
+      <div class="session-item">
+        <div class="session-item-title">NuGet 包版本冲突修复</div>
+        <div class="session-item-time">今天 11:05</div>
+      </div>
+      <div class="session-item">
+        <div class="session-item-title">数据序列化方案选型</div>
+        <div class="session-item-time">7月3日</div>
+      </div>
+      <div class="session-item">
+        <div class="session-item-title">主题配色系统设计</div>
+        <div class="session-item-time">7月2日</div>
+      </div>
+      <div class="session-item">
+        <div class="session-item-title">CI/CD 流水线配置</div>
+        <div class="session-item-time">6月30日</div>
+      </div>
+    </div>
+    <button class="session-new-btn">+ 新建会话</button>
+  </aside>
+
+  <!-- ═══ CHAT AREA ═══ -->
+  <main class="chat-area">
+    <!-- Header -->
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <span class="chat-title">MVVM 绑定问题排查</span>
+        <span class="model-badge">GPT-4o</span>
+      </div>
+      <div class="chat-header-right">
+        <button class="header-btn" title="清空上下文">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg>
+        </button>
+        <button class="header-btn" title="导出">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+        <button class="header-btn" title="更多选项">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="chat-messages">
+      <!-- System message -->
+      <div class="msg-system">会话已创建 · 今天 14:22</div>
+
+      <!-- User message 1 -->
+      <div class="msg-user">
+        <div class="msg-user-bubble">
+          我在做一个 WPF 的 MVVM 项目，发现 ListBox 的 ItemsSource 绑定了 ObservableCollection，但 UI 没有更新。帮我看看可能是什么原因？
+        </div>
+        <div class="msg-time">14:23</div>
+      </div>
+
+      <!-- Assistant message 1 -->
+      <div class="msg-assistant">
+        <div class="msg-avatar">
+          <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="10" y1="22" x2="14" y2="22"/></svg>
+        </div>
+        <div class="msg-content">
+          <div class="msg-ai-bubble">
+            <p>常见的原因有以下几种，我帮你逐一排查：</p>
+            <p><strong>1. 集合引用被替换</strong> — 如果你在 ViewModel 中对整个集合重新赋值（<code>= new ObservableCollection</code>），而不是调用 <code>Add/Remove</code>，并且属性没有触发 <code>PropertyChanged</code>，UI 就不会刷新。</p>
+            <p><strong>2. 绑定路径错误</strong> — 确认 XAML 中的 <code>ItemsSource="{Binding Items}"</code> 路径是否正确匹配属性名。</p>
+            <p><strong>3. DataContext 未设置</strong> — 确保 <code>Window.DataContext</code> 或 <code>UserControl.DataContext</code> 指向了正确的 ViewModel 实例。</p>
+            <p>能否把相关的 ViewModel 代码和 XAML 片段贴出来？我帮你看具体问题。</p>
+          </div>
+          <div class="msg-time">14:23</div>
+        </div>
+      </div>
+
+      <!-- User message 2 with attachment -->
+      <div class="msg-user">
+        <div class="msg-attachment">
+          <div class="attachment-placeholder">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>code-screenshot.png</span>
+          </div>
+          <div class="attachment-label">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            代码截图 · 1280x720
+          </div>
+        </div>
+        <div class="msg-user-bubble" style="margin-top:4px">
+          这是我的 ViewModel 和 XAML，你看看问题在哪？
+        </div>
+        <div class="msg-time">14:25</div>
+      </div>
+
+      <!-- Assistant message 2 with tool call -->
+      <div class="msg-assistant">
+        <div class="msg-avatar">
+          <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="10" y1="22" x2="14" y2="22"/></svg>
+        </div>
+        <div class="msg-content">
+          <div class="msg-ai-bubble">
+            <p>我通过分析你的截图找到了问题所在。你使用的是 <code>INotifyPropertyChanged</code>，但在 <code>ObservableCollection</code> 属性的 setter 中存在一个常见错误。</p>
+            <p>让我先读取项目中的相关文件来确认：</p>
+
+            <!-- Tool call card -->
+            <div class="tool-card">
+              <div class="tool-card-header">
+                <div class="tool-card-icon">
+                  <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <span class="tool-card-name">read_file</span>
+                <span class="tool-card-status"><span class="dot"></span>完成</span>
+              </div>
+              <div class="tool-card-args">
+                { "path": "ViewModels/MainViewModel.cs", "lines": "1-45" }
+              </div>
+              <div class="tool-card-result">
+                public class MainViewModel : INotifyPropertyChanged
+{
+    private ObservableCollection&lt;TaskItem&gt; _tasks;
+    public ObservableCollection&lt;TaskItem&gt; Tasks
+    {
+        get =&gt; _tasks;
+        set
+        {
+            _tasks = value;
+            // BUG: 缺少 OnPropertyChanged 调用
+        }
+    }
+...</div>
+              <div class="tool-card-expand">
+                <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                展开完整结果
+              </div>
+            </div>
+          </div>
+          <div class="msg-time">14:26</div>
+        </div>
+      </div>
+
+      <!-- Assistant message 3 with code fix -->
+      <div class="msg-assistant">
+        <div class="msg-avatar">
+          <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="10" y1="22" x2="14" y2="22"/></svg>
+        </div>
+        <div class="msg-content">
+          <div class="msg-ai-bubble">
+            <p>找到问题了！在 <code>MainViewModel.cs</code> 第 18 行，你的 setter 中没有调用 <code>OnPropertyChanged</code>。修复如下：</p>
+            <div class="code-block"><span class="kw">public</span> <span class="tp">ObservableCollection</span>&lt;<span class="tp">TaskItem</span>&gt; <span class="fn">Tasks</span>
+{
+    <span class="kw">get</span> =&gt; _tasks;
+    <span class="kw">set</span>
+    {
+        _tasks = value;
+        <span class="fn">OnPropertyChanged</span>(<span class="kw">nameof</span>(Tasks)); <span class="cm">// &lt;-- 添加这一行</span>
+    }
+}</div>
+            <p>不过更推荐的做法是<strong>不要替换整个集合</strong>，而是在初始化时创建一次，后续只用 <code>Tasks.Add()</code> / <code>Tasks.Remove()</code> 操作，这样 <code>ObservableCollection</code> 自身的 <code>CollectionChanged</code> 事件会自动通知 UI。</p>
+          </div>
+          <div class="msg-time">14:27</div>
+        </div>
+      </div>
+
+      <!-- Streaming indicator -->
+      <div class="msg-streaming">
+        <div class="msg-avatar">
+          <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="10" y1="22" x2="14" y2="22"/></svg>
+        </div>
+        <div class="streaming-dots">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Input Area -->
+    <div class="chat-input-area">
+      <div class="input-container">
+        <textarea class="input-textarea" rows="2" placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"></textarea>
+        <div class="input-toolbar">
+          <div class="input-toolbar-left">
+            <button class="toolbar-btn" data-dom-id="btn-attach-screenshot" title="截图附件">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </button>
+            <button class="toolbar-btn" title="附加文件">
+              <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <div class="model-selector">
+              <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/></svg>
+              GPT-4o
+              <svg viewBox="0 0 24 24" style="width:10px;height:10px"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </div>
+          <div class="input-toolbar-right">
+            <span class="input-status"><span class="status-dot"></span>GPT-4o · 就绪</span>
+            <button class="send-btn" data-dom-id="btn-send" title="发送 (Enter)">
+              <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+</body>
+</html>

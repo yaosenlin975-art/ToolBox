@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440, initial-scale=1.0">
+<title>ToolBox - 设置</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Design Tokens (dark) ── */
+:root {
+  --tool-bg: #0c0d10;
+  --tool-bg-elevated: #141519;
+  --tool-bg-sunken: #08090c;
+  --tool-bg-overlay: rgba(20,21,25,0.95);
+  --tool-bg-hover: #1c1d24;
+  --tool-text: #e8ecf4;
+  --tool-text-secondary: #8b91a0;
+  --tool-text-tertiary: #555b6e;
+  --tool-text-inverted: #0f1117;
+  --tool-accent: #e84343;
+  --tool-accent-hover: #ff5c5c;
+  --tool-accent-soft: rgba(232,67,67,0.1);
+  --tool-accent-medium: rgba(232,67,67,0.2);
+  --tool-success: #00d2a0;
+  --tool-warning: #ffc107;
+  --tool-error: #ff5252;
+  --tool-info: #64b5f6;
+  --tool-border: #222430;
+  --tool-border-strong: #2d3040;
+  --tool-sidebar-bg: #08090c;
+  --tool-sidebar-text: #6b7280;
+  --tool-sidebar-text-active: #ffffff;
+  --tool-sidebar-accent: #e84343;
+  --tool-sidebar-hover: rgba(255,255,255,0.04);
+  --tool-radius-xs: 4px;
+  --tool-radius-sm: 6px;
+  --tool-radius-md: 10px;
+  --tool-radius-lg: 14px;
+  --tool-radius-xl: 20px;
+  --tool-radius-full: 9999px;
+  --tool-space-1: 4px;
+  --tool-space-2: 8px;
+  --tool-space-3: 12px;
+  --tool-space-4: 16px;
+  --tool-space-5: 20px;
+  --tool-space-6: 24px;
+  --tool-space-8: 32px;
+  --tool-shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --tool-shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --tool-shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+  --tool-shadow-float: 0 12px 40px rgba(0,0,0,0.6);
+  --tool-font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --tool-font-mono: 'Roboto Mono', 'Cascadia Code', 'Consolas', monospace;
+  --tool-text-xs: 0.6875rem;
+  --tool-text-sm: 0.8125rem;
+  --tool-text-base: 0.875rem;
+  --tool-text-lg: 1rem;
+  --tool-text-xl: 1.125rem;
+  --tool-text-2xl: 1.375rem;
+  --tool-text-3xl: 1.75rem;
+  --tool-transition: 150ms ease;
+  --tool-transition-slow: 250ms ease;
+}
+
+/* ── Reset ── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:1440px; height:900px; overflow:hidden; }
+body {
+  font-family: var(--tool-font-sans);
+  font-size: var(--tool-text-base);
+  color: var(--tool-text);
+  background: var(--tool-bg);
+  display: flex;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, textarea, select { font-family: inherit; color: inherit; background: none; border: none; outline: none; }
+a { color: inherit; text-decoration: none; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--tool-border-strong); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--tool-text-tertiary); }
+
+/* ── Layout ── */
+.app-shell { display:flex; width:100%; height:100%; }
+
+/* ── Sidebar 64px ── */
+.sidebar {
+  width: 64px; min-width:64px; height:100%;
+  background: var(--tool-sidebar-bg);
+  display: flex; flex-direction: column; align-items: center;
+  padding: var(--tool-space-4) 0;
+  border-right: 1px solid var(--tool-border);
+  z-index: 10;
+}
+.sidebar-logo {
+  width: 36px; height: 36px;
+  background: var(--tool-sidebar-accent);
+  border-radius: var(--tool-radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: var(--tool-space-6);
+}
+.sidebar-logo svg { color: #fff; }
+.sidebar-nav { display:flex; flex-direction:column; gap: var(--tool-space-1); flex:1; width:100%; padding:0 var(--tool-space-2); }
+.sidebar-item {
+  width: 100%; aspect-ratio: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: var(--tool-radius-sm);
+  color: var(--tool-sidebar-text);
+  transition: var(--tool-transition);
+  position: relative;
+  gap: 3px;
+}
+.sidebar-item svg { width:20px; height:20px; }
+.sidebar-item span { font-size: 9px; letter-spacing:0.3px; }
+.sidebar-item:hover { background: var(--tool-sidebar-hover); color: var(--tool-sidebar-text-active); }
+.sidebar-item.active {
+  background: var(--tool-accent-soft);
+  color: var(--tool-sidebar-text-active);
+}
+.sidebar-item.active::before {
+  content:''; position:absolute; left:-8px; top:50%; transform:translateY(-50%);
+  width:3px; height:20px; border-radius:0 3px 3px 0;
+  background: var(--tool-sidebar-accent);
+}
+.sidebar-bottom { margin-top:auto; display:flex; flex-direction:column; gap:var(--tool-space-1); padding:0 var(--tool-space-2); width:100%; }
+.sidebar-avatar {
+  width:32px; height:32px; border-radius:var(--tool-radius-full);
+  background: linear-gradient(135deg, var(--tool-accent) 0%, #9b59b6 100%);
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:600; color:#fff;
+}
+
+/* ── Main Area ── */
+.main-area {
+  flex:1; display:flex; flex-direction:column; height:100%; overflow:hidden;
+}
+
+/* ── Settings Layout ── */
+.settings-layout {
+  display:flex; flex:1; overflow:hidden;
+}
+
+/* ── Settings Nav 200px ── */
+.settings-nav {
+  width:200px; min-width:200px; height:100%;
+  background: var(--tool-bg);
+  border-right: 1px solid var(--tool-border);
+  padding: var(--tool-space-6) 0;
+  display:flex; flex-direction:column;
+}
+.settings-nav-title {
+  padding: 0 var(--tool-space-5);
+  margin-bottom: var(--tool-space-5);
+  font-size: var(--tool-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--tool-text-tertiary);
+}
+.settings-nav-list {
+  display:flex; flex-direction:column; gap: 2px;
+  padding: 0 var(--tool-space-2);
+}
+.settings-nav-item {
+  display:flex; align-items:center; gap: var(--tool-space-3);
+  padding: var(--tool-space-3) var(--tool-space-3);
+  border-radius: var(--tool-radius-sm);
+  color: var(--tool-text-secondary);
+  transition: var(--tool-transition);
+  cursor:pointer;
+  font-size: var(--tool-text-sm);
+  position:relative;
+}
+.settings-nav-item svg { width:16px; height:16px; flex-shrink:0; opacity:0.7; }
+.settings-nav-item:hover { background: var(--tool-bg-hover); color: var(--tool-text); }
+.settings-nav-item:hover svg { opacity:1; }
+.settings-nav-item.active {
+  background: var(--tool-accent-soft);
+  color: var(--tool-text);
+  border-left: 3px solid var(--tool-accent);
+  padding-left: calc(var(--tool-space-3) - 3px);
+}
+.settings-nav-item.active svg { opacity:1; color: var(--tool-accent); }
+
+/* ── Settings Content ── */
+.settings-content {
+  flex:1; height:100%; overflow-y:auto;
+  padding: var(--tool-space-6) var(--tool-space-8);
+  padding-bottom: 80px;
+}
+.settings-content-header {
+  margin-bottom: var(--tool-space-6);
+}
+.settings-content-header h1 {
+  font-size: var(--tool-text-2xl);
+  font-weight: 600;
+  color: var(--tool-text);
+}
+.settings-content-header p {
+  font-size: var(--tool-text-sm);
+  color: var(--tool-text-tertiary);
+  margin-top: var(--tool-space-1);
+}
+
+/* ── Card Sections ── */
+.settings-section {
+  background: var(--tool-bg-elevated);
+  border: 1px solid var(--tool-border);
+  border-radius: var(--tool-radius-lg);
+  padding: var(--tool-space-6);
+  margin-bottom: var(--tool-space-5);
+}
+.settings-section-title {
+  font-size: var(--tool-text-base);
+  font-weight: 600;
+  color: var(--tool-text);
+  margin-bottom: var(--tool-space-5);
+  display:flex; align-items:center; gap: var(--tool-space-2);
+}
+.settings-section-title svg { width:16px; height:16px; color: var(--tool-accent); }
+
+/* ── Setting Row ── */
+.setting-row {
+  display:flex; align-items:flex-start; justify-content:space-between;
+  padding: var(--tool-space-3) 0;
+  gap: var(--tool-space-6);
+}
+.setting-row + .setting-row {
+  border-top: 1px solid var(--tool-border);
+}
+.setting-info { flex:1; }
+.setting-label {
+  font-size: var(--tool-text-sm);
+  font-weight: 500;
+  color: var(--tool-text);
+  margin-bottom: 2px;
+}
+.setting-desc {
+  font-size: var(--tool-text-xs);
+  color: var(--tool-text-tertiary);
+  line-height: 1.4;
+}
+.setting-control { flex-shrink:0; display:flex; align-items:center; }
+
+/* ── Toggle Switch ── */
+.toggle {
+  width:40px; height:22px;
+  background: var(--tool-border-strong);
+  border-radius: var(--tool-radius-full);
+  position:relative;
+  cursor:pointer;
+  transition: var(--tool-transition);
+}
+.toggle::after {
+  content:'';
+  position:absolute; top:3px; left:3px;
+  width:16px; height:16px;
+  background: var(--tool-text);
+  border-radius:50%;
+  transition: var(--tool-transition);
+}
+.toggle.on { background: var(--tool-accent); }
+.toggle.on::after { transform:translateX(18px); background:#fff; }
+
+/* ── Radio ── */
+.radio-group { display:flex; gap: var(--tool-space-3); }
+.radio-option {
+  display:flex; align-items:center; gap: var(--tool-space-2);
+  padding: var(--tool-space-2) var(--tool-space-4);
+  border: 1px solid var(--tool-border);
+  border-radius: var(--tool-radius-md);
+  cursor:pointer;
+  transition: var(--tool-transition);
+  min-width:120px;
+}
+.radio-option:hover { border-color: var(--tool-border-strong); }
+.radio-option.selected {
+  border-color: var(--tool-accent);
+  background: var(--tool-accent-soft);
+}
+.radio-dot {
+  width:16px; height:16px;
+  border:2px solid var(--tool-border-strong);
+  border-radius:50%;
+  position:relative;
+  flex-shrink:0;
+  transition: var(--tool-transition);
+}
+.radio-option.selected .radio-dot {
+  border-color: var(--tool-accent);
+}
+.radio-option.selected .radio-dot::after {
+  content:'';
+  position:absolute; top:3px; left:3px;
+  width:6px; height:6px;
+  background: var(--tool-accent);
+  border-radius:50%;
+}
+.radio-label { font-size: var(--tool-text-sm); }
+.radio-desc { font-size: var(--tool-text-xs); color: var(--tool-text-tertiary); }
+
+/* ── Slider ── */
+.slider-wrap { display:flex; align-items:center; gap: var(--tool-space-3); width:280px; }
+.slider-track {
+  flex:1; height:4px;
+  background: var(--tool-border-strong);
+  border-radius:2px;
+  position:relative;
+  cursor:pointer;
+}
+.slider-fill {
+  position:absolute; left:0; top:0; height:100%;
+  background: var(--tool-accent);
+  border-radius:2px;
+}
+.slider-thumb {
+  position:absolute; top:50%; transform:translate(-50%,-50%);
+  width:14px; height:14px;
+  background: var(--tool-accent);
+  border:2px solid #fff;
+  border-radius:50%;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  cursor:grab;
+}
+.slider-value {
+  font-size: var(--tool-text-xs);
+  font-family: var(--tool-font-mono);
+  color: var(--tool-text-secondary);
+  min-width:36px;
+  text-align:right;
+}
+
+/* ── Number Input ── */
+.number-input-wrap {
+  display:flex; align-items:center;
+  background: var(--tool-bg-sunken);
+  border: 1px solid var(--tool-border);
+  border-radius: var(--tool-radius-sm);
+  overflow:hidden;
+}
+.number-input-wrap button {
+  width:28px; height:28px;
+  display:flex; align-items:center; justify-content:center;
+  color: var(--tool-text-tertiary);
+  transition: var(--tool-transition);
+  font-size:14px;
+}
+.number-input-wrap button:hover { background: var(--tool-bg-hover); color: var(--tool-text); }
+.number-input-wrap input {
+  width:48px; height:28px;
+  text-align:center;
+  font-size: var(--tool-text-sm);
+  font-family: var(--tool-font-mono);
+  background: transparent;
+  border-left: 1px solid var(--tool-border);
+  border-right: 1px solid var(--tool-border);
+}
+
+/* ── Note ── */
+.setting-note {
+  font-size: var(--tool-text-xs);
+  color: var(--tool-text-tertiary);
+  padding: var(--tool-space-2) var(--tool-space-3);
+  background: var(--tool-bg-sunken);
+  border-radius: var(--tool-radius-xs);
+  margin-top: var(--tool-space-2);
+  display:flex; align-items:center; gap: var(--tool-space-2);
+  line-height:1.4;
+}
+.setting-note svg { width:12px; height:12px; flex-shrink:0; color: var(--tool-info); }
+
+/* ── Bottom Bar ── */
+.bottom-bar {
+  position:absolute; bottom:0; left:64px; right:0;
+  height:64px;
+  background: var(--tool-bg-overlay);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top:1px solid var(--tool-border);
+  display:flex; align-items:center; justify-content:flex-end;
+  padding: 0 var(--tool-space-8);
+  gap: var(--tool-space-3);
+  z-index:20;
+}
+.btn {
+  padding: var(--tool-space-2) var(--tool-space-5);
+  border-radius: var(--tool-radius-sm);
+  font-size: var(--tool-text-sm);
+  font-weight:500;
+  transition: var(--tool-transition);
+  display:flex; align-items:center; gap: var(--tool-space-2);
+  height:36px;
+}
+.btn-outline {
+  border: 1px solid var(--tool-border-strong);
+  color: var(--tool-text-secondary);
+}
+.btn-outline:hover { border-color: var(--tool-text-tertiary); color: var(--tool-text); }
+.btn-primary {
+  background: var(--tool-accent);
+  color:#fff;
+}
+.btn-primary:hover { background: var(--tool-accent-hover); }
+
+/* ── Main wrapper for bottom-bar positioning ── */
+.main-wrapper {
+  flex:1; position:relative; overflow:hidden;
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo" data-dom-id="nav-dashboard">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    </div>
+    <nav class="sidebar-nav">
+      <!-- 截图 -->
+      <button class="sidebar-item" data-dom-id="nav-screenshots">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span>截图</span>
+      </button>
+      <!-- 贴图 -->
+      <button class="sidebar-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><line x1="9" y1="2" x2="9" y2="22"/><line x1="15" y1="2" x2="15" y2="22"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/></svg>
+        <span>贴图</span>
+      </button>
+      <!-- 录屏 -->
+      <button class="sidebar-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>录屏</span>
+      </button>
+      <!-- OCR -->
+      <button class="sidebar-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+        <span>OCR</span>
+      </button>
+      <!-- 待办 -->
+      <button class="sidebar-item" data-dom-id="nav-todos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        <span>待办</span>
+      </button>
+      <!-- LLM -->
+      <button class="sidebar-item" data-dom-id="nav-assistant">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span>LLM</span>
+      </button>
+      <!-- 设置 (active) -->
+      <button class="sidebar-item active" data-dom-id="nav-settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        <span>设置</span>
+      </button>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="sidebar-avatar">林</div>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main-wrapper">
+    <div class="settings-layout">
+
+      <!-- ── Settings Nav ── -->
+      <nav class="settings-nav" data-dom-id="settings-nav">
+        <div class="settings-nav-title">设置</div>
+        <div class="settings-nav-list">
+          <!-- 常规 (active) -->
+          <button class="settings-nav-item active" data-dom-id="settings-general">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            常规
+          </button>
+          <!-- 快捷键 -->
+          <button class="settings-nav-item" data-dom-id="settings-hotkey">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6" y2="10"/><line x1="10" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="14" y2="10"/><line x1="18" y1="10" x2="18" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+            快捷键
+          </button>
+          <!-- 截图设置 -->
+          <button class="settings-nav-item" data-dom-id="settings-capture">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            截图设置
+          </button>
+          <!-- LLM 助手 -->
+          <button class="settings-nav-item" data-dom-id="settings-llm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 014 4c0 1.95-1.4 3.58-3.25 3.93L12 22"/><path d="M12 2a4 4 0 00-4 4c0 1.95 1.4 3.58 3.25 3.93"/><circle cx="12" cy="6" r="1"/><path d="M5 14h14"/><path d="M7 18h10"/></svg>
+            LLM 助手
+          </button>
+          <!-- 定时截图与日报 -->
+          <button class="settings-nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            定时截图与日报
+          </button>
+          <!-- 语言 -->
+          <button class="settings-nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            语言
+          </button>
+          <!-- 关于 -->
+          <button class="settings-nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            关于
+          </button>
+        </div>
+      </nav>
+
+      <!-- ── Settings Content ── -->
+      <div class="settings-content">
+        <div class="settings-content-header">
+          <h1>常规设置</h1>
+          <p>配置应用的基本行为和外观</p>
+        </div>
+
+        <!-- Section 1: 应用模式 -->
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            应用模式
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">运行模式</div>
+              <div class="setting-desc">选择应用在系统中的运行方式</div>
+            </div>
+            <div class="setting-control">
+              <div class="radio-group">
+                <div class="radio-option selected">
+                  <div class="radio-dot"></div>
+                  <div>
+                    <div class="radio-label">应用模式</div>
+                    <div class="radio-desc">窗口可关闭，后台不常驻</div>
+                  </div>
+                </div>
+                <div class="radio-option">
+                  <div class="radio-dot"></div>
+                  <div>
+                    <div class="radio-label">常驻模式</div>
+                    <div class="radio-desc">最小化到系统托盘常驻</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">开机自启</div>
+              <div class="setting-desc">系统启动时自动运行 ToolBox</div>
+            </div>
+            <div class="setting-control">
+              <div class="toggle"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: 界面 -->
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"/><circle cx="12" cy="12" r="4"/></svg>
+            界面
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">深色模式</div>
+              <div class="setting-desc">使用深色主题以减少视觉疲劳</div>
+            </div>
+            <div class="setting-control">
+              <div class="toggle on"></div>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">背景透明度</div>
+              <div class="setting-desc">调整窗口背景的透明程度</div>
+            </div>
+            <div class="setting-control">
+              <div class="slider-wrap">
+                <div class="slider-track">
+                  <div class="slider-fill" style="width:85%"></div>
+                  <div class="slider-thumb" style="left:85%"></div>
+                </div>
+                <span class="slider-value">85%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            透明度仅影响背景，文字始终保持完全不透明
+          </div>
+
+          <div class="setting-row" style="margin-top:var(--tool-space-3)">
+            <div class="setting-info">
+              <div class="setting-label">迷你窗口透明度</div>
+              <div class="setting-desc">调整迷你悬浮窗口的透明程度</div>
+            </div>
+            <div class="setting-control">
+              <div class="slider-wrap">
+                <div class="slider-track">
+                  <div class="slider-fill" style="width:90%"></div>
+                  <div class="slider-thumb" style="left:90%"></div>
+                </div>
+                <span class="slider-value">90%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: 截图设置 -->
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            截图设置
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">选区透明度</div>
+              <div class="setting-desc">截图选区遮罩的透明程度</div>
+            </div>
+            <div class="setting-control">
+              <div class="slider-wrap">
+                <div class="slider-track">
+                  <div class="slider-fill" style="width:40%"></div>
+                  <div class="slider-thumb" style="left:40%"></div>
+                </div>
+                <span class="slider-value">40%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">选区边框样式</div>
+              <div class="setting-desc">截图时选区的边框显示方式</div>
+            </div>
+            <div class="setting-control">
+              <div class="radio-group">
+                <div class="radio-option selected">
+                  <div class="radio-dot"></div>
+                  <div class="radio-label">实线边框</div>
+                </div>
+                <div class="radio-option">
+                  <div class="radio-dot"></div>
+                  <div class="radio-label">虚线边框</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">截图后自动贴图</div>
+              <div class="setting-desc">完成截图后自动创建贴图窗口</div>
+            </div>
+            <div class="setting-control">
+              <div class="toggle on"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: 贴图行为 -->
+        <div class="settings-section">
+          <div class="settings-section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><line x1="9" y1="2" x2="9" y2="22"/><line x1="15" y1="2" x2="15" y2="22"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/></svg>
+            贴图行为
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">非活跃透明度</div>
+              <div class="setting-desc">贴图窗口失去焦点时的透明度</div>
+            </div>
+            <div class="setting-control">
+              <div class="slider-wrap">
+                <div class="slider-track">
+                  <div class="slider-fill" style="width:60%"></div>
+                  <div class="slider-thumb" style="left:60%"></div>
+                </div>
+                <span class="slider-value">60%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">悬浮透明度</div>
+              <div class="setting-desc">鼠标悬停在贴图窗口上时的透明度</div>
+            </div>
+            <div class="setting-control">
+              <div class="slider-wrap">
+                <div class="slider-track">
+                  <div class="slider-fill" style="width:80%"></div>
+                  <div class="slider-thumb" style="left:80%"></div>
+                </div>
+                <span class="slider-value">80%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">回收站功能</div>
+              <div class="setting-desc">关闭贴图时移入回收站而非直接删除</div>
+            </div>
+            <div class="setting-control">
+              <div class="toggle on"></div>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">回收站容量</div>
+              <div class="setting-desc">回收站最多保存的贴图数量</div>
+            </div>
+            <div class="setting-control">
+              <div class="number-input-wrap">
+                <button>-</button>
+                <input type="text" value="50" />
+                <button>+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /settings-content -->
+
+    </div><!-- /settings-layout -->
+
+    <!-- ── Bottom Bar ── -->
+    <div class="bottom-bar">
+      <button class="btn btn-outline">重置为默认</button>
+      <button class="btn btn-primary" data-dom-id="btn-save-settings">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        保存设置
+      </button>
+    </div>
+
+  </div><!-- /main-wrapper -->
+
+</div><!-- /app-shell -->
+</body>
+</html>

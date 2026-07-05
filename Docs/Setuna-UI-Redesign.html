@@ -1,0 +1,515 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Setuna UI Redesign - Mini + Fullscreen Dual Mode</title>
+<style>
+  :root {
+    --bg-primary: #FAFAFA;
+    --bg-secondary: #FFFFFF;
+    --bg-tertiary: #F5F5F5;
+    --bg-hover: #F0F0F0;
+    --text-primary: #1A1A1A;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --accent: #E8734A;
+    --accent-light: #FFF0EB;
+    --accent-dark: #C45A35;
+    --border: #E8E8E8;
+    --border-light: #F0F0F0;
+    --danger: #E85D4A;
+    --success: #4CAF50;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.16);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --transition: all 0.2s ease;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #E8E8E8; height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+  /* === MODE SWITCHER === */
+  .mode-switch { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; gap: 8px; background: var(--bg-secondary); border-radius: 99px; padding: 4px; box-shadow: var(--shadow-lg); }
+  .mode-switch button { padding: 8px 20px; border: none; border-radius: 99px; font-size: 13px; font-weight: 500; cursor: pointer; background: transparent; color: var(--text-secondary); transition: var(--transition); }
+  .mode-switch button.active { background: var(--accent); color: white; }
+  .mode-switch button:hover:not(.active) { background: var(--bg-hover); }
+
+  /* === FULLSCREEN MODE === */
+  .fullscreen-mode { display: none; width: 960px; height: 640px; background: var(--bg-primary); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; border: 1px solid var(--border); }
+  .fullscreen-mode.active { display: flex; flex-direction: column; }
+  .fs-header { display: flex; align-items: center; height: 48px; padding: 0 16px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+  .fs-header .logo { font-size: 14px; font-weight: 600; color: var(--accent); margin-right: 16px; }
+  .fs-nav { display: flex; gap: 2px; margin-left: 8px; }
+  .fs-nav-item { padding: 8px 16px; font-size: 13px; font-weight: 500; color: var(--text-tertiary); cursor: pointer; border-radius: var(--radius-sm); transition: var(--transition); border-bottom: 2px solid transparent; }
+  .fs-nav-item:hover { color: var(--text-secondary); background: var(--bg-hover); }
+  .fs-nav-item.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .fs-body { flex: 1; display: flex; overflow: hidden; }
+  .fs-panel { display: none; flex: 1; overflow: hidden; }
+  .fs-panel.active { display: flex; }
+
+  /* Chat Panel */
+  .chat-sidebar { width: 220px; background: var(--bg-tertiary); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  .chat-sidebar-header { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .chat-sidebar-header span { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  .chat-sidebar-header button { width: 30px; height: 30px; border: none; border-radius: var(--radius-sm); background: var(--bg-secondary); cursor: pointer; font-size: 18px; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; }
+  .chat-sidebar-list { flex: 1; overflow-y: auto; padding: 4px; }
+  .chat-session { padding: 10px; border-radius: var(--radius-sm); cursor: pointer; margin-bottom: 2px; transition: var(--transition); }
+  .chat-session:hover { background: var(--bg-hover); }
+  .chat-session.active { background: #E3F2FD; }
+  .chat-session .title { font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; }
+  .chat-session .pin { font-size: 10px; color: var(--accent); }
+  .chat-session .time { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+  .chat-main { flex: 1; display: flex; flex-direction: column; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 80%; padding: 10px 14px; border-radius: var(--radius-md); font-size: 13px; line-height: 1.5; }
+  .msg-user { align-self: flex-end; background: #E3F2FD; color: #1565C0; border-bottom-right-radius: 4px; }
+  .msg-assistant { align-self: flex-start; background: var(--bg-tertiary); color: var(--text-primary); border-bottom-left-radius: 4px; }
+  .msg-system { align-self: center; background: #FFF8E1; color: #F57F17; font-size: 12px; padding: 6px 12px; border-radius: 99px; }
+  .chat-input { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: flex-end; }
+  .chat-input textarea { flex: 1; resize: none; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; font-size: 13px; font-family: inherit; outline: none; min-height: 40px; max-height: 120px; }
+  .chat-input textarea:focus { border-color: var(--accent); }
+  .chat-input button { padding: 10px 20px; border: none; border-radius: var(--radius-sm); background: var(--accent); color: white; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .chat-input button:hover { background: var(--accent-dark); }
+
+  /* Todo Panel */
+  .todo-panel { flex: 1; display: flex; flex-direction: column; padding: 20px; }
+  .todo-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .todo-header h2 { font-size: 18px; font-weight: 600; color: var(--text-primary); }
+  .todo-add { display: flex; gap: 8px; margin-bottom: 12px; }
+  .todo-add input { flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; outline: none; }
+  .todo-add input:focus { border-color: var(--accent); }
+  .todo-add button { padding: 10px 20px; border: none; border-radius: var(--radius-sm); background: var(--accent); color: white; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .todo-filters { display: flex; gap: 12px; margin-bottom: 16px; }
+  .todo-filter { font-size: 13px; color: var(--text-tertiary); cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: var(--transition); }
+  .todo-filter:hover { color: var(--text-secondary); }
+  .todo-filter.active { color: var(--accent); background: var(--accent-light); }
+  .todo-list { flex: 1; overflow-y: auto; }
+  .todo-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: var(--radius-sm); border-bottom: 1px solid var(--border-light); transition: var(--transition); }
+  .todo-item:hover { background: var(--bg-hover); }
+  .todo-item input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+  .todo-item .content { flex: 1; }
+  .todo-item .title { font-size: 13px; color: var(--text-primary); }
+  .todo-item.completed .title { text-decoration: line-through; color: var(--text-tertiary); }
+  .todo-item .status { font-size: 11px; color: var(--accent); }
+  .todo-item .delete { color: var(--text-tertiary); cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+  .todo-item .delete:hover { color: var(--danger); background: #FEE; }
+
+  /* History Panel */
+  .history-panel { flex: 1; display: flex; flex-direction: column; padding: 20px; }
+  .history-panel h2 { font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+  .history-panel .subtitle { font-size: 12px; color: var(--text-tertiary); margin-bottom: 16px; }
+  .history-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .history-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: var(--radius-md); background: var(--bg-secondary); border: 1px solid var(--border-light); cursor: pointer; transition: var(--transition); }
+  .history-item:hover { border-color: var(--accent); }
+  .history-thumb { width: 64px; height: 48px; border-radius: 6px; background: var(--bg-tertiary); overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .history-info .time { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+  .history-info .meta { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+  .history-actions { margin-left: auto; display: flex; gap: 4px; }
+  .history-actions button { width: 28px; height: 28px; border: none; border-radius: var(--radius-sm); background: transparent; cursor: pointer; font-size: 14px; color: var(--text-tertiary); }
+  .history-actions button:hover { background: var(--bg-hover); }
+
+  /* Settings Panel */
+  .settings-panel { flex: 1; overflow-y: auto; padding: 20px 32px; }
+  .settings-panel h2 { font-size: 18px; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; }
+  .settings-section { margin-bottom: 24px; }
+  .settings-section h3 { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-light); }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-label { font-size: 13px; color: var(--text-primary); }
+  .settings-desc { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+  .settings-input { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; width: 240px; outline: none; }
+  .settings-input:focus { border-color: var(--accent); }
+  .settings-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; width: 240px; outline: none; background: var(--bg-secondary); }
+  .settings-btn { padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; background: var(--bg-secondary); }
+  .settings-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .settings-btn:hover { opacity: 0.85; }
+
+  /* === MINI MODE === */
+  .mini-mode { display: none; position: fixed; bottom: 32px; right: 32px; z-index: 1000; }
+  .mini-mode.active { display: block; }
+  .mini-window { width: 260px; background: var(--bg-secondary); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); border: 1px solid var(--border); overflow: hidden; }
+  .mini-titlebar { height: 32px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-light); display: flex; align-items: center; padding: 0 10px; cursor: grab; user-select: none; }
+  .mini-titlebar .title { font-size: 12px; font-weight: 600; color: var(--text-primary); flex: 1; }
+  .mini-titlebar .badge { font-size: 10px; background: var(--accent); color: white; padding: 1px 6px; border-radius: 99px; margin-right: 6px; }
+  .mini-titlebar .expand { width: 22px; height: 22px; border: none; border-radius: 4px; background: transparent; cursor: pointer; font-size: 12px; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; }
+  .mini-titlebar .expand:hover { background: var(--bg-hover); }
+  .mini-body { padding: 8px 10px; max-height: 200px; overflow-y: auto; }
+  .mini-section { margin-bottom: 6px; }
+  .mini-section-title { font-size: 11px; font-weight: 600; color: var(--text-tertiary); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+  .mini-todo { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
+  .mini-todo input { width: 14px; height: 14px; accent-color: var(--accent); }
+  .mini-todo span { font-size: 12px; color: var(--text-primary); }
+  .mini-add { display: flex; gap: 4px; padding: 4px 0; }
+  .mini-add input { flex: 1; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 11px; outline: none; }
+  .mini-chat-status { font-size: 11px; color: var(--text-tertiary); padding: 4px 0; display: flex; align-items: center; gap: 4px; }
+  .mini-chat-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+  .mini-footer { padding: 6px 10px 8px; border-top: 1px solid var(--border-light); display: flex; gap: 4px; }
+  .mini-footer button { flex: 1; padding: 6px; border: none; border-radius: var(--radius-sm); background: var(--bg-tertiary); font-size: 11px; color: var(--text-secondary); cursor: pointer; transition: var(--transition); }
+  .mini-footer button:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  /* === TOOLTIP / NOTES === */
+  .design-note { position: fixed; bottom: 20px; left: 20px; background: var(--bg-secondary); border-radius: var(--radius-md); padding: 16px 20px; box-shadow: var(--shadow-md); font-size: 12px; color: var(--text-secondary); line-height: 1.6; max-width: 360px; border-left: 3px solid var(--accent); }
+  .design-note strong { color: var(--text-primary); }
+</style>
+</head>
+<body>
+
+<div class="mode-switch">
+  <button onclick="showMode('mini')" id="btnMini">📱 迷你模式 (常驻桌面)</button>
+  <button onclick="showMode('fullscreen')" id="btnFs" class="active">🖥️ 全屏工作台</button>
+</div>
+
+<div class="design-note">
+  <strong>设计要点：</strong><br>
+  • 迷你窗口始终Topmost，显示待办+LLM状态摘要<br>
+  • 双击迷你窗口或托盘菜单进入全屏工作台<br>
+  • 全屏工作台内含4个Tab：聊天/待办/历史/设置<br>
+  • 设置页改为平铺式，8个Section清晰分区<br>
+  • 托盘菜单精简为：截图/粘贴/AI助手/待办/退出
+</div>
+
+<!-- ========== FULLSCREEN MODE ========== -->
+<div class="fullscreen-mode active" id="fsMode">
+  <div class="fs-header">
+    <span class="logo">📌 Setuna</span>
+    <div class="fs-nav">
+      <div class="fs-nav-item active" onclick="switchTab('chat')">💬 聊天</div>
+      <div class="fs-nav-item" onclick="switchTab('todo')">✅ 待办</div>
+      <div class="fs-nav-item" onclick="switchTab('history')">📜 历史</div>
+      <div class="fs-nav-item" onclick="switchTab('settings')">⚙ 设置</div>
+    </div>
+  </div>
+  <div class="fs-body">
+
+    <!-- Chat -->
+    <div class="fs-panel active" id="panelChat">
+      <div class="chat-sidebar">
+        <div class="chat-sidebar-header">
+          <span>会话</span>
+          <button title="新建会话">+</button>
+        </div>
+        <div class="chat-sidebar-list">
+          <div class="chat-session active">
+            <div class="title"><span class="pin">📌</span> 工作周报讨论</div>
+            <div class="time">今天 14:30</div>
+          </div>
+          <div class="chat-session">
+            <div class="title">截图分析</div>
+            <div class="time">今天 13:15</div>
+          </div>
+          <div class="chat-session">
+            <div class="title">代码审查问题</div>
+            <div class="time">昨天 22:10</div>
+          </div>
+          <div class="chat-session">
+            <div class="title">新会话</div>
+            <div class="time">07-04 10:18</div>
+          </div>
+        </div>
+      </div>
+      <div class="chat-main">
+        <div class="chat-messages">
+          <div class="msg msg-system">会话已创建</div>
+          <div class="msg msg-user">帮我总结一下今天的截图内容</div>
+          <div class="msg msg-assistant">今天你一共截了12张图。主要内容包括：<br><br>• 系统设置页面 ×3<br>• 浏览器页面 ×5<br>• 代码编辑器 ×4<br><br>建议将代码相关的4张截图归为一组进行分析。</div>
+          <div class="msg msg-user">那分析代码相关的截图</div>
+          <div class="msg msg-assistant">正在分析...<br><br>🔍 [工具调用: web_search]<br>已识别出以下代码模式：<br>1. 文件读取操作 - 使用了 File.ReadAllText<br>2. 数据序列化 - System.Text.Json<br>3. 错误处理 - try-catch 包裹<br><br>代码质量评分: 7/10，有以下改进建议：</div>
+        </div>
+        <div class="chat-input">
+          <textarea rows="1" placeholder="输入消息... (Enter发送, Shift+Enter换行)"></textarea>
+          <button>发送</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Todo -->
+    <div class="fs-panel" id="panelTodo">
+      <div class="todo-panel">
+        <div class="todo-header">
+          <h2>待办事项</h2>
+          <span style="font-size:13px;color:var(--text-tertiary)">3项待完成 · 2项已完成</span>
+        </div>
+        <div class="todo-add">
+          <input type="text" placeholder="添加新任务..."/>
+          <button>添加</button>
+        </div>
+        <div class="todo-filters">
+          <span class="todo-filter active">全部</span>
+          <span class="todo-filter">待办</span>
+          <span class="todo-filter">已完成</span>
+        </div>
+        <div class="todo-list">
+          <div class="todo-item">
+            <input type="checkbox"/>
+            <div class="content">
+              <div class="title">完成周报撰写</div>
+              <div class="status">○ 待办</div>
+            </div>
+            <span class="delete">✕</span>
+          </div>
+          <div class="todo-item">
+            <input type="checkbox"/>
+            <div class="content">
+              <div class="title">代码审查 - PR #142</div>
+              <div class="status">○ 待办</div>
+            </div>
+            <span class="delete">✕</span>
+          </div>
+          <div class="todo-item">
+            <input type="checkbox"/>
+            <div class="content">
+              <div class="title">更新设计文档</div>
+              <div class="status">○ 待办</div>
+            </div>
+            <span class="delete">✕</span>
+          </div>
+          <div class="todo-item completed">
+            <input type="checkbox" checked/>
+            <div class="content">
+              <div class="title">修复截图bug</div>
+              <div class="status">✓ 已完成</div>
+            </div>
+            <span class="delete">✕</span>
+          </div>
+          <div class="todo-item completed">
+            <input type="checkbox" checked/>
+            <div class="content">
+              <div class="title">整理截图历史</div>
+              <div class="status">✓ 已完成</div>
+            </div>
+            <span class="delete">✕</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="fs-panel" id="panelHistory">
+      <div class="history-panel">
+        <h2>截图历史</h2>
+        <div class="subtitle">共 18 条记录 · 已加载 10/18</div>
+        <div class="history-list">
+          <div class="history-item">
+            <div class="history-thumb">🖼️</div>
+            <div class="history-info">
+              <div class="time">2026-07-04 14:30</div>
+              <div class="meta">1920 × 1080 · 位置 (0, 0)</div>
+            </div>
+            <div class="history-actions">
+              <button title="加载到画布">↗</button>
+              <button title="删除" style="color:var(--danger)">✕</button>
+            </div>
+          </div>
+          <div class="history-item">
+            <div class="history-thumb">🖼️</div>
+            <div class="history-info">
+              <div class="time">2026-07-04 13:15</div>
+              <div class="meta">800 × 600 · 位置 (200, 100)</div>
+            </div>
+            <div class="history-actions">
+              <button title="加载到画布">↗</button>
+              <button title="删除" style="color:var(--danger)">✕</button>
+            </div>
+          </div>
+          <div class="history-item">
+            <div class="history-thumb">🖼️</div>
+            <div class="history-info">
+              <div class="time">2026-07-04 11:45</div>
+              <div class="meta">1280 × 720 · 位置 (0, 0)</div>
+            </div>
+            <div class="history-actions">
+              <button title="加载到画布">↗</button>
+              <button title="删除" style="color:var(--danger)">✕</button>
+            </div>
+          </div>
+          <div class="history-item">
+            <div class="history-thumb">🖼️</div>
+            <div class="history-info">
+              <div class="time">2026-07-04 10:20</div>
+              <div class="meta">1920 × 1080 · 位置 (0, 0)</div>
+            </div>
+            <div class="history-actions">
+              <button title="加载到画布">↗</button>
+              <button title="删除" style="color:var(--danger)">✕</button>
+            </div>
+          </div>
+          <div class="history-item">
+            <div class="history-thumb">🖼️</div>
+            <div class="history-info">
+              <div class="time">2026-07-03 16:30</div>
+              <div class="meta">1920 × 1080 · 位置 (0, 0)</div>
+            </div>
+            <div class="history-actions">
+              <button title="加载到画布">↗</button>
+              <button title="删除" style="color:var(--danger)">✕</button>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center;padding-top:12px">
+          <button class="settings-btn">加载更多 ↓</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="fs-panel" id="panelSettings">
+      <div class="settings-panel">
+        <h2>设置</h2>
+
+        <div class="settings-section">
+          <h3>🚀 启动</h3>
+          <div class="settings-row">
+            <div><div class="settings-label">应用模式</div><div class="settings-desc">应用模式显示迷你窗口，常驻模式只显示托盘</div></div>
+            <div style="display:flex;gap:12px">
+              <label style="font-size:13px;display:flex;gap:4px"><input type="radio" name="startup" checked/> 应用模式</label>
+              <label style="font-size:13px;display:flex;gap:4px"><input type="radio" name="startup"/> 常驻模式</label>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-label">开机自启</div></div>
+            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--accent)"/>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>⌨️ 快捷键</h3>
+          <div class="settings-row">
+            <div class="settings-label">截图快捷键</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="padding:4px 12px;border:1px solid var(--border);border-radius:4px;font-family:Consolas,monospace;font-size:13px">Ctrl + 1</span>
+              <button class="settings-btn">修改</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">显示/隐藏所有截图</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="padding:4px 12px;border:1px solid var(--border);border-radius:4px;font-family:Consolas,monospace;font-size:13px">Ctrl + 2</span>
+              <button class="settings-btn">修改</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>📸 截图</h3>
+          <div class="settings-row">
+            <div class="settings-label">选区透明度</div>
+            <input type="range" style="width:160px;accent-color:var(--accent)"/>
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">选区边框</div>
+            <div style="display:flex;gap:12px">
+              <label style="font-size:13px;display:flex;gap:4px"><input type="radio" name="border" checked/> 实线</label>
+              <label style="font-size:13px;display:flex;gap:4px"><input type="radio" name="border"/> 虚线</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>🤖 LLM 助手</h3>
+          <div class="settings-row">
+            <div><div class="settings-label">供应商</div></div>
+            <select class="settings-select">
+              <option>OpenAI</option><option>Ollama</option><option>Anthropic</option><option>自定义</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-label">模型</div></div>
+            <select class="settings-select"><option>gpt-4o</option><option>gpt-4o-mini</option></select>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-label">API Key</div></div>
+            <input type="password" class="settings-input" placeholder="sk-..."/>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-label">Base URL</div></div>
+            <input type="text" class="settings-input" value="https://api.openai.com/v1"/>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-label">上下文窗口</div><div class="settings-desc">超过此长度自动压缩早期消息</div></div>
+            <select class="settings-select"><option>65536</option><option selected>131072</option><option>262144</option></select>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-label">测试连接</div></div>
+            <button class="settings-btn">测试</button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>🌐 语言</h3>
+          <div class="settings-row">
+            <div class="settings-label">界面语言（更改后重启生效）</div>
+            <div style="display:flex;gap:12px">
+              <label style="font-size:13px;display:flex;gap:4px"><input type="radio" name="lang" checked/> 中文</label>
+              <label style="font-size:13px;display:flex;gap:4px"><input type="radio" name="lang"/> English</label>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align:right;padding-top:8px">
+          <button class="settings-btn" style="margin-right:8px">取消</button>
+          <button class="settings-btn primary">保存</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========== MINI MODE ========== -->
+<div class="mini-mode" id="miniMode">
+  <div class="mini-window">
+    <div class="mini-titlebar">
+      <span class="badge">3</span>
+      <span class="title">Setuna</span>
+      <button class="expand" title="展开工作台" onclick="showMode('fullscreen')">⛶</button>
+    </div>
+    <div class="mini-body">
+      <div class="mini-section">
+        <div class="mini-section-title">✅ 待办</div>
+        <div class="mini-todo"><input type="checkbox"/><span>完成周报撰写</span></div>
+        <div class="mini-todo"><input type="checkbox"/><span>代码审查 - PR #142</span></div>
+        <div class="mini-todo"><input type="checkbox"/><span>更新设计文档</span></div>
+        <div class="mini-add">
+          <input type="text" placeholder="快速添加..."/>
+          <button style="border:none;background:var(--accent);color:white;border-radius:4px;width:24px;cursor:pointer;font-size:14px">+</button>
+        </div>
+      </div>
+      <div class="mini-section">
+        <div class="mini-section-title">💬 AI 助手</div>
+        <div class="mini-chat-status">
+          <span class="dot"></span>
+          3 个会话 · 最近: 工作周报讨论
+        </div>
+      </div>
+    </div>
+    <div class="mini-footer">
+      <button onclick="showMode('fullscreen')">💬 聊天</button>
+      <button onclick="showMode('fullscreen')">✅ 待办</button>
+      <button>📸 截图</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showMode(mode) {
+  document.getElementById('fsMode').classList.toggle('active', mode === 'fullscreen');
+  document.getElementById('miniMode').classList.toggle('active', mode === 'mini');
+  document.getElementById('btnFs').classList.toggle('active', mode === 'fullscreen');
+  document.getElementById('btnMini').classList.toggle('active', mode === 'mini');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.fs-nav-item').forEach((el, i) => {
+    el.classList.toggle('active', ['chat','todo','history','settings'][i] === tab);
+  });
+  document.querySelectorAll('.fs-panel').forEach((el, i) => {
+    el.classList.toggle('active', ['chat','todo','history','settings'][i] === tab);
+  });
+}
+</script>
+</body>
+</html>

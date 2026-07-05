@@ -1,0 +1,45 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- LLM Chat Colors -->
+    <Color x:Key="ChatBg">#FFFFFF</Color>
+    <Color x:Key="ChatBgUser">#E3F2FD</Color>
+    <Color x:Key="ChatBgAssistant">#F5F5F5</Color>
+    <Color x:Key="ChatBgSystem">#FFF8E1</Color>
+    <Color x:Key="ChatBgTool">#F3E5F5</Color>
+    <Color x:Key="ChatTextUser">#1565C0</Color>
+    <Color x:Key="ChatTextAssistant">#212121</Color>
+    <Color x:Key="ChatTextSystem">#F57F17</Color>
+    <Color x:Key="ChatTextTool">#6A1B9A</Color>
+    <Color x:Key="ChatInputBg">#FAFAFA</Color>
+    <Color x:Key="ChatInputBorder">#E0E0E0</Color>
+    <Color x:Key="ChatInputFocus">#1976D2</Color>
+    <Color x:Key="ChatSendBtn">#1976D2</Color>
+    <Color x:Key="ChatSendBtnDisabled">#BDBDBD</Color>
+    <Color x:Key="ChatSidebarBg">#F5F5F5</Color>
+    <Color x:Key="ChatSidebarHover">#EEEEEE</Color>
+    <Color x:Key="ChatSidebarActive">#E3F2FD</Color>
+    <Color x:Key="ChatSidebarBorder">#E0E0E0</Color>
+    <Color x:Key="ChatStreamingDot">#1976D2</Color>
+
+    <SolidColorBrush x:Key="ChatBgBrush" Color="{StaticResource ChatBg}"/>
+    <SolidColorBrush x:Key="ChatBgUserBrush" Color="{StaticResource ChatBgUser}"/>
+    <SolidColorBrush x:Key="ChatBgAssistantBrush" Color="{StaticResource ChatBgAssistant}"/>
+    <SolidColorBrush x:Key="ChatBgSystemBrush" Color="{StaticResource ChatBgSystem}"/>
+    <SolidColorBrush x:Key="ChatBgToolBrush" Color="{StaticResource ChatBgTool}"/>
+    <SolidColorBrush x:Key="ChatTextUserBrush" Color="{StaticResource ChatTextUser}"/>
+    <SolidColorBrush x:Key="ChatTextAssistantBrush" Color="{StaticResource ChatTextAssistant}"/>
+    <SolidColorBrush x:Key="ChatTextSystemBrush" Color="{StaticResource ChatTextSystem}"/>
+    <SolidColorBrush x:Key="ChatTextToolBrush" Color="{StaticResource ChatTextTool}"/>
+    <SolidColorBrush x:Key="ChatInputBgBrush" Color="{StaticResource ChatInputBg}"/>
+    <SolidColorBrush x:Key="ChatInputBorderBrush" Color="{StaticResource ChatInputBorder}"/>
+    <SolidColorBrush x:Key="ChatInputFocusBrush" Color="{StaticResource ChatInputFocus}"/>
+    <SolidColorBrush x:Key="ChatSendBtnBrush" Color="{StaticResource ChatSendBtn}"/>
+    <SolidColorBrush x:Key="ChatSendBtnDisabledBrush" Color="{StaticResource ChatSendBtnDisabled}"/>
+    <SolidColorBrush x:Key="ChatSidebarBgBrush" Color="{StaticResource ChatSidebarBg}"/>
+    <SolidColorBrush x:Key="ChatSidebarHoverBrush" Color="{StaticResource ChatSidebarHover}"/>
+    <SolidColorBrush x:Key="ChatSidebarActiveBrush" Color="{StaticResource ChatSidebarActive}"/>
+    <SolidColorBrush x:Key="ChatSidebarBorderBrush" Color="{StaticResource ChatSidebarBorder}"/>
+    <SolidColorBrush x:Key="ChatStreamingDotBrush" Color="{StaticResource ChatStreamingDot}"/>
+
+</ResourceDictionary>

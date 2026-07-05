@@ -1,0 +1,234 @@
+{
+  "data": [
+    {
+      "id": "page-workbench",
+      "title": "主工作台",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1783215330000,
+      "canvasData": {
+        "x": 0,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/workbench.html",
+        "interactions": [
+          {
+            "domId": "nav-assistant",
+            "targetPageId": "page-assistant",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-todos",
+            "targetPageId": "page-todos",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-screenshots",
+            "targetPageId": "page-screenshots",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-settings",
+            "targetPageId": "page-settings",
+            "hideEdge": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "page-assistant",
+      "title": "AI 助手",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1783215330000,
+      "canvasData": {
+        "x": 620,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/assistant.html",
+        "interactions": [
+          {
+            "domId": "nav-dashboard",
+            "targetPageId": "page-workbench",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-todos",
+            "targetPageId": "page-todos",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-screenshots",
+            "targetPageId": "page-screenshots",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-settings",
+            "targetPageId": "page-settings",
+            "hideEdge": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "page-todos",
+      "title": "待办管理",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1783215330000,
+      "canvasData": {
+        "x": 1240,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/todos.html",
+        "interactions": [
+          {
+            "domId": "nav-dashboard",
+            "targetPageId": "page-workbench",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-assistant",
+            "targetPageId": "page-assistant",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-screenshots",
+            "targetPageId": "page-screenshots",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-settings",
+            "targetPageId": "page-settings",
+            "hideEdge": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "page-screenshots",
+      "title": "截图历史",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1783215330000,
+      "canvasData": {
+        "x": 1860,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/screenshots.html",
+        "interactions": [
+          {
+            "domId": "nav-dashboard",
+            "targetPageId": "page-workbench",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-assistant",
+            "targetPageId": "page-assistant",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-todos",
+            "targetPageId": "page-todos",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-settings",
+            "targetPageId": "page-settings",
+            "hideEdge": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "page-settings",
+      "title": "设置",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1783215330000,
+      "canvasData": {
+        "x": 2480,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/settings.html",
+        "interactions": [
+          {
+            "domId": "nav-dashboard",
+            "targetPageId": "page-workbench",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-assistant",
+            "targetPageId": "page-assistant",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-todos",
+            "targetPageId": "page-todos",
+            "hideEdge": true
+          },
+          {
+            "domId": "nav-screenshots",
+            "targetPageId": "page-screenshots",
+            "hideEdge": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "page-compact",
+      "title": "迷你窗口",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1783215330000,
+      "canvasData": {
+        "x": 3120,
+        "y": -756,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/compact.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-splash",
+      "title": "启动画面",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1783215330000,
+      "canvasData": {
+        "x": 3912,
+        "y": 72,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/splash.html",
+        "interactions": []
+      }
+    }
+  ],
+  "config": {
+    "autoLayout": false,
+    "deviceType": "desktop",
+    "projectName": "ToolBox 界面重设计",
+    "designLibrary": {
+      "name": "Nerv",
+      "id": "dl_builtin_nerv",
+      "version": null,
+      "scope": "built-in-global",
+      "path": "c:\\Users\\31633\\.trae-cn\\design_libraries\\dl_builtin_nerv",
+      "versionSource": "metadata.json"
+    }
+  }
+}
