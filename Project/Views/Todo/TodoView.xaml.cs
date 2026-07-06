@@ -29,18 +29,18 @@ public partial class TodoView : UserControl
         TodoList.ItemsSource = items;
     }
 
-    private void AddBtn_Click(object sender, RoutedEventArgs e) => AddTodo();
+    private void AddBtn_Click(object sender, RoutedEventArgs e) => _ = AddTodoAsync();
 
     private void NewTodoInput_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter) AddTodo();
+        if (e.Key == Key.Enter) _ = AddTodoAsync();
     }
 
-    private void AddTodo()
+    private async Task AddTodoAsync()
     {
         var text = NewTodoInput.Text.Trim();
         if (string.IsNullOrEmpty(text)) return;
-        TodoStore.Instance.Add(text);
+        await TodoStore.Instance.AddAsync(text);
         NewTodoInput.Text = "";
     }
 
@@ -52,11 +52,11 @@ public partial class TodoView : UserControl
         LoadTodos();
     }
 
-    private void DoneCheck_Changed(object sender, RoutedEventArgs e)
+    private async void DoneCheck_Changed(object sender, RoutedEventArgs e)
     {
         if (sender is CheckBox cb && cb.DataContext is TodoItem item)
         {
-            if (item.IsCompleted) TodoStore.Instance.Complete(item.Id);
+            await TodoStore.Instance.CompleteAsync(item.Id);
             LoadTodos();
         }
     }
@@ -97,33 +97,33 @@ public partial class TodoView : UserControl
         DetailPanel.Visibility = Visibility.Collapsed;
     }
 
-    private void DetailTitle_LostFocus(object sender, RoutedEventArgs e)
+    private async void DetailTitle_LostFocus(object sender, RoutedEventArgs e)
     {
         if (selected == null) return;
         var t = DetailTitle.Text.Trim();
         if (!string.IsNullOrEmpty(t) && t != selected.Title)
-            TodoStore.Instance.Update(selected.Id, title: t);
+            await TodoStore.Instance.UpdateAsync(selected.Id, title: t);
     }
 
-    private void DetailDesc_LostFocus(object sender, RoutedEventArgs e)
+    private async void DetailDesc_LostFocus(object sender, RoutedEventArgs e)
     {
         if (selected == null) return;
         if (DetailDesc.Text != selected.Description)
-            TodoStore.Instance.Update(selected.Id, description: DetailDesc.Text);
+            await TodoStore.Instance.UpdateAsync(selected.Id, description: DetailDesc.Text);
     }
 
-    private void Priority_Changed(object sender, RoutedEventArgs e)
+    private async void Priority_Changed(object sender, RoutedEventArgs e)
     {
         if (selected == null) return;
         int p = PriHigh.IsChecked == true ? 2 : PriMid.IsChecked == true ? 1 : 0;
         if (p != selected.Priority)
-            TodoStore.Instance.Update(selected.Id, priority: p);
+            await TodoStore.Instance.UpdateAsync(selected.Id, priority: p);
     }
 
-    private void DetailDelete_Click(object sender, RoutedEventArgs e)
+    private async void DetailDelete_Click(object sender, RoutedEventArgs e)
     {
         if (selected == null) return;
-        TodoStore.Instance.Delete(selected.Id);
+        await TodoStore.Instance.DeleteAsync(selected.Id);
         selected = null;
         HideDetail();
     }

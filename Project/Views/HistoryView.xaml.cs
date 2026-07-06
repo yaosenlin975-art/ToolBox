@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
@@ -15,6 +15,7 @@ public partial class HistoryView : UserControl
     private List<CacheItem> filteredItems = new();
     private int loadedCount;
     private string currentFilter = "month";
+    private string searchText = "";
 
     public HistoryView()
     {
@@ -58,6 +59,9 @@ public partial class HistoryView : UserControl
             "month" => allItems.FindAll(i => (now - i.CreateTime).TotalDays <= 30),
             _ => allItems
         };
+
+        if (!string.IsNullOrEmpty(searchText))
+            filteredItems = filteredItems.FindAll(MatchesSearch);
 
         lstHistory.Items.Clear();
         loadedCount = 0;
@@ -105,7 +109,6 @@ public partial class HistoryView : UserControl
 
     private void ViewToggle_Click(object sender, RoutedEventArgs e)
     {
-        // 当前只实现网格视图,列表视图预留
         if (sender is Button btn && btn.Tag is string v)
         {
             ViewGridBtn.Opacity = v == "grid" ? 1 : 0.5;
@@ -114,6 +117,18 @@ public partial class HistoryView : UserControl
     }
 
     private void BtnLoadMore_Click(object sender, RoutedEventArgs e) => LoadNextPage();
+
+    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        searchText = SearchBox.Text.Trim();
+        ApplyFilter();
+    }
+
+    private bool MatchesSearch(CacheItem item)
+    {
+        if (string.IsNullOrEmpty(searchText)) return true;
+        return item.CreateTime.ToString("MM-dd HH:mm").Contains(searchText, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 public class HistoryItemViewModel

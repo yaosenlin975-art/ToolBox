@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
@@ -146,7 +146,8 @@ public class OpenAiProvider : IProvider, ILlmProvider
         {
             ["model"] = model.ModelId,
             ["messages"] = messages.Select(BuildMessage).ToList(),
-            ["max_tokens"] = model.MaxOutputTokens
+            ["max_tokens"] = model.MaxOutputTokens,
+            ["stream"] = true
         };
         if (tools != null && tools.Count > 0)
         {
@@ -157,7 +158,7 @@ public class OpenAiProvider : IProvider, ILlmProvider
                 {
                     name = t.Name,
                     description = t.Description,
-                    parameters = JsonDocument.Parse(t.ToJsonSchema()).RootElement
+                    parameters = System.Text.Json.Nodes.JsonNode.Parse(t.ToJsonSchema())
                 }
             }).ToList();
         }

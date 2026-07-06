@@ -65,9 +65,12 @@ public partial class ChatView : UserControl
         }
     }
 
+    // Sync wrapper
     public ChatSession CreateNewSession()
+        => CreateNewSessionAsync().GetAwaiter().GetResult();
+    public async Task<ChatSession> CreateNewSessionAsync()
     {
-        var session = chatManager.CreateSession();
+        var session = await chatManager.CreateSessionAsync();
         LoadSessions();
         SelectSession(session.Id);
         return session;
@@ -153,7 +156,7 @@ public partial class ChatView : UserControl
         AddMessageBubble("user", text);
         var userMsg = new ChatMessage { Role = "user", Content = text };
         currentSession.Messages.Add(userMsg);
-        chatManager.SaveSessionMessages(currentSession);
+        await chatManager.SaveSessionMessagesAsync(currentSession);
         ScrollToBottom();
 
         isStreaming = true;
@@ -179,7 +182,7 @@ public partial class ChatView : UserControl
                 }
                 ScrollToBottom();
             }
-            chatManager.SaveSessionMessages(currentSession);
+            await chatManager.SaveSessionMessagesAsync(currentSession);
         }
         catch (Exception ex)
         {

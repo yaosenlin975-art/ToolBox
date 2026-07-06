@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
@@ -117,7 +117,7 @@ public partial class MagnifierWindow : Window
                 DeleteObject(hBitmap);
             }
         }
-        catch { }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }
 
     [DllImport("user32.dll")]

@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Text.Json;
 
 namespace ToolBox.Core.Security;
@@ -53,7 +53,7 @@ public class FileAccessWhitelist
             var data = JsonSerializer.Deserialize<List<string>>(json);
             if (data != null) allowedPaths.AddRange(data);
         }
-        catch { }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }
 
     private void Save()

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -255,7 +255,7 @@ public class ScrapWindow : Window
             Clipboard.Clear();
             Clipboard.SetImage(sourceBitmap);
         }
-        catch { }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }
 
     private void OnMouseLeftButtonDownHandler(object sender, MouseButtonEventArgs e)
@@ -411,6 +411,9 @@ public class ScrapWindow : Window
         var session = Core.Llm.ChatManager.Instance.CreateSessionWithImage(
             System.IO.File.ReadAllBytes(tempPath), "截图对话");
 
+
+        // Clean up temp file
+        try { System.IO.File.Delete(tempPath); } catch (Exception) { /* temp file cleanup is best-effort */ }
         // Open chat window
         var chatWindow = new Views.Chat.ChatWindow();
         chatWindow.Show();

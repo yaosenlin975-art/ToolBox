@@ -175,7 +175,7 @@ public class ProviderManager
                 var json = File.ReadAllText(activeModelPath);
                 ActiveModel = JsonSerializer.Deserialize<ModelSlotConfig>(json);
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
         }
 
         if (!File.Exists(providersConfigPath)) return;
@@ -204,7 +204,7 @@ public class ProviderManager
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }
 
     private void SaveConfig()
@@ -215,7 +215,7 @@ public class ProviderManager
             var json = JsonSerializer.Serialize(all, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(providersConfigPath, json);
         }
-        catch { }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }
 
     public void SaveActiveModel()
@@ -226,7 +226,7 @@ public class ProviderManager
             var json = JsonSerializer.Serialize(ActiveModel, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(activeModelPath, json);
         }
-        catch { }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }
 }
 

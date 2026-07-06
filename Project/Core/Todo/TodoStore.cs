@@ -31,7 +31,7 @@ public class TodoStore
     public List<TodoItem> GetCompleted() => items.Where(t => t.IsCompleted).ToList();
     public List<TodoItem> GetByTag(string tag) => items.Where(t => t.Tags.Contains(tag)).ToList();
 
-    public TodoItem Add(string title, string description = "", int priority = 0, List<string>? tags = null, DateTime? dueDate = null, string? sessionId = null)
+    public async Task<TodoItem> AddAsync(string title, string description = "", int priority = 0, List<string>? tags = null, DateTime? dueDate = null, string? sessionId = null)
     {
         var item = new TodoItem
         {
@@ -43,30 +43,30 @@ public class TodoStore
             SessionId = sessionId
         };
         items.Add(item);
-        Save();
+        await SaveAsync();
         NotifyChanged();
         return item;
     }
 
-    public bool Complete(string id)
+    public async Task<bool> CompleteAsync(string id)
     {
         var item = items.FirstOrDefault(t => t.Id == id);
         if (item == null) return false;
         item.IsCompleted = true;
         item.CompletedAt = DateTime.UtcNow;
-        Save();
+        await SaveAsync();
         NotifyChanged();
         return true;
     }
 
-    public bool Delete(string id)
+    public async Task<bool> DeleteAsync(string id)
     {
         var removed = items.RemoveAll(t => t.Id == id);
-        if (removed > 0) { Save(); NotifyChanged(); }
+        if (removed > 0) { await SaveAsync(); NotifyChanged(); }
         return removed > 0;
     }
 
-    public bool Update(string id, string? title = null, string? description = null, int? priority = null, List<string>? tags = null, DateTime? dueDate = null)
+    public async Task<bool> UpdateAsync(string id, string? title = null, string? description = null, int? priority = null, List<string>? tags = null, DateTime? dueDate = null)
     {
         var item = items.FirstOrDefault(t => t.Id == id);
         if (item == null) return false;
@@ -75,7 +75,7 @@ public class TodoStore
         if (priority.HasValue) item.Priority = priority.Value;
         if (tags != null) item.Tags = tags;
         if (dueDate.HasValue) item.DueDate = dueDate;
-        Save();
+        await SaveAsync();
         NotifyChanged();
         return true;
     }
@@ -89,18 +89,30 @@ public class TodoStore
             var data = JsonSerializer.Deserialize<List<TodoItem>>(json);
             if (data != null) items.AddRange(data);
         }
-        catch { }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }
 
-    private void Save()
+    // Sync wrappers for tool execution pipeline (blocking, acceptable for background calls)
+    public TodoItem Add(string title, string description = "", int priority = 0, List<string>? tags = null, DateTime? dueDate = null, string? sessionId = null)
+        => AddAsync(title, description, priority, tags, dueDate, sessionId).GetAwaiter().GetResult();
+
+    public bool Complete(string id)
+        => CompleteAsync(id).GetAwaiter().GetResult();
+
+    public bool Delete(string id)
+        => DeleteAsync(id).GetAwaiter().GetResult();
+
+    public bool Update(string id, string? title = null, string? description = null, int? priority = null, List<string>? tags = null, DateTime? dueDate = null)
+        => UpdateAsync(id, title, description, priority, tags, dueDate).GetAwaiter().GetResult();
+    private async Task SaveAsync()
     {
-        writeLock.Wait();
+        await writeLock.WaitAsync();
         try
         {
             var dir = Path.GetDirectoryName(filePath);
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
             var json = JsonSerializer.Serialize(items, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(filePath, json);
+            await File.WriteAllTextAsync(filePath, json);
         }
         finally { writeLock.Release(); }
     }

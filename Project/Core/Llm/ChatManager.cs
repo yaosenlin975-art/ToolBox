@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -36,11 +36,24 @@ public class ChatManager
         autoSaveTimer = new System.Threading.Timer(_ => AutoSave(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
     }
 
+    // Sync wrappers
     public ChatSession CreateSession(string title = "新会话")
+        => CreateSessionAsync(title).GetAwaiter().GetResult();
+
+    public void TogglePin(string sessionId)
+        => TogglePinAsync(sessionId).GetAwaiter().GetResult();
+
+    public void DeleteSession(string sessionId)
+        => DeleteSessionAsync(sessionId).GetAwaiter().GetResult();
+
+    public void SaveSessionMessages(ChatSession session)
+        => SaveSessionMessagesAsync(session).GetAwaiter().GetResult();
+
+    public async Task<ChatSession> CreateSessionAsync(string title = "新会话")
     {
         var session = new ChatSession { Title = title };
         sessions.Insert(0, session);
-        SaveChatsIndex();
+        await SaveChatsIndexAsync();
         NotifySessionsChanged();
         return session;
     }
@@ -73,13 +86,13 @@ public class ChatManager
         }
     }
 
-    public void TogglePin(string sessionId)
+    public async Task TogglePinAsync(string sessionId)
     {
         var session = sessions.FirstOrDefault(s => s.Id == sessionId);
         if (session == null) return;
         session.IsPinned = !session.IsPinned;
         ReorderSessions();
-        SaveChatsIndex();
+        await SaveChatsIndexAsync();
         NotifySessionsChanged();
     }
 
@@ -92,23 +105,23 @@ public class ChatManager
         });
     }
 
-    public void DeleteSession(string sessionId)
+    public async Task DeleteSessionAsync(string sessionId)
     {
         sessions.RemoveAll(s => s.Id == sessionId);
         var sessionDir = Path.Combine(sessionsDir, sessionId);
         if (Directory.Exists(sessionDir))
             Directory.Delete(sessionDir, true);
-        SaveChatsIndex();
+        await SaveChatsIndexAsync();
     }
 
-    public void SaveSessionMessages(ChatSession session)
+    public async Task SaveSessionMessagesAsync(ChatSession session)
     {
         var path = Path.Combine(sessionsDir, $"{session.Id}.json");
         var json = JsonSerializer.Serialize(session.Messages, new JsonSerializerOptions
         {
             WriteIndented = true
         });
-        AtomicWrite(path, json);
+        await AtomicWriteAsync(path, json);
     }
 
     public void LoadSessionMessages(ChatSession session)
@@ -140,7 +153,7 @@ public class ChatManager
         catch { }
     }
 
-    private void SaveChatsIndex()
+    private async Task SaveChatsIndexAsync()
     {
         var data = new ChatsIndex
         {
@@ -157,16 +170,16 @@ public class ChatManager
             }).ToList()
         };
         var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
-        AtomicWrite(chatsJsonPath, json);
+        await AtomicWriteAsync(chatsJsonPath, json);
     }
 
-    private void AtomicWrite(string path, string content)
+    private async Task AtomicWriteAsync(string path, string content)
     {
-        writeLock.Wait();
+        await writeLock.WaitAsync();
         try
         {
             var tmpPath = path + ".tmp";
-            File.WriteAllText(tmpPath, content);
+            await File.WriteAllTextAsync(tmpPath, content);
             using (var fs = new FileStream(tmpPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
             {
                 fs.Flush(true);
@@ -179,7 +192,7 @@ public class ChatManager
         }
     }
 
-    public void AutoGenerateTitle(ChatSession session)
+    public async void AutoGenerateTitle(ChatSession session)
     {
         if (session.IsTitleLocked || session.Messages.Count < 3) return;
         if (session.Title.StartsWith("截图对话") || session.Title.StartsWith("新会话"))
@@ -190,23 +203,23 @@ public class ChatManager
                 session.Title = firstUserMsg.Content.Length > 20
                     ? firstUserMsg.Content[..20] + "..."
                     : firstUserMsg.Content;
-                SaveChatsIndex();
+                await SaveChatsIndexAsync();
             }
         }
     }
 
-    public void LockTitle(ChatSession session)
+    public async void LockTitle(ChatSession session)
     {
         session.IsTitleLocked = true;
-        SaveChatsIndex();
+        await SaveChatsIndexAsync();
     }
 
-    private void AutoSave()
+    private async void AutoSave()
     {
         try
         {
             if (ActiveSession != null && ActiveSession.Status == "running")
-                SaveSessionMessages(ActiveSession);
+                await SaveSessionMessagesAsync(ActiveSession);
         }
         catch { }
     }

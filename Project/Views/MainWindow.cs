@@ -395,7 +395,7 @@ public partial class MainWindow : Window
                     bitmap.PixelWidth, bitmap.PixelHeight);
             }
         }
-        catch { }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }
 
     private void WindowTimer_Tick(object sender, EventArgs e)

@@ -122,6 +122,7 @@ internal class AnthropicRequest
 {
     public string Model { get; set; } = "";
     public int MaxTokens { get; set; } = 8192;
+    public bool Stream { get; set; } = true;
     public string? System { get; set; }
     public List<AnthropicMessage> Messages { get; set; } = [];
 }

@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Text.Json;
 
 namespace ToolBox.Core.Scheduling;
@@ -65,7 +65,7 @@ public class ScreenshotTracker
                 var record = JsonSerializer.Deserialize<ActivityRecord>(line);
                 if (record != null) records.Add(record);
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
         }
         return records;
     }

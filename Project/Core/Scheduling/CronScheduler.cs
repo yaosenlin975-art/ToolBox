@@ -1,4 +1,4 @@
-﻿using Cronos;
+using Cronos;
 using Microsoft.Win32;
 
 namespace ToolBox.Core.Scheduling;
@@ -52,7 +52,7 @@ public class CronExpressionr : IDisposable
 
         var timer = new System.Threading.Timer(_ =>
         {
-            try { handler(); } catch { }
+            try { handler(); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
             ScheduleNext(id);
         }, null, delay, Timeout.InfiniteTimeSpan);
 

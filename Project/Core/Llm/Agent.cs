@@ -1,4 +1,4 @@
-﻿using ToolBox.Core.Providers;
+using ToolBox.Core.Providers;
 using ToolBox.Core.Tools;
 using System.Runtime.CompilerServices;
 using ToolBox.Core.Tools;
@@ -31,7 +31,7 @@ public class Agent
         session.Status = "running";
 
         // 构建消息列表：system + 历史 + user
-        var messages = BuildMessages(userMessage);
+        var messages = BuildMessages();
 
         try
         {
@@ -119,14 +119,14 @@ public class Agent
         }
     }
 
-    private List<ChatMessage> BuildMessages(string userMessage)
+    private List<ChatMessage> BuildMessages()
     {
         var messages = new List<ChatMessage>
         {
             new ChatMessage { Role = "system", Content = promptBuilder.Build() }
         };
         messages.AddRange(session.Messages);
-        messages.Add(new ChatMessage { Role = "user", Content = userMessage });
+        // User message is already in session.Messages
         return messages;
     }
 

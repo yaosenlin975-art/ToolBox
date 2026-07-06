@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Windows;
 using System.Windows.Media.Imaging;
@@ -74,30 +74,44 @@ public class CacheItem
     {
         if (image == null) return this;
 
-        var folderPath = FolderPath;
-        if (!Directory.Exists(folderPath))
-            Directory.CreateDirectory(folderPath);
+        try
+        {
+            var folderPath = FolderPath;
+            if (!Directory.Exists(folderPath))
+                Directory.CreateDirectory(folderPath);
 
-        var fullPath = Path.Combine(folderPath, ImageFileName);
-        if (File.Exists(fullPath))
-            File.Delete(fullPath);
+            var fullPath = Path.Combine(folderPath, ImageFileName);
+            if (File.Exists(fullPath))
+                File.Delete(fullPath);
 
-        using var stream = File.Create(fullPath);
-        var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(BitmapFrame.Create(image));
-        encoder.Save(stream);
+            using var stream = File.Create(fullPath);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(image));
+            encoder.Save(stream);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] SaveImage failed: {ex.Message}");
+        }
         return this;
     }
 
     public CacheItem SaveInfo()
     {
-        var folderPath = FolderPath;
-        if (!Directory.Exists(folderPath))
-            Directory.CreateDirectory(folderPath);
+        try
+        {
+            var folderPath = FolderPath;
+            if (!Directory.Exists(folderPath))
+                Directory.CreateDirectory(folderPath);
 
-        var fullPath = Path.Combine(folderPath, InfoFileName);
-        var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(fullPath, json);
+            var fullPath = Path.Combine(folderPath, InfoFileName);
+            var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(fullPath, json);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] SaveInfo failed: {ex.Message}");
+        }
         return this;
     }
 

@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Input;
 using ToolBox.Core.Llm;
 using ToolBox.Core.Providers;
@@ -119,7 +119,7 @@ public partial class ChatWindow : Window
 
         var userMsg = new ChatMessage { Role = "user", Content = text };
         currentSession.Messages.Add(userMsg);
-        chatManager.SaveSessionMessages(currentSession);
+        await chatManager.SaveSessionMessagesAsync(currentSession);
         ScrollToBottom();
 
         isStreaming = true;
@@ -148,7 +148,7 @@ public partial class ChatWindow : Window
                 ScrollToBottom();
             }
 
-            chatManager.SaveSessionMessages(currentSession);
+            await chatManager.SaveSessionMessagesAsync(currentSession);
         }
         catch (Exception ex)
         {
