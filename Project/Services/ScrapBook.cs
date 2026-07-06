@@ -125,6 +125,18 @@ public class ScrapBook
 
     public bool IsActiveScrap(ScrapWindow scrap) => scraps.Contains(scrap);
 
+    public void SelectScrap(ScrapWindow target)
+    {
+        foreach (var s in scraps)
+            s.SetSelected(s == target);
+    }
+
+    public void DeselectAll()
+    {
+        foreach (var s in scraps)
+            s.SetSelected(false);
+    }
+
     public ScrapBook OnKeyUp(object sender, Key key)
     {
         KeyPress?.Invoke(sender, new ScrapKeyPressEventArgs { Key = key });

@@ -1,4 +1,4 @@
-﻿# Project Rules
+# Project Rules
 
 ## Directory Structure
 
@@ -24,3 +24,11 @@
 ---
 *Project-specific rules*
 4. **设计文档维护**: Docs/design.md 是项目总设计文档，仅在设计变更或功能更新时更新，不记录更新日志。
+5. **UI 风格一致性**: 新增的界面、窗口、组件等所有用户交互元素必须与当前设计风格保持一致。参照 `Themes/DesignTokens.xaml` 中的设计令牌和现有 Views 中的样式规范。
+   - 背景色: `BgPrimaryBrush` / `BgSecondaryBrush` / `BgTertiaryBrush`
+   - 文本色: `TextPrimaryBrush` / `TextSecondaryBrush` / `TextTertiaryBrush`
+   - 强调色: `AccentBrush`
+   - 边框: `BorderBrush` + `CornerRadius="8"` + `BorderThickness="1"`
+   - 卡片容器: `Border Background="{StaticResource BgSecondaryBrush}" CornerRadius="8" Padding="16"`
+   - 字号规范: 标题 18 Bold / Section 标题 11 SemiBold Tertiary / 正文 13 / 辅助说明 11 Tertiary
+   - 控件样式: 复用 `ModernRadioButton`、`ModernCheckBox`、`BtnDefault`、`BtnPrimary` 等已有样式

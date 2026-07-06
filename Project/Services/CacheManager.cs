@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
@@ -15,6 +15,8 @@ public class CacheManager : IScrapAddedListener, IScrapRemovedListener, IScrapLo
         "Setuna");
 
     public static CacheManager Instance { get; } = new();
+
+    public event EventHandler? OnScrapCached;
 
     public bool IsInit { get; private set; }
 
@@ -79,6 +81,7 @@ public class CacheManager : IScrapAddedListener, IScrapRemovedListener, IScrapLo
             scrap.StyleIdValue,
             scrap.StyleClickPointValue);
         scrap.CacheItem = cacheItem;
+        OnScrapCached?.Invoke(this, EventArgs.Empty);
     }
 
     public void ScrapRemoved(object sender, ScrapEventArgs e)

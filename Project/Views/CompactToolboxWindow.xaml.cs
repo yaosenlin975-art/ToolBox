@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -9,13 +9,13 @@ using ToolBox.Core.Todo;
 using ToolBox.Models;
 using ToolBox.Services;
 
-
 namespace ToolBox.Views;
 
 public partial class CompactToolboxWindow : Window
 {
-    private const double CollapsedWidth = 320;
-    private const double CollapsedHeight = 320;
+    private static readonly (double w, double h) TodoSize = (200, 350);
+    private static readonly (double w, double h) ChatSize = (400, 400);
+    private static readonly (double w, double h) ScreenshotSize = (200, 350);
 
     private readonly ToolBoxOption options;
     private string currentTab = "todo";
@@ -25,28 +25,24 @@ public partial class CompactToolboxWindow : Window
         InitializeComponent();
         options = ToolBoxOption.Load();
 
-        Left = SystemParameters.WorkArea.Width - CollapsedWidth - 20;
-        Top = SystemParameters.WorkArea.Height - CollapsedHeight - 20;
-
-        ApplyCompactOpacity(options.Data.CompactOpacity);
-
-        LoadSessions();
-        LoadTodos();
-        LoadHistory();
+        PositionWindow();
         SwitchToTab("todo");
 
         TodoStore.Instance.ItemsChanged += () => Dispatcher.Invoke(LoadTodos);
         ChatManager.Instance.SessionsChanged += () => Dispatcher.Invoke(LoadSessions);
+        CacheManager.Instance.OnScrapCached += (_, _) => Dispatcher.Invoke(LoadScreenshots);
     }
 
     public void ApplyCompactOpacity(int opacityPercent)
     {
-        var alpha = (byte)(Math.Clamp(opacityPercent, 0, 100) * 255 / 100);
-        if (TryFindResource("BgElevatedBrush") is SolidColorBrush brush)
-        {
-            var c = brush.Color;
-            RootBorder.Background = new SolidColorBrush(Color.FromArgb(alpha, c.R, c.G, c.B));
-        }
+        options.Data.CompactOpacity = opacityPercent;
+        SwitchToTab(currentTab);
+    }
+
+    private void PositionWindow()
+    {
+        Left = SystemParameters.WorkArea.Width - Width - 20;
+        Top = SystemParameters.WorkArea.Height - Height - 20;
     }
 
     public void SwitchToTab(string tab)
@@ -54,12 +50,33 @@ public partial class CompactToolboxWindow : Window
         currentTab = tab;
         TodoPanel.Visibility = Visibility.Collapsed;
         ChatPanel.Visibility = Visibility.Collapsed;
-        HistoryPanel.Visibility = Visibility.Collapsed;
+        ScreenshotPanel.Visibility = Visibility.Collapsed;
         SessionRow.Visibility = Visibility.Collapsed;
 
         TabTodo.Style = (Style)FindResource("CompactTabButton");
         TabChat.Style = (Style)FindResource("CompactTabButton");
-        TabHistory.Style = (Style)FindResource("CompactTabButton");
+        TabScreenshot.Style = (Style)FindResource("CompactTabButton");
+
+        var (w, h) = tab switch
+        {
+            "chat" => ChatSize,
+            "screenshot" => ScreenshotSize,
+            _ => TodoSize
+        };
+
+        Width = w;
+        Height = h;
+        PositionWindow();
+
+        // Opacity: chat always 1, others use setting
+        if (tab == "chat")
+        {
+            RootBorder.Opacity = 1.0;
+        }
+        else
+        {
+            RootBorder.Opacity = options.Data.CompactOpacity / 100.0;
+        }
 
         switch (tab)
         {
@@ -72,9 +89,10 @@ public partial class CompactToolboxWindow : Window
                 TabChat.Style = (Style)FindResource("CompactTabButtonActive");
                 SessionRow.Visibility = Visibility.Visible;
                 break;
-            case "history":
-                HistoryPanel.Visibility = Visibility.Visible;
-                TabHistory.Style = (Style)FindResource("CompactTabButtonActive");
+            case "screenshot":
+                ScreenshotPanel.Visibility = Visibility.Visible;
+                TabScreenshot.Style = (Style)FindResource("CompactTabButtonActive");
+                LoadScreenshots();
                 break;
         }
     }
@@ -82,15 +100,10 @@ public partial class CompactToolboxWindow : Window
     private void Tab_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string tab)
-        {
             SwitchToTab(tab);
-        }
     }
 
-    private void ExpandToggleBtn_Click(object sender, RoutedEventArgs e)
-    {
-        OpenWorkbench();
-    }
+    private void ExpandToggleBtn_Click(object sender, RoutedEventArgs e) => OpenWorkbench();
 
     public void OpenWorkbench()
     {
@@ -101,9 +114,11 @@ public partial class CompactToolboxWindow : Window
 
     private void BtnSettings_Click(object sender, RoutedEventArgs e)
     {
-        App.Workbench?.Show();
-        App.Workbench?.Activate();
-        App.Workbench?.LoadPage("settings");
+        var wb = App.Workbench;
+        if (wb == null) return;
+        wb.Show();
+        wb.Activate();
+        wb.LoadPage("settings");
     }
 
     private void LoadSessions()
@@ -129,13 +144,12 @@ public partial class CompactToolboxWindow : Window
 
     private void LoadTodos()
     {
-        var pending = TodoStore.Instance.GetPending();
-        TodoList.ItemsSource = pending;
+        TodoList.ItemsSource = TodoStore.Instance.GetPending();
     }
 
-    private void LoadHistory()
+    private void LoadScreenshots()
     {
-        HistoryList.Items.Clear();
+        ScreenshotList.Items.Clear();
         var cachePath = CacheManager.CachePath;
         if (!Directory.Exists(cachePath)) return;
 
@@ -153,7 +167,7 @@ public partial class CompactToolboxWindow : Window
             var image = item.ReadImage();
             if (image != null)
             {
-                HistoryList.Items.Add(new HistoryItemViewModel
+                ScreenshotList.Items.Add(new HistoryItemViewModel
                 {
                     CacheItem = item,
                     Thumbnail = image,
@@ -167,9 +181,7 @@ public partial class CompactToolboxWindow : Window
     private void TodoItem_Changed(object sender, RoutedEventArgs e)
     {
         if (sender is CheckBox cb && cb.Tag is string id)
-        {
             TodoStore.Instance.Complete(id);
-        }
     }
 
     private void QuickAddTodo_Click(object sender, RoutedEventArgs e)
@@ -177,17 +189,13 @@ public partial class CompactToolboxWindow : Window
         var input = new InputWindow("快速添加待办", "请输入标题:");
         input.Owner = this;
         if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
-        {
             TodoStore.Instance.Add(input.Value.Trim());
-        }
     }
 
     private void SessionSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (SessionSelector.SelectedItem is ChatSession session)
-        {
             ChatPanel.SelectSession(session.Id);
-        }
     }
 
     private void NewSessionBtn_Click(object sender, RoutedEventArgs e)

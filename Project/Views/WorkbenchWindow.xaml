@@ -8,7 +8,7 @@
         ShowInTaskbar="True">
     <Border Background="{DynamicResource BgBrush}"
             BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
-            CornerRadius="{StaticResource RadiusLg}">
+            CornerRadius="0">
         <Border.Effect>
             <DropShadowEffect BlurRadius="40" ShadowDepth="12" Opacity="0.18" Color="#000000"/>
         </Border.Effect>
@@ -32,13 +32,13 @@
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,8,0">
                     <Button x:Name="BtnCompact" Width="32" Height="32" Style="{StaticResource IconButton}"
-                            Click="OnSwitchToCompact" Content="&#xE73F;" FontFamily="Segoe MDL2 Assets" FontSize="11" ToolTip="切换到迷你模式"/>
+                            Click="OnSwitchToCompact" Content="⌂" FontSize="14" ToolTip="切换到迷你模式"/>
                     <Button x:Name="BtnMinimize" Width="32" Height="32" Style="{StaticResource IconButton}"
-                            Click="OnMinimize" Content="&#xE949;" FontFamily="Segoe MDL2 Assets" FontSize="10" ToolTip="最小化"/>
+                            Click="OnMinimize" Content="—" FontSize="14" ToolTip="最小化"/>
                     <Button x:Name="BtnMaximize" Width="32" Height="32" Style="{StaticResource IconButton}"
-                            Click="OnMaximize" Content="&#xE922;" FontFamily="Segoe MDL2 Assets" FontSize="10" ToolTip="最大化/还原"/>
+                            Click="OnMaximize" Content="☐" FontSize="14" ToolTip="最大化/还原"/>
                     <Button x:Name="BtnClose" Width="32" Height="32" Style="{StaticResource IconButton}"
-                            Click="OnClose" Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="10" ToolTip="关闭"/>
+                            Click="OnClose" Content="✕" FontSize="14" ToolTip="关闭"/>
                 </StackPanel>
             </Grid>
             <Grid Grid.Row="1">

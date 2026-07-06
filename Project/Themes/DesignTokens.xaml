@@ -21,12 +21,12 @@
     <system:Double x:Key="FontSize3xl" xmlns:system="clr-namespace:System;assembly=mscorlib">28</system:Double>
 
     <!-- ── CornerRadius ── -->
-    <CornerRadius x:Key="RadiusXs">4</CornerRadius>
-    <CornerRadius x:Key="RadiusSm">6</CornerRadius>
-    <CornerRadius x:Key="RadiusMd">10</CornerRadius>
-    <CornerRadius x:Key="RadiusLg">14</CornerRadius>
-    <CornerRadius x:Key="RadiusXl">20</CornerRadius>
-    <CornerRadius x:Key="RadiusFull">9999</CornerRadius>
+    <CornerRadius x:Key="RadiusXs">0</CornerRadius>
+    <CornerRadius x:Key="RadiusSm">0</CornerRadius>
+    <CornerRadius x:Key="RadiusMd">0</CornerRadius>
+    <CornerRadius x:Key="RadiusLg">0</CornerRadius>
+    <CornerRadius x:Key="RadiusXl">0</CornerRadius>
+    <CornerRadius x:Key="RadiusFull">0</CornerRadius>
 
     <!-- ── Thickness (Space) ── -->
     <Thickness x:Key="Space1">4</Thickness>

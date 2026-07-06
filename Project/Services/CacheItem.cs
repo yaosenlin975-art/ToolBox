@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ToolBox.Services;
 
@@ -12,8 +13,10 @@ public class CacheItem
     private const string InfoFileName = "Info.json";
 
     public DateTime CreateTime { get; set; }
+    [JsonConverter(typeof(PointJsonConverter))]
     public Point Position { get; set; }
     public int StyleId { get; set; }
+    [JsonConverter(typeof(PointJsonConverter))]
     public Point StyleClickPoint { get; set; }
     public int SortingOrder { get; set; }
 
@@ -43,15 +46,57 @@ public class CacheItem
         return item;
     }
 
+    private static Point ParsePointString(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return new Point(0, 0);
+        var parts = value.Split(',');
+        double x = 0, y = 0;
+        if (parts.Length >= 1)
+            double.TryParse(parts[0].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out x);
+        if (parts.Length >= 2)
+            double.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out y);
+        return new Point(x, y);
+    }
+
     public static CacheItem Read(string cacheItemPath)
     {
         var fullPath = Path.Combine(cacheItemPath, InfoFileName);
-        if (File.Exists(fullPath))
+        if (!File.Exists(fullPath)) return null;
+
+        var json = File.ReadAllText(fullPath);
+        try
         {
-            var json = File.ReadAllText(fullPath);
             return JsonSerializer.Deserialize<CacheItem>(json);
         }
-        return null;
+        catch { }
+
+        try
+        {
+            var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            var item = new CacheItem();
+
+            if (root.TryGetProperty("CreateTime", out var ct))
+                item.CreateTime = ct.GetDateTime();
+
+            if (root.TryGetProperty("Position", out var pos))
+                item.Position = ParsePointString(pos.GetString());
+
+            if (root.TryGetProperty("Style", out var style))
+            {
+                if (style.TryGetProperty("ID", out var id))
+                    item.StyleId = id.GetInt32();
+                if (style.TryGetProperty("ClickPoint", out var cp))
+                    item.StyleClickPoint = ParsePointString(cp.GetString());
+            }
+
+            if (root.TryGetProperty("SortingOrder", out var so))
+                item.SortingOrder = so.GetInt32();
+
+            return item;
+        }
+        catch { return null; }
     }
 
     public BitmapSource ReadImage()
