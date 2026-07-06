@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows.Input;
@@ -233,7 +233,6 @@ public class ToolBoxOptionData
     public byte FullscreenCursorColorG { get; set; } = 165;
     public byte FullscreenCursorColorB { get; set; } = 0;
     public int CompactOpacity { get; set; } = 50;
-    public bool IsCompactExpanded { get; set; }
     public bool AutoScreenshotEnabled { get; set; }
     public string AutoScreenshotCron { get; set; } = "0 */30 * * * *";
     public bool DailyReportEnabled { get; set; }

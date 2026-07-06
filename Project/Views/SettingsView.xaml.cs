@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ToolBox.Core.Providers;
@@ -316,6 +316,7 @@ public partial class SettingsView : UserControl
         CollectSettings();
         result.Save();
         App.MainWindow?.ReRegisterHotkeys();
+        Core.Scheduling.ScheduleManager.Apply(result.Data);
         MessageWindow.Show("保存", "设置已保存", GetOwner());
     }
 

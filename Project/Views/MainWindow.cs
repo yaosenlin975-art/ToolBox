@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -24,7 +24,6 @@ public partial class MainWindow : Window
     private System.Windows.Threading.DispatcherTimer windowTimer;
     private bool isStarted;
     private bool isCapturing;
-    private bool isOptionOpen;
     private List<ScrapWindow> hiddenScraps = new();
     private bool allScrapsActive = true;
     private WpfTrayIcon trayIcon;
@@ -290,6 +289,7 @@ public partial class MainWindow : Window
     public MainWindow StartCapture()
     {
         if (isCapturing) return this;
+        isCapturing = true;
 
         var captureWindow = new Capture.CaptureWindow();
         captureWindow.CaptureCompleted += (bitmap, point, size) =>
@@ -299,7 +299,9 @@ public partial class MainWindow : Window
                 scrapBook.AddScrap(bmpSource,
                     (int)point.X, (int)point.Y,
                     (int)size.Width, (int)size.Height);
+            isCapturing = false;
         };
+        captureWindow.CaptureCancelled += () => isCapturing = false;
         captureWindow.StartCapture();
         return this;
     }

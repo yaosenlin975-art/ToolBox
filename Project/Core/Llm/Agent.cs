@@ -1,4 +1,4 @@
-using ToolBox.Core.Providers;
+﻿using ToolBox.Core.Providers;
 using ToolBox.Core.Tools;
 using System.Runtime.CompilerServices;
 using ToolBox.Core.Tools;
@@ -138,6 +138,7 @@ public class Agent
             var result = tools.Execute(toolCall.Name, args);
             toolCall.Result = result?.Length > 3000 ? result[..3000] + "...[截断]" : result;
             toolCall.IsError = false;
+                    Core.Memory.MemoryStore.Instance.Save(session.Id, "tool", toolCall.Name + ": " + (result ?? ""), 0, 0.3);
             return toolCall.Result;
         }
         catch (Exception ex)

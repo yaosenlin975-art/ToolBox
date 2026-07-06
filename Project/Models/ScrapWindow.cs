@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -23,6 +23,10 @@ public class ScrapWindow : Window
     private int inactiveMargin;
     private int rolloverMargin;
     private bool isMouseEnter;
+    private bool isThumbnailMode;
+    private bool isSelected;
+    private System.Windows.Size originalSize;
+    private BitmapSource fullBitmap;
     private BitmapSource sourceBitmap;
     private Point styleClickPoint;
     private int styleId;
@@ -82,6 +86,7 @@ public class ScrapWindow : Window
         MouseLeave += OnMouseLeaveHandler;
         KeyDown += OnKeyDownHandler;
         MouseLeftButtonDown += OnMouseLeftButtonDownHandler;
+        MouseDoubleClick += OnMouseDoubleClickHandler;
         MouseWheel += OnMouseWheelHandler;
         MouseRightButtonDown += OnMouseRightButtonDownHandler;
         Drop += OnDropHandler;
@@ -232,6 +237,28 @@ public class ScrapWindow : Window
             return;
         }
 
+        if (modifiers.HasFlag(ModifierKeys.Control) && key == Key.S)
+        {
+            SaveToFile();
+            e.Handled = true;
+            return;
+        }
+
+        if (modifiers.HasFlag(ModifierKeys.Control) && key == Key.X)
+        {
+            CopyToClipboard();
+            CloseScrap();
+            e.Handled = true;
+            return;
+        }
+
+        if (key == Key.Escape)
+        {
+            CloseScrap();
+            e.Handled = true;
+            return;
+        }
+
         if (modifiers.HasFlag(ModifierKeys.Control) && key == Key.V)
         {
             Manager.BindForm?.PasteImage();
@@ -247,6 +274,23 @@ public class ScrapWindow : Window
         Manager.OnKeyUp(this, combined);
     }
 
+    private void SaveToFile()
+    {
+        if (sourceBitmap == null) return;
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "PNG Image|*.png",
+            FileName = "ToolBox_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".png"
+        };
+        if (dialog.ShowDialog() == true)
+        {
+            using var stream = new System.IO.FileStream(dialog.FileName, System.IO.FileMode.Create);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(sourceBitmap));
+            encoder.Save(stream);
+        }
+    }
+
     private void CopyToClipboard()
     {
         if (sourceBitmap == null) return;
@@ -260,10 +304,71 @@ public class ScrapWindow : Window
 
     private void OnMouseLeftButtonDownHandler(object sender, MouseButtonEventArgs e)
     {
+        // Select this scrap, deselect others
+        Manager?.SelectScrap(this);
+        isSelected = true;
         Activate();
         Focus();
         Keyboard.Focus(imageView);
         DragMove();
+    }
+
+    private void OnMouseDoubleClickHandler(object sender, MouseButtonEventArgs e)
+    {
+        if (sourceBitmap == null) return;
+
+        if (isThumbnailMode)
+        {
+            // Restore to original full image
+            if (fullBitmap != null)
+            {
+                SetImage(fullBitmap);
+                Width = originalSize.Width;
+                Height = originalSize.Height;
+            }
+            isThumbnailMode = false;
+            fullBitmap = null;
+        }
+        else
+        {
+            // Save original, then crop 50x50 region centered on click point
+            fullBitmap = sourceBitmap;
+            originalSize = new System.Windows.Size(Width, Height);
+
+            var pos = e.GetPosition(imageView);
+            var scaleX = sourceBitmap.PixelWidth / imageView.ActualWidth;
+            var scaleY = sourceBitmap.PixelHeight / imageView.ActualHeight;
+            var cx = (int)(pos.X * scaleX);
+            var cy = (int)(pos.Y * scaleY);
+
+            var cropSize = 50;
+            var x = Math.Max(0, Math.Min(cx - cropSize / 2, sourceBitmap.PixelWidth - cropSize));
+            var y = Math.Max(0, Math.Min(cy - cropSize / 2, sourceBitmap.PixelHeight - cropSize));
+
+            var cropped = new CroppedBitmap(sourceBitmap, new Int32Rect(x, y, cropSize, cropSize));
+            cropped.Freeze();
+            SetImage(cropped);
+
+            Width = cropSize;
+            Height = cropSize;
+            isThumbnailMode = true;
+        }
+    }
+
+    public ScrapWindow SetSelected(bool selected)
+    {
+        isSelected = selected;
+        if (selected)
+        {
+            BorderBrush = new SolidColorBrush(Colors.DodgerBlue);
+            BorderThickness = new Thickness(2);
+        }
+        else
+        {
+            BorderBrush = null;
+            BorderThickness = new Thickness(0);
+        }
+        return this;
     }
 
     private void OnMouseWheelHandler(object sender, MouseWheelEventArgs e)
@@ -415,9 +520,7 @@ public class ScrapWindow : Window
         // Clean up temp file
         try { System.IO.File.Delete(tempPath); } catch (Exception) { /* temp file cleanup is best-effort */ }
         // Open chat window
-        var chatWindow = new Views.Chat.ChatWindow();
-        chatWindow.Show();
-        chatWindow.Activate();
+        App.CompactToolbox?.SwitchToTab("chat");
     }
 
 }
