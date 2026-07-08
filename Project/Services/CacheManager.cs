@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
@@ -26,6 +26,10 @@ public class CacheManager : IScrapAddedListener, IScrapRemovedListener, IScrapLo
 
         if (!Directory.Exists(CachePath))
             Directory.CreateDirectory(CachePath);
+
+        // 启动时清理过期截图
+        var options = ToolBoxOption.Load();
+        CleanupExpired(options.Data.ScreenshotMaxAge);
 
         return this;
     }
@@ -58,7 +62,6 @@ public class CacheManager : IScrapAddedListener, IScrapRemovedListener, IScrapLo
             var image = item.ReadImage();
             if (image != null)
             {
-                // 关联已有缓存项，关闭时即可删除对应缓存，避免重启后再次浮窗展示
                 mainBook.AddScrap(image,
                     (int)item.Position.X,
                     (int)item.Position.Y,
@@ -69,6 +72,29 @@ public class CacheManager : IScrapAddedListener, IScrapRemovedListener, IScrapLo
         }
 
         IsInit = true;
+    }
+
+    /// <summary>
+    /// 清理超过指定天数的过期缓存截图。
+    /// </summary>
+    public void CleanupExpired(int maxAgeDays)
+    {
+        if (maxAgeDays <= 0) return;
+
+        var cutoff = DateTime.Now.AddDays(-maxAgeDays);
+        var directories = Directory.GetDirectories(CachePath, "*", SearchOption.TopDirectoryOnly);
+        foreach (var dir in directories)
+        {
+            var dirInfo = new DirectoryInfo(dir);
+            if (dirInfo.CreationTime < cutoff)
+            {
+                try
+                {
+                    Directory.Delete(dir, true);
+                }
+                catch { /* best-effort cleanup */ }
+            }
+        }
     }
 
     public void ScrapAdded(object sender, ScrapEventArgs e)

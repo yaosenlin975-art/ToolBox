@@ -238,6 +238,7 @@ public class ToolBoxOptionData
     public bool DailyReportEnabled { get; set; }
     public string DailyReportTime { get; set; } = "18:00";
     public string Theme { get; set; } = "System";
+    public int ScreenshotMaxAge { get; set; } = 30;
 }
 
 public class ScrapOption

@@ -203,8 +203,12 @@ public partial class MainWindow : Window
             Background = (System.Windows.Media.Brush)Application.Current.FindResource("BgSecondaryBrush"),
             Foreground = (System.Windows.Media.Brush)Application.Current.FindResource("TextPrimaryBrush"),
             BorderBrush = (System.Windows.Media.Brush)Application.Current.FindResource("BorderBrush"),
-            Padding = new Thickness(4)
+            Padding = new Thickness(4),
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Absolute,
+            HorizontalOffset = SystemParameters.WorkArea.Right - 200,
+            VerticalOffset = SystemParameters.WorkArea.Bottom - 300
         };
+
         var itemStyle = new System.Windows.Style(typeof(System.Windows.Controls.MenuItem))
         {
             Setters =
@@ -281,8 +285,17 @@ public partial class MainWindow : Window
 
         foreach (var obj in menu.Items)
         {
-            if (obj is System.Windows.Controls.MenuItem mi) StyleItem(mi);
-            else if (obj is System.Windows.Controls.MenuItem sub && false) { }
+            if (obj is System.Windows.Controls.MenuItem mi)
+            {
+                StyleItem(mi);
+                if (mi.Items.Count > 0)
+                {
+                    foreach (var subObj in mi.Items)
+                    {
+                        if (subObj is System.Windows.Controls.MenuItem subMi) StyleItem(subMi);
+                    }
+                }
+            }
         }
 
         menu.IsOpen = true;

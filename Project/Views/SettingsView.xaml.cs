@@ -58,6 +58,11 @@ public partial class SettingsView : UserControl
         rdoLangZh.IsChecked = result.Language != "en-US";
         rdoLangEn.IsChecked = result.Language == "en-US";
 
+        sldScreenshotMaxAge.Value = data.ScreenshotMaxAge;
+        txtScreenshotMaxAgeValue.Text = data.ScreenshotMaxAge > 0
+            ? data.ScreenshotMaxAge + " 天"
+            : "永久保留";
+
         try
         {
             txtVersion.Text = System.Reflection.Assembly.GetExecutingAssembly()
@@ -164,6 +169,7 @@ public partial class SettingsView : UserControl
         result.Data.AutoScreenshotCron = txtAutoScreenshotCron.Text.Trim();
         result.Data.DailyReportEnabled = chkDailyReport.IsChecked == true;
         result.Data.DailyReportTime = txtDailyReportTime.Text.Trim();
+        result.Data.ScreenshotMaxAge = (int)sldScreenshotMaxAge.Value;
 
         if (cmbProvider.SelectedItem is string providerName)
         {
@@ -238,6 +244,14 @@ public partial class SettingsView : UserControl
         txtCompactOpacityValue.Text = v.ToString();
         result.Data.CompactOpacity = v;
         App.CompactToolbox?.ApplyCompactOpacity(v);
+    }
+
+    private void SldScreenshotMaxAge_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (isLoading || result == null) return;
+        var v = (int)sldScreenshotMaxAge.Value;
+        txtScreenshotMaxAgeValue.Text = v > 0 ? v + " 天" : "永久保留";
+        result.Data.ScreenshotMaxAge = v;
     }
 
     private void HotKey_GotFocus(object sender, RoutedEventArgs e)

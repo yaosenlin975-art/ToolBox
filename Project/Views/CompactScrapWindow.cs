@@ -27,7 +27,7 @@ public partial class CompactScrapWindow : Window
         var source = parentScrap.ImageViewSource;
         if (source == null) return;
 
-        var maxSize = 100;
+        var maxSize = 50;
         var scale = Math.Min((double)maxSize / source.PixelWidth, (double)maxSize / source.PixelHeight);
         var width = (int)(source.PixelWidth * scale);
         var height = (int)(source.PixelHeight * scale);

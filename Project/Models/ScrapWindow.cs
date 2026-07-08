@@ -468,7 +468,17 @@ public class ScrapWindow : Window
 
     private void ShowContextMenu(Point position)
     {
-        var menu = new System.Windows.Controls.ContextMenu();
+        var menu = new System.Windows.Controls.ContextMenu
+        {
+            Background = (System.Windows.Media.Brush)Application.Current.FindResource("BgSecondaryBrush"),
+            Foreground = (System.Windows.Media.Brush)Application.Current.FindResource("TextPrimaryBrush"),
+            BorderBrush = (System.Windows.Media.Brush)Application.Current.FindResource("BorderBrush"),
+            Padding = new System.Windows.Thickness(4),
+            PlacementTarget = this,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Absolute,
+            HorizontalOffset = position.X,
+            VerticalOffset = position.Y
+        };
 
         if (Manager?.BindForm?.GetOptions()?.Scrap.SubMenuStyles != null)
         {

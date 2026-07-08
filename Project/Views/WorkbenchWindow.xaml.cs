@@ -80,7 +80,29 @@ public partial class WorkbenchWindow : Window
         }
     }
 
-    private void OnClose(object sender, RoutedEventArgs e) => Hide();
+    private void OnClose(object sender, RoutedEventArgs e)
+    {
+        var dialog = new CloseDialogWindow
+        {
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() == true && dialog.Result == CloseDialogResult.Minimize)
+        {
+            Hide();
+            App.CompactToolbox?.Show();
+            App.CompactToolbox?.Activate();
+        }
+        else if (dialog.Result == CloseDialogResult.Exit)
+        {
+            Shutdown();
+        }
+    }
+
+    private void Shutdown()
+    {
+        Application.Current.Shutdown();
+    }
 
     private void OnSwitchToCompact(object sender, RoutedEventArgs e)
     {

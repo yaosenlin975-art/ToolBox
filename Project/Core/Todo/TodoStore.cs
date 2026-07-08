@@ -92,18 +92,19 @@ public class TodoStore
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }
 
-    // Sync wrappers for tool execution pipeline (blocking, acceptable for background calls)
+    // Sync wrappers for tool execution pipeline and UI handlers.
+    // Use Task.Run to avoid deadlock when called from UI thread (WPF SynchronizationContext).
     public TodoItem Add(string title, string description = "", int priority = 0, List<string>? tags = null, DateTime? dueDate = null, string? sessionId = null)
-        => AddAsync(title, description, priority, tags, dueDate, sessionId).GetAwaiter().GetResult();
+        => Task.Run(() => AddAsync(title, description, priority, tags, dueDate, sessionId)).GetAwaiter().GetResult();
 
     public bool Complete(string id)
-        => CompleteAsync(id).GetAwaiter().GetResult();
+        => Task.Run(() => CompleteAsync(id)).GetAwaiter().GetResult();
 
     public bool Delete(string id)
-        => DeleteAsync(id).GetAwaiter().GetResult();
+        => Task.Run(() => DeleteAsync(id)).GetAwaiter().GetResult();
 
     public bool Update(string id, string? title = null, string? description = null, int? priority = null, List<string>? tags = null, DateTime? dueDate = null)
-        => UpdateAsync(id, title, description, priority, tags, dueDate).GetAwaiter().GetResult();
+        => Task.Run(() => UpdateAsync(id, title, description, priority, tags, dueDate)).GetAwaiter().GetResult();
     private async Task SaveAsync()
     {
         await writeLock.WaitAsync();

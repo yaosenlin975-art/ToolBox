@@ -392,6 +392,26 @@
                                         <RadioButton x:Name="rdoLineDotted" GroupName="LineStyle" Content="{DynamicResource Lang_LineDotted}" Style="{StaticResource ModernRadioButton}"/>
                                     </StackPanel>
                                 </Grid>
+
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="截图历史最大时效" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="超过时效的截图将自动从历史中清理" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Width="280">
+                                        <Slider x:Name="sldScreenshotMaxAge" Style="{StaticResource ModernSlider}" Width="220"
+                                                Minimum="0" Maximum="365" VerticalAlignment="Center"
+                                                ValueChanged="SldScreenshotMaxAge_ValueChanged"/>
+                                        <TextBlock x:Name="txtScreenshotMaxAgeValue" Text="30 天" FontSize="11" FontFamily="{StaticResource FontMono}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" MinWidth="50" TextAlignment="Right" Margin="12,0,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                             </StackPanel>
                         </Border>
                     </StackPanel>
