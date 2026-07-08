@@ -192,23 +192,35 @@ public class ChatManager
         }
     }
 
-    public async void AutoGenerateTitle(ChatSession session)
+    
+    public void AutoGenerateTitle(ChatSession session)
     {
-        if (session.IsTitleLocked || session.Messages.Count < 3) return;
-        if (session.Title.StartsWith("截图对话") || session.Title.StartsWith("新会话"))
-        {
-            var firstUserMsg = session.Messages.FirstOrDefault(m => m.Role == "user");
-            if (firstUserMsg?.Content != null)
-            {
-                session.Title = firstUserMsg.Content.Length > 20
-                    ? firstUserMsg.Content[..20] + "..."
-                    : firstUserMsg.Content;
-                await SaveChatsIndexAsync();
-            }
-        }
+        AutoGenerateTitleAsync(session).GetAwaiter().GetResult();
     }
 
-    public async void LockTitle(ChatSession session)
+    public void RenameSession(ChatSession session, string newTitle)
+    {
+        if (string.IsNullOrWhiteSpace(newTitle)) return;
+        session.Title = newTitle.Trim();
+        _ = SaveChatsIndexAsync();
+        NotifySessionsChanged();
+    }
+
+    private async Task AutoGenerateTitleAsync(ChatSession session)
+    {
+        if (session.IsTitleLocked) return;
+        if (!session.Title.StartsWith("Screenshot") && !session.Title.StartsWith("New") &&
+            !session.Title.StartsWith("新会话") && !session.Title.StartsWith("截图会话"))
+            return;
+        var msg = session.Messages.FirstOrDefault(m => m.Role == "user" && !string.IsNullOrWhiteSpace(m.Content));
+        if (msg == null) return;
+        var t = msg.Content!.Trim();
+        session.Title = t.Length > 25 ? t[..25] + "..." : t;
+        session.IsTitleLocked = false;
+        await SaveChatsIndexAsync();
+        NotifySessionsChanged();
+    }
+public async void LockTitle(ChatSession session)
     {
         session.IsTitleLocked = true;
         await SaveChatsIndexAsync();

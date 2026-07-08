@@ -1,8 +1,10 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ToolBox.Services;
 
@@ -15,12 +17,25 @@ public partial class HistoryView : UserControl
     private List<CacheItem> filteredItems = new();
     private int loadedCount;
     private string currentFilter = "month";
-    private string searchText = "";
+    private string currentViewMode = "grid";
 
     public HistoryView()
     {
         InitializeComponent();
-        Loaded += (s, e) => LoadHistory();
+        Loaded += (s, e) =>
+        {
+            CacheManager.Instance.OnScrapCached += OnScrapCached;
+            LoadHistory();
+        };
+        Unloaded += (s, e) => CacheManager.Instance.OnScrapCached -= OnScrapCached;
+    }
+
+    /// <summary>
+    /// 新截图写入缓存后自动刷新历史列表（无论是否手动保存都会显示）。
+    /// </summary>
+    private void OnScrapCached(object? sender, EventArgs e)
+    {
+        Dispatcher.Invoke(LoadHistory);
     }
 
     private void LoadHistory()
@@ -30,7 +45,7 @@ public partial class HistoryView : UserControl
 
         if (!Directory.Exists(cachePath))
         {
-            lblSubtitle.Text = "0 条记录";
+            lblSubtitle.Text = string.Format((FindResource("Lang_RecordCount") as string) ?? "{0} 条记录", 0);
             lblEmpty.Visibility = Visibility.Visible;
             btnLoadMore.Visibility = Visibility.Collapsed;
             lstHistory.Items.Clear();
@@ -60,14 +75,11 @@ public partial class HistoryView : UserControl
             _ => allItems
         };
 
-        if (!string.IsNullOrEmpty(searchText))
-            filteredItems = filteredItems.FindAll(MatchesSearch);
-
         lstHistory.Items.Clear();
         loadedCount = 0;
         LoadNextPage();
 
-        lblSubtitle.Text = filteredItems.Count + " 条记录";
+        lblSubtitle.Text = string.Format((FindResource("Lang_RecordCount") as string) ?? "{0} 条记录", filteredItems.Count);
         lblEmpty.Visibility = filteredItems.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -86,7 +98,8 @@ public partial class HistoryView : UserControl
                 var vm = new HistoryItemViewModel
                 {
                     CacheItem = item,
-                    Thumbnail = image,
+                    Thumbnail = ImageHelper.MakeOpaque(image),
+                    FullImage = image,
                     TimeDisplay = item.CreateTime.ToString("MM-dd HH:mm"),
                     SizeDisplay = image.PixelWidth + " × " + image.PixelHeight
                 };
@@ -109,25 +122,41 @@ public partial class HistoryView : UserControl
 
     private void ViewToggle_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is string v)
+        if (sender is Button btn && btn.Tag is string v && v != currentViewMode)
         {
-            ViewGridBtn.Opacity = v == "grid" ? 1 : 0.5;
-            ViewListBtn.Opacity = v == "list" ? 1 : 0.5;
+            currentViewMode = v;
+
+            if (v == "grid")
+            {
+                lstHistory.ItemsPanel = (ItemsPanelTemplate)FindResource("HistoryGridPanel");
+                lstHistory.ItemTemplate = (DataTemplate)FindResource("HistoryGridTemplate");
+                ViewGridBtn.Opacity = 1;
+                ViewListBtn.Opacity = 0.5;
+            }
+            else
+            {
+                lstHistory.ItemsPanel = (ItemsPanelTemplate)FindResource("HistoryListPanel");
+                lstHistory.ItemTemplate = (DataTemplate)FindResource("HistoryListTemplate");
+                ViewGridBtn.Opacity = 0.5;
+                ViewListBtn.Opacity = 1;
+            }
+
+            ApplyFilter();
         }
     }
 
     private void BtnLoadMore_Click(object sender, RoutedEventArgs e) => LoadNextPage();
 
-    private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    /// <summary>
+    /// 点击历史缩略图查看原图（带 alpha 的原图）。
+    /// </summary>
+    private void HistoryItem_Click(object sender, MouseButtonEventArgs e)
     {
-        searchText = SearchBox.Text.Trim();
-        ApplyFilter();
-    }
-
-    private bool MatchesSearch(CacheItem item)
-    {
-        if (string.IsNullOrEmpty(searchText)) return true;
-        return item.CreateTime.ToString("MM-dd HH:mm").Contains(searchText, StringComparison.OrdinalIgnoreCase);
+        if ((sender as FrameworkElement)?.DataContext is HistoryItemViewModel vm && vm.FullImage != null)
+        {
+            var preview = new ImagePreviewWindow(vm.FullImage);
+            preview.ShowDialog();
+        }
     }
 }
 
@@ -135,6 +164,7 @@ public class HistoryItemViewModel
 {
     public CacheItem CacheItem { get; set; } = null!;
     public BitmapSource Thumbnail { get; set; } = null!;
+    public BitmapSource FullImage { get; set; } = null!;
     public string TimeDisplay { get; set; } = "";
     public string SizeDisplay { get; set; } = "";
     public string PositionDisplay { get; set; } = "";

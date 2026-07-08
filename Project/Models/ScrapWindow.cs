@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -94,9 +94,64 @@ public class ScrapWindow : Window
         AllowDrop = true;
 
         LocationChanged += OnLocationChangedHandler;
+
+        // 默认边框：中性灰，明显可见，且与选中态（DodgerBlue 2px）区分
+        BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(180, 120, 120, 120));
+        BorderThickness = new Thickness(1);
     }
 
     public BitmapSource GetViewImage() => sourceBitmap;
+
+    /// <summary>
+    /// 返回用于复制/保存的全分辨率原图。
+    /// 缩略图模式下 fullBitmap 保留了进入缩略图前的原始像素，
+    /// 非缩略图模式则直接返回当前显示的 sourceBitmap（即当前原图）。
+    /// 这样无论是否处于缩略图模式，写入剪贴板/保存的都是原始分辨率，不会被降采样。
+    /// </summary>
+    public BitmapSource GetOriginalBitmap()
+    {
+        if (isThumbnailMode && fullBitmap != null)
+            return fullBitmap;
+        return sourceBitmap;
+    }
+
+    /// <summary>
+    /// 将位图规范为 96 DPI 并保持原始像素尺寸，避免部分目标软件按 DPI 重新换算显示尺寸导致发糊。
+    /// 若源图本身已是 96 DPI 则原样返回（不做任何重采样）。
+    /// </summary>
+    private static BitmapSource NormalizeTo96Dpi(BitmapSource source)
+    {
+        if (source == null) return null;
+        if (Math.Abs(source.DpiX - 96.0) < 0.01 && Math.Abs(source.DpiY - 96.0) < 0.01)
+            return source;
+
+        var width = source.PixelWidth;
+        var height = source.PixelHeight;
+        var format = source.Format;
+        var stride = (width * format.BitsPerPixel + 7) / 8;
+        var pixels = new byte[stride * height];
+        source.CopyPixels(pixels, stride, 0);
+        var normalized = BitmapSource.Create(width, height, 96, 96, format, null, pixels, stride);
+        normalized.Freeze();
+        return normalized;
+    }
+
+    /// <summary>
+    /// 将位图以 96 DPI 原分辨率写入剪贴板。
+    /// </summary>
+    private static void CopyBitmapToClipboard(BitmapSource source)
+    {
+        if (source == null) return;
+        try
+        {
+            Clipboard.Clear();
+            Clipboard.SetImage(NormalizeTo96Dpi(source));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] 复制到剪贴板失败: {ex.Message}");
+        }
+    }
 
     public ScrapWindow CloseScrap()
     {
@@ -276,7 +331,8 @@ public class ScrapWindow : Window
 
     private void SaveToFile()
     {
-        if (sourceBitmap == null) return;
+        var bitmap = GetOriginalBitmap();
+        if (bitmap == null) return;
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
             Filter = "PNG Image|*.png",
@@ -286,20 +342,14 @@ public class ScrapWindow : Window
         {
             using var stream = new System.IO.FileStream(dialog.FileName, System.IO.FileMode.Create);
             var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(sourceBitmap));
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
             encoder.Save(stream);
         }
     }
 
     private void CopyToClipboard()
     {
-        if (sourceBitmap == null) return;
-        try
-        {
-            Clipboard.Clear();
-            Clipboard.SetImage(sourceBitmap);
-        }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
+        CopyBitmapToClipboard(GetOriginalBitmap());
     }
 
     private void OnMouseLeftButtonDownHandler(object sender, MouseButtonEventArgs e)
@@ -313,47 +363,61 @@ public class ScrapWindow : Window
         DragMove();
     }
 
+    private System.Windows.Point originalPosition;
+
+    
     private void OnMouseDoubleClickHandler(object sender, MouseButtonEventArgs e)
     {
         if (sourceBitmap == null) return;
 
         if (isThumbnailMode)
         {
-            // Restore to original full image
             if (fullBitmap != null)
             {
                 SetImage(fullBitmap);
                 Width = originalSize.Width;
                 Height = originalSize.Height;
+                Left = originalPosition.X;
+                Top = originalPosition.Y;
             }
             isThumbnailMode = false;
             fullBitmap = null;
         }
         else
         {
-            // Save original, then crop 50x50 region centered on click point
             fullBitmap = sourceBitmap;
             originalSize = new System.Windows.Size(Width, Height);
+            originalPosition = new System.Windows.Point(Left, Top);
 
+            // 点击点在 sourceBitmap 像素空间中的坐标
             var pos = e.GetPosition(imageView);
-            var scaleX = sourceBitmap.PixelWidth / imageView.ActualWidth;
-            var scaleY = sourceBitmap.PixelHeight / imageView.ActualHeight;
-            var cx = (int)(pos.X * scaleX);
-            var cy = (int)(pos.Y * scaleY);
+            var srcX = (int)(pos.X / ActualWidth * sourceBitmap.PixelWidth);
+            var srcY = (int)(pos.Y / ActualHeight * sourceBitmap.PixelHeight);
 
-            var cropSize = 50;
-            var x = Math.Max(0, Math.Min(cx - cropSize / 2, sourceBitmap.PixelWidth - cropSize));
-            var y = Math.Max(0, Math.Min(cy - cropSize / 2, sourceBitmap.PixelHeight - cropSize));
+            // 50x50 裁切窗口, 以点击点为中心 (边界附近缩到图像内侧)
+            var cropW = Math.Min(50, sourceBitmap.PixelWidth);
+            var cropH = Math.Min(50, sourceBitmap.PixelHeight);
+            var cropX = Math.Max(0, Math.Min(sourceBitmap.PixelWidth - cropW, srcX - cropW / 2));
+            var cropY = Math.Max(0, Math.Min(sourceBitmap.PixelHeight - cropH, srcY - cropH / 2));
+            var crop = new CroppedBitmap(sourceBitmap, new Int32Rect(cropX, cropY, cropW, cropH));
+            crop.Freeze();
+            SetImage(crop);
 
-            var cropped = new CroppedBitmap(sourceBitmap, new Int32Rect(x, y, cropSize, cropSize));
-            cropped.Freeze();
-            SetImage(cropped);
-
-            Width = cropSize;
-            Height = cropSize;
+            // 让窗口缩到裁切区域的实际显示大小, 并保持在点击点的相对位置
+            var displayRatioX = ActualWidth > 0 ? ActualWidth / sourceBitmap.PixelWidth : 1.0;
+            var displayRatioY = ActualHeight > 0 ? ActualHeight / sourceBitmap.PixelHeight : 1.0;
+            var newW = cropW * displayRatioX;
+            var newH = cropH * displayRatioY;
+            // 点击点在窗体中的当前屏幕位置保持不变 (即光标相对于窗体左上角不变)
+            var screenClick = PointToScreen(e.GetPosition(this));
+            Left = screenClick.X - pos.X / ActualWidth * newW;
+            Top = screenClick.Y - pos.Y / ActualHeight * newH;
+            Width = newW;
+            Height = newH;
             isThumbnailMode = true;
         }
     }
+
 
     public ScrapWindow SetSelected(bool selected)
     {
@@ -365,8 +429,8 @@ public class ScrapWindow : Window
         }
         else
         {
-            BorderBrush = null;
-            BorderThickness = new Thickness(0);
+            BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(180, 120, 120, 120));
+            BorderThickness = new Thickness(1);
         }
         return this;
     }
@@ -433,6 +497,81 @@ public class ScrapWindow : Window
             menu.Items.Add(new System.Windows.Controls.Separator());
         }
 
+        var copyItem = new System.Windows.Controls.MenuItem { Header = "复制" };
+        copyItem.Click += (s, e) =>
+        {
+            CopyBitmapToClipboard(GetOriginalBitmap());
+        };
+        menu.Items.Add(copyItem);
+
+        var cutItem = new System.Windows.Controls.MenuItem { Header = "剪切" };
+        cutItem.Click += (s, e) =>
+        {
+            CopyBitmapToClipboard(GetOriginalBitmap());
+            CloseScrap();
+        };
+        menu.Items.Add(cutItem);
+
+        var saveItem = new System.Windows.Controls.MenuItem { Header = "另存为" };
+        saveItem.Click += (s, e) =>
+        {
+            var bitmap = GetOriginalBitmap();
+            if (bitmap == null) return;
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "PNG 图片|*.png|JPEG 图片|*.jpg;*.jpeg|所有文件|*.*",
+                DefaultExt = ".png",
+                FileName = "截图_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".png"
+            };
+            if (dialog.ShowDialog() == true)
+            {
+                using var fs = new System.IO.FileStream(dialog.FileName, System.IO.FileMode.Create);
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                encoder.Save(fs);
+            }
+        };
+        menu.Items.Add(saveItem);
+
+        var todoItem = new System.Windows.Controls.MenuItem { Header = "代办识别" };
+        todoItem.Click += async (s, e) =>
+        {
+            var bitmap = GetOriginalBitmap();
+            if (bitmap == null) return;
+            try
+            {
+                using var ms = new System.IO.MemoryStream();
+                var enc = new PngBitmapEncoder();
+                enc.Frames.Add(BitmapFrame.Create(bitmap));
+                enc.Save(ms);
+                var imageBytes = ms.ToArray();
+
+                var session = Core.Llm.ChatManager.Instance.CreateSession("代办识别");
+                var imageDir = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "ToolBox", "sessions", session.Id, "images");
+                System.IO.Directory.CreateDirectory(imageDir);
+                var imagePath = System.IO.Path.Combine(imageDir, $"{DateTime.UtcNow:yyyyMMddHHmmssfff}.png");
+                System.IO.File.WriteAllBytes(imagePath, imageBytes);
+
+                session.Messages.Add(new Core.Llm.ChatMessage
+                {
+                    Role = "user",
+                    Content = "请分析这张图片中的内容，识别出需要作为待办事项的任务。如果有，请使用 add_todo 工具创建对应的待办。",
+                    ImagePath = imagePath
+                });
+
+                App.CompactToolbox?.SwitchToTab("chat");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ToolBox] Todo identification failed: {ex.Message}");
+            }
+        };
+        menu.Items.Add(todoItem);
+
+        menu.Items.Add(new System.Windows.Controls.Separator());
+
         var chatItem = new System.Windows.Controls.MenuItem { Header = "发起对话" };
         chatItem.Click += (s, e) => StartChat();
         menu.Items.Add(chatItem);
@@ -443,6 +582,7 @@ public class ScrapWindow : Window
 
         menu.IsOpen = true;
     }
+
 
     private void OnDropHandler(object sender, DragEventArgs e)
     {
@@ -488,8 +628,7 @@ public class ScrapWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         Services.LayerManager.Instance.UnregisterWindow(this);
-        if (!closePrepare)
-            OnScrapClose?.Invoke(this, new ScrapEventArgs { Scrap = this });
+        OnScrapClose?.Invoke(this, new ScrapEventArgs { Scrap = this });
         base.OnClosed(e);
     }
 
@@ -498,7 +637,8 @@ public class ScrapWindow : Window
 
     private void StartChat()
     {
-        if (sourceBitmap == null) return;
+        var bitmap = GetOriginalBitmap();
+        if (bitmap == null) return;
 
         // Save bitmap to temp file
         var tempPath = System.IO.Path.Combine(
@@ -508,7 +648,7 @@ public class ScrapWindow : Window
         using (var fs = new System.IO.FileStream(tempPath, System.IO.FileMode.Create))
         {
             var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(sourceBitmap));
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
             encoder.Save(fs);
         }
 

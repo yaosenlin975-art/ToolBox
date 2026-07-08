@@ -9,6 +9,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ToolBox.Models;
+using ToolBox.Core.Native;
 
 namespace ToolBox.Views.Capture;
 
@@ -72,8 +73,16 @@ public partial class CaptureWindow : Window
 
     private void CaptureFullScreen()
     {
-        var screenWidth = (int)SystemParameters.PrimaryScreenWidth;
-        var screenHeight = (int)SystemParameters.PrimaryScreenHeight;
+        // 以物理像素采集整屏：GetSystemMetrics(SM_CXSCREEN/CYSCREEN) 返回主屏物理像素尺寸，
+        // 不受 DPI 虚拟化影响。配合进程 DPI 感知（App 启动时 SetProcessDPIAware），
+        // CopyFromScreen 使用物理坐标，从源头保证截图为物理像素级，不被降采样。
+        var screenWidth = NativeMethods.GetSystemMetrics(NativeMethods.SM_CXSCREEN);
+        var screenHeight = NativeMethods.GetSystemMetrics(NativeMethods.SM_CYSCREEN);
+        if (screenWidth <= 0 || screenHeight <= 0)
+        {
+            screenWidth = (int)SystemParameters.PrimaryScreenWidth;
+            screenHeight = (int)SystemParameters.PrimaryScreenHeight;
+        }
 
         imgSnap = new Bitmap(screenWidth, screenHeight);
         using (var g = Graphics.FromImage(imgSnap))
@@ -143,11 +152,24 @@ public partial class CaptureWindow : Window
 
         if (w > 5 && h > 5)
         {
-            CapturedBitmap = new Bitmap(w, h);
+            // imgSnap 已按物理像素采集，而选区坐标 (x,y,w,h) 为 WPF 逻辑(DIP)单位，
+            // 需按比例换算到物理像素后再裁剪，保证裁剪图与选区精确对应且为全分辨率。
+            double scaleX = imgSnap.Width > 0 && SystemParameters.PrimaryScreenWidth > 0
+                ? imgSnap.Width / SystemParameters.PrimaryScreenWidth : 1.0;
+            double scaleY = imgSnap.Height > 0 && SystemParameters.PrimaryScreenHeight > 0
+                ? imgSnap.Height / SystemParameters.PrimaryScreenHeight : 1.0;
+
+            int pX = (int)Math.Round(x * scaleX);
+            int pY = (int)Math.Round(y * scaleY);
+            int pW = (int)Math.Round(w * scaleX);
+            int pH = (int)Math.Round(h * scaleY);
+
+            CapturedBitmap = new Bitmap(pW, pH);
             using (var g = Graphics.FromImage(CapturedBitmap))
             {
-                g.DrawImage(imgSnap, new Rectangle(0, 0, w, h), x, y, w, h, GraphicsUnit.Pixel);
+                g.DrawImage(imgSnap, new Rectangle(0, 0, pW, pH), pX, pY, pW, pH, GraphicsUnit.Pixel);
             }
+            // 窗口尺寸/位置仍使用 DIP 逻辑单位，保持原有布局行为。
             CaptureSize = new System.Windows.Size(w, h);
             CaptureStart = new System.Windows.Point(x, y);
             CaptureCompleted?.Invoke(CapturedBitmap, CaptureStart, CaptureSize);

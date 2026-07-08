@@ -146,26 +146,26 @@
             <Border Grid.Column="0" Background="{DynamicResource BgBrush}"
                     BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,0,1,0">
                 <StackPanel Margin="0,24,0,0">
-                    <TextBlock Text="设置" FontSize="11" FontWeight="SemiBold"
+                    <TextBlock Text="{DynamicResource Lang_Settings}" FontSize="11" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextTertiaryBrush}"
                                Margin="20,0,0,0" TextOptions.TextFormattingMode="Display">
                         <TextBlock.LayoutTransform><ScaleTransform ScaleX="1" ScaleY="1"/></TextBlock.LayoutTransform>
                     </TextBlock>
                     <StackPanel Margin="8,20,8,0">
                         <RadioButton x:Name="NavGeneral" GroupName="SettingsNav" IsChecked="True"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE713;" Content="常规" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE713;" Content="{DynamicResource Lang_General}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavHotKey" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE765;" Content="快捷键" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE765;" Content="{DynamicResource Lang_Hotkey}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavCapture" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE722;" Content="截图" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE722;" Content="{DynamicResource Lang_Capture}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavLlm" GroupName="SettingsNav"
                                      Style="{StaticResource SettingsNavItem}" Tag="&#xE8BD;" Content="LLM" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavSchedule" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE823;" Content="定时" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE823;" Content="{DynamicResource Lang_Schedule}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavLanguage" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE774;" Content="语言" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE774;" Content="{DynamicResource Lang_Language}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavAbout" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE946;" Content="关于" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE946;" Content="{DynamicResource Lang_About}" Checked="OnNavChecked"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -174,8 +174,8 @@
             <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="32,24,32,24">
                 <StackPanel>
                     <StackPanel x:Name="SectionGeneral" Margin="0,0,0,8">
-                        <TextBlock Text="常规设置" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="配置应用的基本行为和外观" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
+                        <TextBlock Text="{DynamicResource Lang_GeneralSettings}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{DynamicResource Lang_GeneralHint}" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
 
                         <!-- Section: 应用模式 -->
                         <Border Style="{StaticResource SettingsSection}">
@@ -183,7 +183,7 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                                     <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
                                                Text="&#xE7F4;" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Text="应用模式" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{DynamicResource Lang_RunMode}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
                                 <Grid Style="{StaticResource SettingRow}">
@@ -192,20 +192,20 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="运行模式" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="选择应用在系统中的运行方式" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_RunMode}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_RunModeHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                         <RadioButton x:Name="rdoAppMode" GroupName="AppMode" Style="{StaticResource RadioCard}" IsChecked="True">
                                             <StackPanel>
-                                                <TextBlock Text="应用模式" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                                <TextBlock Text="窗口可关闭，后台不常驻" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                                                <TextBlock Text="{DynamicResource Lang_AppMode}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="{DynamicResource Lang_AppModeDesc}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"/>
                                             </StackPanel>
                                         </RadioButton>
                                         <RadioButton x:Name="rdoResidentMode" GroupName="AppMode" Style="{StaticResource RadioCard}">
                                             <StackPanel>
-                                                <TextBlock Text="常驻模式" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                                <TextBlock Text="最小化到系统托盘常驻" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                                                <TextBlock Text="{DynamicResource Lang_ResidentMode}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="{DynamicResource Lang_ResidentModeDesc}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"/>
                                             </StackPanel>
                                         </RadioButton>
                                     </StackPanel>
@@ -219,8 +219,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="开机自启" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="系统启动时自动运行 ToolBox" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_AutoStartup}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_AutoStartupHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <CheckBox x:Name="chkAutoStartup" Grid.Column="1" Style="{StaticResource ToggleSwitch}" VerticalAlignment="Center"/>
                                 </Grid>
@@ -233,8 +233,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="主题" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="选择界面主题（实时切换）" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_Theme}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_ThemeHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                         <RadioButton x:Name="rdoThemeLight" GroupName="Theme" Style="{StaticResource RadioCard}" Checked="OnThemeChecked">
@@ -257,12 +257,12 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="迷你窗口透明度" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="调整迷你模式窗口背景透明度（实时预览）" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_MiniOpacity}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_MiniOpacityHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Width="280">
                                         <Slider x:Name="sldCompactOpacity" Style="{StaticResource ModernSlider}" Width="220"
-                                                Minimum="0" Maximum="100" VerticalAlignment="Center"
+                                                Minimum="30" Maximum="100" VerticalAlignment="Center"
                                                 ValueChanged="SldCompactOpacity_ValueChanged"/>
                                         <TextBlock x:Name="txtCompactOpacityValue" Text="50" FontSize="11" FontFamily="{StaticResource FontMono}"
                                                    Foreground="{DynamicResource TextSecondaryBrush}" MinWidth="36" TextAlignment="Right" Margin="12,0,0,0"/>
@@ -274,15 +274,15 @@
 
                     <!-- ── Section: 快捷键 ── -->
                     <StackPanel x:Name="SectionHotKey" Visibility="Collapsed" Margin="0,0,0,8">
-                        <TextBlock Text="快捷键" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="配置全局热键" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
+                        <TextBlock Text="{DynamicResource Lang_Hotkey}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{DynamicResource Lang_HotkeyHint2}" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
 
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                                     <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
                                                Text="&#xE765;" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Text="全局热键" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{DynamicResource Lang_GlobalHotkey}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
                                 <Grid Style="{StaticResource SettingRow}">
@@ -291,8 +291,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="启用全局热键" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="开启后可使用快捷键触发截图/显示隐藏" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_EnableHotkey}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_EnableHotkeyHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <CheckBox x:Name="chkHotKeyEnable" Grid.Column="1" Style="{StaticResource ToggleSwitch}" VerticalAlignment="Center"/>
                                 </Grid>
@@ -305,8 +305,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="截图" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="点击右侧框,按下快捷键组合直接录入" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_Capture}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_HotkeyInputHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <TextBox x:Name="txtHotKey1" Grid.Column="1" Width="160" IsReadOnly="True"
                                              Text="Ctrl+1" FontSize="13" FontFamily="{StaticResource FontMono}"
@@ -317,7 +317,7 @@
                                              PreviewKeyDown="HotKey_PreviewKeyDown"
                                              GotFocus="HotKey_GotFocus"
                                              LostFocus="HotKey_LostFocus"
-                                             ToolTip="点击聚焦后按下快捷键组合"/>
+                                             ToolTip="{DynamicResource Lang_HotkeyInputHint}"/>
                                 </Grid>
 
                                 <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
@@ -328,8 +328,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="显示/隐藏" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="点击右侧框,按下快捷键组合直接录入" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_ShowHideHotkey}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_HotkeyInputHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <TextBox x:Name="txtHotKey2" Grid.Column="1" Width="160" IsReadOnly="True"
                                              Text="Ctrl+2" FontSize="13" FontFamily="{StaticResource FontMono}"
@@ -340,7 +340,7 @@
                                              PreviewKeyDown="HotKey_PreviewKeyDown"
                                              GotFocus="HotKey_GotFocus"
                                              LostFocus="HotKey_LostFocus"
-                                             ToolTip="点击聚焦后按下快捷键组合"/>
+                                             ToolTip="{DynamicResource Lang_HotkeyInputHint}"/>
                                 </Grid>
                             </StackPanel>
                         </Border>
@@ -348,15 +348,15 @@
 
                     <!-- ── Section: 截图 ── -->
                     <StackPanel x:Name="SectionCapture" Visibility="Collapsed" Margin="0,0,0,8">
-                        <TextBlock Text="截图设置" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="调整截图行为" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
+                        <TextBlock Text="{DynamicResource Lang_CaptureSettings}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{DynamicResource Lang_CaptureHint}" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
 
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                                     <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
                                                Text="&#xE722;" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Text="截图" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{DynamicResource Lang_Capture}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
                                 <Grid Style="{StaticResource SettingRow}">
@@ -365,8 +365,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="选区透明度" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="截图选区遮罩的透明程度" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_Transparency}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_TransparencyHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Width="280">
                                         <Slider x:Name="sldAreaTransparent" Style="{StaticResource ModernSlider}" Width="220"
@@ -384,12 +384,12 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="选区边框样式" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="截图时选区的边框显示方式" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_LineStyle}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_LineStyleHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <RadioButton x:Name="rdoLineSolid" GroupName="LineStyle" Content="实线" Style="{StaticResource ModernRadioButton}" Margin="0,0,16,0"/>
-                                        <RadioButton x:Name="rdoLineDotted" GroupName="LineStyle" Content="虚线" Style="{StaticResource ModernRadioButton}"/>
+                                        <RadioButton x:Name="rdoLineSolid" GroupName="LineStyle" Content="{DynamicResource Lang_LineSolid}" Style="{StaticResource ModernRadioButton}" Margin="0,0,16,0"/>
+                                        <RadioButton x:Name="rdoLineDotted" GroupName="LineStyle" Content="{DynamicResource Lang_LineDotted}" Style="{StaticResource ModernRadioButton}"/>
                                     </StackPanel>
                                 </Grid>
                             </StackPanel>
@@ -398,15 +398,15 @@
 
                     <!-- ── Section: LLM ── -->
                     <StackPanel x:Name="SectionLlm" Visibility="Collapsed" Margin="0,0,0,8">
-                        <TextBlock Text="LLM 助手" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="配置大语言模型供应商" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
+                        <TextBlock Text="{DynamicResource Lang_LlmTitle}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{DynamicResource Lang_LlmHint}" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
 
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                                     <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
                                                Text="&#xE8BD;" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Text="供应商配置" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{DynamicResource Lang_ProviderConfig}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
                                 <Grid Style="{StaticResource SettingRow}">
@@ -414,7 +414,7 @@
                                         <ColumnDefinition Width="120"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="供应商" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="0" Text="{DynamicResource Lang_Provider}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="cmbProvider" Grid.Column="1" Width="240" HorizontalAlignment="Left" SelectionChanged="CmbProvider_SelectionChanged"/>
                                 </Grid>
 
@@ -425,10 +425,10 @@
                                         <ColumnDefinition Width="120"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="模型" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="0" Text="{DynamicResource Lang_Model}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                                         <ComboBox x:Name="cmbModel" Width="240" HorizontalAlignment="Left"/>
-                                        <Button x:Name="btnDiscoverModels" Content="发现模型" Style="{StaticResource OutlineButton}" Click="DiscoverModels_Click" Margin="8,0,0,0" Padding="10,4" FontSize="12"/>
+                                        <Button x:Name="btnDiscoverModels" Content="{DynamicResource Lang_DiscoverModels}" Style="{StaticResource OutlineButton}" Click="DiscoverModels_Click" Margin="8,0,0,0" Padding="10,4" FontSize="12"/>
                                     </StackPanel>
                                 </Grid>
 
@@ -461,8 +461,8 @@
                                         <ColumnDefinition Width="120"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="测试连接" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                    <Button Grid.Column="1" Content="测试" Style="{StaticResource OutlineButton}" Click="TestConnection_Click" Width="80" HorizontalAlignment="Left" Padding="0,5"/>
+                                    <TextBlock Grid.Column="0" Text="{DynamicResource Lang_TestConnection}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Content="{DynamicResource Lang_Test}" Style="{StaticResource OutlineButton}" Click="TestConnection_Click" Width="80" HorizontalAlignment="Left" Padding="0,5"/>
                                 </Grid>
                             </StackPanel>
                         </Border>
@@ -470,15 +470,15 @@
 
                     <!-- ── Section: 定时 ── -->
                     <StackPanel x:Name="SectionSchedule" Visibility="Collapsed" Margin="0,0,0,8">
-                        <TextBlock Text="定时截图与日报" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="配置自动截图和每日行为总结" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
+                        <TextBlock Text="{DynamicResource Lang_ScheduleTitle}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{DynamicResource Lang_ScheduleHint}" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
 
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                                     <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
                                                Text="&#xE823;" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Text="定时任务" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{DynamicResource Lang_ScheduleTask}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
                                 <Grid Style="{StaticResource SettingRow}">
@@ -487,8 +487,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="定时全屏截图" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="按 Cron 表达式定时截取全屏" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_AutoScreenshot}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_AutoScreenshotHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <CheckBox x:Name="chkAutoScreenshot" Grid.Column="1" Style="{StaticResource ToggleSwitch}" VerticalAlignment="Center"/>
                                 </Grid>
@@ -501,8 +501,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Cron 表达式" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="分钟级: 分 时 日 月 周（例: 0 */30 * * * *）" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_CronExpr}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_CronHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <TextBox x:Name="txtAutoScreenshotCron" Grid.Column="1" Width="200" HorizontalAlignment="Right" Style="{StaticResource InputField}"/>
                                 </Grid>
@@ -515,8 +515,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="每日行为总结" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="根据当日截图生成日报" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_DailyReport}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_DailyReportHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <CheckBox x:Name="chkDailyReport" Grid.Column="1" Style="{StaticResource ToggleSwitch}" VerticalAlignment="Center"/>
                                 </Grid>
@@ -529,8 +529,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="总结时间" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="格式: HH:mm，例 18:00" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_SummaryTime}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_SummaryTimeHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <TextBox x:Name="txtDailyReportTime" Grid.Column="1" Width="120" HorizontalAlignment="Right" Style="{StaticResource InputField}"/>
                                 </Grid>
@@ -540,15 +540,15 @@
 
                     <!-- ── Section: 语言 ── -->
                     <StackPanel x:Name="SectionLanguage" Visibility="Collapsed" Margin="0,0,0,8">
-                        <TextBlock Text="语言" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="选择界面语言（更改后重启生效）" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
+                        <TextBlock Text="{DynamicResource Lang_Language}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{DynamicResource Lang_LanguageHint}" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
 
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                                     <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
                                                Text="&#xE774;" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Text="界面语言" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{DynamicResource Lang_InterfaceLanguage}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
                                 <Grid Style="{StaticResource SettingRow}">
@@ -557,11 +557,11 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="语言" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="更改后需要重启应用生效" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{DynamicResource Lang_Language}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_LanguageHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <RadioButton x:Name="rdoLangZh" GroupName="Lang" Content="中文" Style="{StaticResource RadioCard}" Margin="0,0,12,0"/>
+                                        <RadioButton x:Name="rdoLangZh" GroupName="Lang" Content="{DynamicResource Lang_Zh}" Style="{StaticResource RadioCard}" Margin="0,0,12,0"/>
                                         <RadioButton x:Name="rdoLangEn" GroupName="Lang" Content="English" Style="{StaticResource RadioCard}" Margin="0"/>
                                     </StackPanel>
                                 </Grid>
@@ -571,8 +571,8 @@
 
                     <!-- ── Section: 关于 ── -->
                     <StackPanel x:Name="SectionAbout" Visibility="Collapsed" Margin="0,0,0,8">
-                        <TextBlock Text="关于" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="应用信息" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
+                        <TextBlock Text="{DynamicResource Lang_About}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{DynamicResource Lang_AppInfo}" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
 
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
@@ -583,14 +583,14 @@
                                 </StackPanel>
 
                                 <StackPanel Orientation="Horizontal" Margin="0,4">
-                                    <TextBlock Text="版本：" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{DynamicResource Lang_VersionLabel}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                     <TextBlock x:Name="txtVersion" Text="2.0.0" FontSize="13" FontFamily="{StaticResource FontMono}" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,4">
-                                    <TextBlock Text="项目地址：" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{DynamicResource Lang_ProjectUrl}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                     <TextBlock Text="github.com/lin/ToolBox" FontSize="13" FontFamily="{StaticResource FontMono}" Foreground="{DynamicResource AccentBrush}"/>
                                 </StackPanel>
-                                <TextBlock Text="ToolBox 是一个集成截图、贴图、OCR、LLM 助手、待办管理等功能的桌面工具集。"
+                                <TextBlock Text="{DynamicResource Lang_AboutDesc}"
                                            FontSize="12" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,8,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
@@ -603,9 +603,9 @@
         <Border Grid.Row="1" Height="56" Background="{DynamicResource BgOverlayBrush}"
                 BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="32,0" VerticalAlignment="Center">
-                <Button Content="重置为默认" Style="{StaticResource OutlineButton}" Click="BtnReset_Click"
+                <Button Content="{DynamicResource Lang_Reset}" Style="{StaticResource OutlineButton}" Click="BtnReset_Click"
                         Padding="20,8" FontSize="13" Margin="0,0,12,0"/>
-                <Button Content="保存设置" Style="{StaticResource BtnPrimary}" Click="BtnSave_Click"
+                <Button Content="{DynamicResource Lang_Save}" Style="{StaticResource BtnPrimary}" Click="BtnSave_Click"
                         Padding="20,8" FontSize="13"/>
             </StackPanel>
         </Border>

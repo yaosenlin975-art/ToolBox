@@ -13,6 +13,7 @@
     <sys:String x:Key="Lang_Cancel">取消</sys:String>
     <sys:String x:Key="Lang_AppMode">应用模式</sys:String>
     <sys:String x:Key="Lang_ResidentMode">常驻模式</sys:String>
+    <sys:String x:Key="Lang_ResidentModeDesc">最小化到系统托盘常驻</sys:String>
     <sys:String x:Key="Lang_ShowMainWindow">启动时显示主窗口</sys:String>
     <sys:String x:Key="Lang_ShowSplash">显示启动画面</sys:String>
     <sys:String x:Key="Lang_AutoStartup">开机自动启动</sys:String>
@@ -58,7 +59,7 @@
     <sys:String x:Key="Lang_NoHistory">暂无历史记录</sys:String>
     <sys:String x:Key="Lang_Version">截图 · 贴图 · 标注</sys:String>
     <sys:String x:Key="Lang_Language">语言</sys:String>
-    <sys:String x:Key="Lang_LanguageHint">更改语言后需要重启应用生效</sys:String>
+    <sys:String x:Key="Lang_LanguageHint">保存后立即生效</sys:String>
 
     <!-- LLM Assistant -->
     <sys:String x:Key="LLM.ChatWindow.Title">ToolBox AI 助手</sys:String>
@@ -76,5 +77,102 @@
     <sys:String x:Key="LLM.Error.ProviderUnavailable">当前模型不可用，已切换到本地模型</sys:String>
     <sys:String x:Key="LLM.Error.ToolFailed">工具调用失败：{0}</sys:String>
     <sys:String x:Key="LLM.ScrapWindow.StartChat">发起对话</sys:String>
+
+    <!-- Phase 1: Core windows -->
+    <sys:String x:Key="Lang_Settings">设置</sys:String>
+    <sys:String x:Key="Lang_Schedule">定时</sys:String>
+
+    <sys:String x:Key="Lang_GeneralSettings">常规设置</sys:String>
+    <sys:String x:Key="Lang_GeneralHint">配置应用的基本行为和外观</sys:String>
+    <sys:String x:Key="Lang_RunMode">运行模式</sys:String>
+    <sys:String x:Key="Lang_RunModeHint">选择应用在系统中的运行方式</sys:String>
+    <sys:String x:Key="Lang_AppModeDesc">窗口可关闭，后台不常驻</sys:String>
+    <sys:String x:Key="Lang_AutoStartupHint">系统启动时自动运行 ToolBox</sys:String>
+    <sys:String x:Key="Lang_Theme">主题</sys:String>
+    <sys:String x:Key="Lang_ThemeHint">选择界面主题（实时切换）</sys:String>
+    <sys:String x:Key="Lang_MiniOpacity">迷你窗口透明度</sys:String>
+    <sys:String x:Key="Lang_MiniOpacityHint">调整迷你模式窗口背景透明度（实时预览）</sys:String>
+
+    <sys:String x:Key="Lang_HotkeyHint2">配置全局热键</sys:String>
+    <sys:String x:Key="Lang_GlobalHotkey">全局热键</sys:String>
+    <sys:String x:Key="Lang_EnableHotkeyHint">开启后可使用快捷键触发截图/显示隐藏</sys:String>
+    <sys:String x:Key="Lang_HotkeyInputHint">点击右侧框,按下快捷键组合直接录入</sys:String>
+    <sys:String x:Key="Lang_HotkeyPressing">按下快捷键组合...</sys:String>
+
+    <sys:String x:Key="Lang_CaptureSettings">截图设置</sys:String>
+    <sys:String x:Key="Lang_CaptureHint">调整截图行为</sys:String>
+    <sys:String x:Key="Lang_TransparencyHint">截图选区遮罩的透明程度</sys:String>
+    <sys:String x:Key="Lang_LineStyle">选区边框样式</sys:String>
+    <sys:String x:Key="Lang_LineStyleHint">截图时选区的边框显示方式</sys:String>
+
+    <sys:String x:Key="Lang_LlmTitle">LLM 助手</sys:String>
+    <sys:String x:Key="Lang_LlmHint">配置大语言模型供应商</sys:String>
+    <sys:String x:Key="Lang_ProviderConfig">供应商配置</sys:String>
+    <sys:String x:Key="Lang_Provider">供应商</sys:String>
+    <sys:String x:Key="Lang_Model">模型</sys:String>
+    <sys:String x:Key="Lang_DiscoverModels">发现模型</sys:String>
+    <sys:String x:Key="Lang_TestConnection">测试连接</sys:String>
+    <sys:String x:Key="Lang_Test">测试</sys:String>
+
+    <sys:String x:Key="Lang_ScheduleTitle">定时截图与日报</sys:String>
+    <sys:String x:Key="Lang_ScheduleHint">配置自动截图和每日行为总结</sys:String>
+    <sys:String x:Key="Lang_ScheduleTask">定时任务</sys:String>
+    <sys:String x:Key="Lang_AutoScreenshot">定时全屏截图</sys:String>
+    <sys:String x:Key="Lang_AutoScreenshotHint">按 Cron 表达式定时截取全屏</sys:String>
+    <sys:String x:Key="Lang_CronExpr">Cron 表达式</sys:String>
+    <sys:String x:Key="Lang_CronHint">分钟级: 分 时 日 月 周（例: 0 */30 * * * *）</sys:String>
+    <sys:String x:Key="Lang_DailyReport">每日行为总结</sys:String>
+    <sys:String x:Key="Lang_DailyReportHint">根据当日截图生成日报</sys:String>
+    <sys:String x:Key="Lang_SummaryTime">总结时间</sys:String>
+    <sys:String x:Key="Lang_SummaryTimeHint">格式: HH:mm，例 18:00</sys:String>
+
+    <sys:String x:Key="Lang_InterfaceLanguage">界面语言</sys:String>
+    <sys:String x:Key="Lang_Zh">中文</sys:String>
+    <sys:String x:Key="Lang_AppInfo">应用信息</sys:String>
+    <sys:String x:Key="Lang_VersionLabel">版本：</sys:String>
+    <sys:String x:Key="Lang_ProjectUrl">项目地址：</sys:String>
+    <sys:String x:Key="Lang_AboutDesc">ToolBox 是一个集成截图、贴图、OCR、LLM 助手、待办管理等功能的桌面工具集。</sys:String>
+    <sys:String x:Key="Lang_Reset">重置为默认</sys:String>
+    <sys:String x:Key="Lang_Saved">设置已保存</sys:String>
+
+    <sys:String x:Key="Lang_Discovering">发现中...</sys:String>
+    <sys:String x:Key="Lang_DiscoveredCount">发现 {0} 个模型</sys:String>
+    <sys:String x:Key="Lang_NoModelsFound">未发现模型，请检查连接配置</sys:String>
+    <sys:String x:Key="Lang_Error">错误</sys:String>
+    <sys:String x:Key="Lang_DiscoverFailed">发现模型失败: {0}</sys:String>
+    <sys:String x:Key="Lang_ConnSuccess">连接成功!</sys:String>
+    <sys:String x:Key="Lang_ConnFail">连接失败，请检查配置</sys:String>
+
+    <sys:String x:Key="Lang_Compact_Todo">待办</sys:String>
+    <sys:String x:Key="Lang_Compact_Assistant">助手</sys:String>
+    <sys:String x:Key="Lang_Compact_Screenshot">截图</sys:String>
+    <sys:String x:Key="Lang_Compact_OpenWorkbench">打开工作台</sys:String>
+    <sys:String x:Key="Lang_Compact_ViewOriginal">点击查看原图</sys:String>
+    <sys:String x:Key="Lang_QuickAdd">快速添加</sys:String>
+    <sys:String x:Key="Lang_QuickAddTitle">快速添加待办</sys:String>
+    <sys:String x:Key="Lang_QuickAddPrompt">请输入标题:</sys:String>
+
+    <sys:String x:Key="Lang_Workbench_Title">ToolBox</sys:String>
+    <sys:String x:Key="Lang_Workbench_ToCompact">切换到迷你模式</sys:String>
+    <sys:String x:Key="Lang_Workbench_Minimize">最小化</sys:String>
+    <sys:String x:Key="Lang_Workbench_Maximize">最大化/还原</sys:String>
+    <sys:String x:Key="Lang_Workbench_Close">关闭</sys:String>
+    <sys:String x:Key="Lang_Page_Dashboard">工作台</sys:String>
+    <sys:String x:Key="Lang_Page_Assistant">AI 助手</sys:String>
+    <sys:String x:Key="Lang_Page_Todos">待办管理</sys:String>
+    <sys:String x:Key="Lang_Page_Screenshots">截图历史</sys:String>
+    <sys:String x:Key="Lang_Page_Settings">设置</sys:String>
+
+    <sys:String x:Key="Lang_Tray_AI">AI 助手</sys:String>
+    <sys:String x:Key="Lang_Tray_Todo">待办</sys:String>
+    <sys:String x:Key="Lang_Tray_None">(无)</sys:String>
+
+    <sys:String x:Key="Lang_DateToday">今日</sys:String>
+    <sys:String x:Key="Lang_DateWeek">本周</sys:String>
+    <sys:String x:Key="Lang_DateMonth">本月</sys:String>
+    <sys:String x:Key="Lang_DateAll">全部</sys:String>
+
+    <sys:String x:Key="Lang_Loading">加载中...</sys:String>
+    <sys:String x:Key="Lang_RecordCount">{0} 条记录</sys:String>
 
 </ResourceDictionary>

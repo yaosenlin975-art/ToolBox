@@ -2,6 +2,60 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="{DynamicResource BgBrush}">
+    <UserControl.Resources>
+        <ItemsPanelTemplate x:Key="HistoryGridPanel">
+            <UniformGrid Columns="4"/>
+        </ItemsPanelTemplate>
+        <ItemsPanelTemplate x:Key="HistoryListPanel">
+            <StackPanel Orientation="Vertical"/>
+        </ItemsPanelTemplate>
+
+        <!-- 网格视图：沿用原有卡片样式（300x200 缩略图 + 时间/尺寸） -->
+        <DataTemplate x:Key="HistoryGridTemplate">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Border Grid.Row="0" Width="300" Height="200" Background="{DynamicResource BgSunkenBrush}">
+                    <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"
+                           RenderOptions.BitmapScalingMode="HighQuality"
+                           MouseLeftButtonUp="HistoryItem_Click" ToolTip="{DynamicResource Lang_Compact_ViewOriginal}"/>
+                </Border>
+                <StackPanel Grid.Row="1" Margin="10,8">
+                    <TextBlock Text="{Binding TimeDisplay}" FontSize="11" FontWeight="Medium"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                        <TextBlock Text="{Binding SizeDisplay}" FontSize="10"
+                                   FontFamily="{StaticResource FontMono}"
+                                   Foreground="{DynamicResource TextTertiaryBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <!-- 列表视图：横向（左侧较小缩略图 + 右侧时间/尺寸） -->
+        <DataTemplate x:Key="HistoryListTemplate">
+            <Grid Margin="0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Width="120" Height="72" Background="{DynamicResource BgSunkenBrush}">
+                    <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"
+                           RenderOptions.BitmapScalingMode="HighQuality"
+                           MouseLeftButtonUp="HistoryItem_Click" ToolTip="{DynamicResource Lang_Compact_ViewOriginal}"/>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding TimeDisplay}" FontSize="12" FontWeight="Medium"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="{Binding SizeDisplay}" FontSize="10" Margin="0,2,0,0"
+                               FontFamily="{StaticResource FontMono}"
+                               Foreground="{DynamicResource TextTertiaryBrush}"/>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -12,9 +66,9 @@
 
         <!-- Header -->
         <StackPanel Grid.Row="0" Margin="32,24,32,8">
-            <TextBlock Text="截图历史" FontSize="22" FontWeight="SemiBold"
+            <TextBlock Text="{DynamicResource Lang_History}" FontSize="22" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimaryBrush}"/>
-            <TextBlock x:Name="lblSubtitle" Text="加载中..." FontSize="12" Margin="0,4,0,0"
+            <TextBlock x:Name="lblSubtitle" Text="{DynamicResource Lang_Loading}" FontSize="12" Margin="0,4,0,0"
                        Foreground="{DynamicResource TextTertiaryBrush}"/>
         </StackPanel>
 
@@ -39,41 +93,27 @@
                 <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="6" Padding="2"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                     <StackPanel Orientation="Horizontal">
-                        <RadioButton x:Name="DateToday" Content="今日" Style="{StaticResource DateFilterStyle}"
+                        <RadioButton x:Name="DateToday" Content="{DynamicResource Lang_DateToday}" Style="{StaticResource DateFilterStyle}"
                                      Click="DateFilter_Changed" Margin="0,0,2,0"/>
-                        <RadioButton x:Name="DateWeek" Content="本周" Style="{StaticResource DateFilterStyle}"
+                        <RadioButton x:Name="DateWeek" Content="{DynamicResource Lang_DateWeek}" Style="{StaticResource DateFilterStyle}"
                                      Click="DateFilter_Changed" Margin="0,0,2,0"/>
-                        <RadioButton x:Name="DateMonth" Content="本月" IsChecked="True"
+                        <RadioButton x:Name="DateMonth" Content="{DynamicResource Lang_DateMonth}" IsChecked="True"
                                      Style="{StaticResource DateFilterStyle}" Click="DateFilter_Changed" Margin="0,0,2,0"/>
-                        <RadioButton x:Name="DateAll" Content="全部" Style="{StaticResource DateFilterStyle}"
+                        <RadioButton x:Name="DateAll" Content="{DynamicResource Lang_DateAll}" Style="{StaticResource DateFilterStyle}"
                                      Click="DateFilter_Changed"/>
                     </StackPanel>
                 </Border>
 
                 <Border Width="1" Margin="10,4" Background="{DynamicResource BorderBrush}"/>
-
-                <!-- Search -->
-                <Border Width="200" Height="32" CornerRadius="6"
-                        Background="{DynamicResource BgElevatedBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
-                    <TextBox x:Name="SearchBox" Margin="8,0" VerticalAlignment="Center"
-                             FontSize="12" Background="Transparent" BorderThickness="0"
-                             Foreground="{DynamicResource TextPrimaryBrush}"
-                             CaretBrush="{DynamicResource AccentBrush}"
-                             TextChanged="SearchBox_TextChanged"/>
-                </Border>
             </StackPanel>
         </Border>
 
         <!-- Grid Container -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="32,16">
             <ListBox x:Name="lstHistory" Background="Transparent" BorderThickness="0"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                <ListBox.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <UniformGrid Columns="4"/>
-                    </ItemsPanelTemplate>
-                </ListBox.ItemsPanel>
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ItemsPanel="{StaticResource HistoryGridPanel}"
+                     ItemTemplate="{StaticResource HistoryGridTemplate}">
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
                         <Setter Property="Margin" Value="0,0,12,12"/>
@@ -97,39 +137,16 @@
                         </Setter>
                     </Style>
                 </ListBox.ItemContainerStyle>
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <Border Grid.Row="0" Width="300" Height="200" Background="{DynamicResource BgSunkenBrush}">
-                                <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"
-                                       RenderOptions.BitmapScalingMode="HighQuality"/>
-                            </Border>
-                            <StackPanel Grid.Row="1" Margin="10,8">
-                                <TextBlock Text="{Binding TimeDisplay}" FontSize="11" FontWeight="Medium"
-                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                    <TextBlock Text="{Binding SizeDisplay}" FontSize="10"
-                                               FontFamily="{StaticResource FontMono}"
-                                               Foreground="{DynamicResource TextTertiaryBrush}"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
             </ListBox>
         </ScrollViewer>
 
         <!-- Bottom Bar -->
         <Border Grid.Row="3" Padding="32,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button x:Name="btnLoadMore" Content="加载更多 ↓" Click="BtnLoadMore_Click"
+                <Button x:Name="btnLoadMore" Content="{DynamicResource Lang_LoadMore}" Click="BtnLoadMore_Click"
                         Style="{StaticResource OutlineButton}" Padding="20,6" FontSize="12"
                         Visibility="Collapsed"/>
-                <TextBlock x:Name="lblEmpty" Text="暂无历史记录" Margin="0,0,0,0"
+                <TextBlock x:Name="lblEmpty" Text="{DynamicResource Lang_NoHistory}" Margin="0,0,0,0"
                            Foreground="{DynamicResource TextTertiaryBrush}" FontSize="12"
                            Visibility="Collapsed"/>
             </StackPanel>

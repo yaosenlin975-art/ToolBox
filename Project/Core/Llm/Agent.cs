@@ -1,7 +1,7 @@
-﻿using ToolBox.Core.Providers;
+﻿using System.Text;
+using ToolBox.Core.Providers;
 using ToolBox.Core.Tools;
 using System.Runtime.CompilerServices;
-using ToolBox.Core.Tools;
 
 namespace ToolBox.Core.Llm;
 
@@ -12,6 +12,7 @@ public class Agent
     private readonly ISystemPromptBuilder promptBuilder;
     private readonly ChatSession session;
     private CancellationTokenSource? cts;
+    private List<ChatMessage>? turnMessages;
 
     public Agent(ILlmProvider provider, ToolRegistry tools, ISystemPromptBuilder promptBuilder, ChatSession session)
     {
@@ -23,12 +24,19 @@ public class Agent
 
     public ChatSession Session => session;
 
+    /// <summary>
+    /// 本轮对话中由 Agent 生成的所有消息（含最终助手回复与工具调用轮次）。
+    /// ChatView 在 RunAsync 结束后将其写入 session.Messages 以完成持久化。
+    /// </summary>
+    public IReadOnlyList<ChatMessage> TurnMessages => turnMessages ?? [];
+
     public async IAsyncEnumerable<ChatChunk> RunAsync(
         string userMessage,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         session.Status = "running";
+        turnMessages = new List<ChatMessage>();
 
         // 构建消息列表：system + 历史 + user
         var messages = BuildMessages();
@@ -39,72 +47,55 @@ public class Agent
             for (int round = 0; round < 10; round++)
             {
                 ChatChunk? lastChunk = null;
-                var chunks = new List<ChatChunk>();
-                Exception? lastError = null;
-                for (int retry = 0; retry < 3; retry++)
-                {
-                    chunks.Clear();
-                    try
-                    {
-                        var response = provider.ChatAsync(
-                            messages,
-                            tools.GetAllTools(),
-                            cts.Token);
+                StringBuilder? currentText = null;
 
-                        await foreach (var chunk in response)
-                        {
-                            chunks.Add(chunk);
-                            lastChunk = chunk;
-                        }
-                        lastError = null;
-                        break;
-                    }
-                    catch (Exception ex)
+                // 边收边 yield（去除缓冲）：直接遍历 provider 的流式响应，
+                // 每收到一个 chunk 立即向上层吐出，确保 UI 真正逐字流式显示。
+                await foreach (var chunk in provider.ChatAsync(messages, tools.GetAllTools(), cts.Token))
+                {
+                    lastChunk = chunk;
+                    if (chunk.Text != null)
                     {
-                        lastError = ex;
-                        if (retry < 2)
-                            await Task.Delay(1000 * (1 << retry), cts.Token);
+                        currentText ??= new StringBuilder();
+                        currentText.Append(chunk.Text);
                     }
-                }
-                foreach (var chunk in chunks)
                     yield return chunk;
-                if (lastError != null)
-                {
-                    yield return new ChatChunk { Text = "[LLM 调用失败: " + lastError.Message + "]" };
-                    session.Status = "idle";
-                    yield break;
                 }
 
-                // 无工具调用 → 完成
+                                // 无工具调用 → 完成：落盘并通过最后一个 text chunk 把最终文本刷新到 UI
                 if (lastChunk?.ToolCall == null)
+                {
+                    if (currentText != null && currentText.Length > 0)
+                    {
+                        turnMessages.Add(new ChatMessage { Role = "assistant", Content = currentText.ToString() });
+                        yield return new ChatChunk { Text = currentText.ToString() };
+                    }
                     break;
-
-                // 执行工具（单次最多 1 个 tool call）
+                }
+// 执行工具（单次最多 1 个 tool call）
                 var toolResult = ExecuteTool(lastChunk.ToolCall);
 
-                // 追加 assistant 消息（含 tool call）
-                messages.Add(new ChatMessage
+                // 本轮 assistant 消息（前置文本 + tool call）写入本轮持久化集合
+                turnMessages.Add(new ChatMessage
                 {
                     Role = "assistant",
+                    Content = currentText?.ToString(),
                     ToolCalls = [lastChunk.ToolCall]
                 });
-
-                // 追加 tool 结果消息
-                messages.Add(new ChatMessage
+                turnMessages.Add(new ChatMessage
                 {
                     Role = "tool",
                     Content = toolResult,
                     ToolCallId = lastChunk.ToolCall.Id
                 });
 
-                // 追加到 session 历史
-                session.Messages.Add(new ChatMessage
+                // 追加到下一轮 LLM 调用的消息上下文（不在此处持久化 session）
+                messages.Add(new ChatMessage
                 {
                     Role = "assistant",
-                    Content = lastChunk.Text,
                     ToolCalls = [lastChunk.ToolCall]
                 });
-                session.Messages.Add(new ChatMessage
+                messages.Add(new ChatMessage
                 {
                     Role = "tool",
                     Content = toolResult,

@@ -17,6 +17,8 @@ public class ScrapBook
     public int ScrapCount => scraps.Count;
     public int DustCount => dustBox.Count;
     public bool IsImageDrag { get; set; } = true;
+    /// <summary>应用退出时为 true，此时关闭 scrap 不删除缓存，保留跨重启持久化。</summary>
+    public bool IsShuttingDown { get; set; }
 
     public event ScrapEventHandler ScrapAdded;
     public event ScrapEventHandler ScrapRemoved;
@@ -59,6 +61,45 @@ public class ScrapBook
 
         Services.LayerManager.Instance.RegisterWindow(scrap);
 
+        ScrapAdded?.Invoke(this, new ScrapEventArgs { Scrap = scrap });
+        return this;
+    }
+
+    /// <summary>
+    /// 从已有缓存项恢复 scrap：复用其 CreationTime 与 CacheItem，避免重复写盘；
+    /// 关闭时 CacheManager.ScrapRemoved 会据此删除缓存。
+    /// </summary>
+    public ScrapBook AddScrap(BitmapSource image, int x, int y, int width, int height, CacheItem existingCache)
+    {
+        var scrap = new ScrapWindow();
+        if (existingCache != null)
+        {
+            scrap.CreationTime = existingCache.CreateTime;
+            scrap.CacheItem = existingCache;
+        }
+        scrap.SetImage(image);
+        scrap.Left = x;
+        scrap.Top = y;
+        scrap.Width = width;
+        scrap.Height = height;
+        scrap.Manager = this;
+        scrap.OnScrapClose += OnScrapClose;
+        scrap.OnScrapCreated += OnScrapCreated;
+        scrap.OnScrapActive += OnScrapActive;
+        scrap.OnScrapInactive += OnScrapInactive;
+        scrap.OnScrapLocationChanged += OnScrapLocationChanged;
+        scrap.OnScrapImageChanged += OnScrapImageChanged;
+        scrap.OnScrapStyleApplied += OnScrapStyleApplied;
+        scrap.OnScrapStyleRemoved += OnScrapStyleRemoved;
+
+        scraps.Add(scrap);
+        scrap.Show();
+        scrap.InitializedValue = true;
+        scrap.RaiseScrapCreated();
+
+        Services.LayerManager.Instance.RegisterWindow(scrap);
+
+        // scrap.CacheItem 已存在 → CacheManager.ScrapAdded 会跳过写盘，仅触发事件
         ScrapAdded?.Invoke(this, new ScrapEventArgs { Scrap = scrap });
         return this;
     }
@@ -172,6 +213,11 @@ public class ScrapBook
     private void OnScrapClose(object sender, ScrapEventArgs e)
     {
         scraps.Remove(e.Scrap);
+        // 关闭（剪切/保存/关闭/Esc/Ctrl+X）时删除对应缓存，
+        // 使该截图在下次重启软件时不再以浮窗形式展示。
+        // 应用正常退出（IsShuttingDown）时不删除，以保留跨重启持久化。
+        if (!IsShuttingDown)
+            ScrapRemoved?.Invoke(this, e);
     }
 
     private void OnScrapCreated(object sender, ScrapEventArgs e) { }

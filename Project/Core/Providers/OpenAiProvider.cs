@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
@@ -91,6 +91,9 @@ public class OpenAiProvider : IProvider, ILlmProvider
         using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
 
+        string pendingToolId = "", pendingToolName = "", pendingToolArgs = "";
+        bool pendingToolCall = false;
+
         while (!reader.EndOfStream)
         {
             var line = await reader.ReadLineAsync(ct);
@@ -99,6 +102,18 @@ public class OpenAiProvider : IProvider, ILlmProvider
             var data = line[6..];
             if (data == "[DONE]")
             {
+                if (pendingToolCall)
+                {
+                    yield return new ChatChunk
+                    {
+                        ToolCall = new ToolCallInfo
+                        {
+                            Id = pendingToolId,
+                            Name = pendingToolName,
+                            Arguments = pendingToolArgs
+                        }
+                    };
+                }
                 yield return new ChatChunk { IsDone = true };
                 yield break;
             }
@@ -110,6 +125,22 @@ public class OpenAiProvider : IProvider, ILlmProvider
             var choice = choices[0];
             if (!choice.TryGetProperty("delta", out var delta)) continue;
 
+            // Yield pending tool call if content starts (tool call phase ended)
+            if (pendingToolCall && delta.TryGetProperty("content", out _))
+            {
+                yield return new ChatChunk
+                {
+                    ToolCall = new ToolCallInfo
+                    {
+                        Id = pendingToolId,
+                        Name = pendingToolName,
+                        Arguments = pendingToolArgs
+                    }
+                };
+                pendingToolCall = false;
+                pendingToolId = pendingToolName = pendingToolArgs = "";
+            }
+
             if (delta.TryGetProperty("content", out var contentProp) &&
                 contentProp.ValueKind == JsonValueKind.String)
             {
@@ -120,16 +151,18 @@ public class OpenAiProvider : IProvider, ILlmProvider
             {
                 var tc = toolCalls[0];
                 var function = tc.GetProperty("function");
-                yield return new ChatChunk
-                {
-                    ToolCall = new ToolCallInfo
-                    {
-                        Id = tc.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "",
-                        Name = function.GetProperty("name").GetString() ?? "",
-                        Arguments = function.TryGetProperty("arguments", out var argsProp)
-                            ? argsProp.GetString() ?? "" : ""
-                    }
-                };
+
+                // Accumulate arguments across streaming chunks
+                if (function.TryGetProperty("arguments", out var argsProp) && argsProp.ValueKind == JsonValueKind.String)
+                    pendingToolArgs += argsProp.GetString() ?? "";
+
+                if (tc.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.String)
+                    pendingToolId = idProp.GetString() ?? "";
+
+                if (function.TryGetProperty("name", out var nameProp) && nameProp.ValueKind == JsonValueKind.String)
+                    pendingToolName = nameProp.GetString() ?? "";
+
+                pendingToolCall = true;
             }
         }
     }

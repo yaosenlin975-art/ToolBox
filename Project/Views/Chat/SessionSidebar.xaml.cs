@@ -96,4 +96,14 @@ public partial class SessionSidebar : UserControl
             e.Handled = true;
         }
     }
+
+    private void DeleteSessionBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is ChatSession session)
+        {
+            ChatManager.Instance.DeleteSession(session.Id);
+            RefreshSessions();
+            e.Handled = true;
+        }
+    }
 }

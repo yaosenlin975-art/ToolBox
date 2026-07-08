@@ -6,18 +6,18 @@
         Background="Transparent"
         ShowInTaskbar="False"
         Topmost="True"
-        ResizeMode="NoResize">
-    <Border CornerRadius="10" BorderBrush="#10000000" BorderThickness="1">
+        ResizeMode="NoResize"
+        MouseLeftButtonDown="OnMouseLeftButtonDown"
+        MouseMove="OnMouseMove"
+        MouseLeftButtonUp="OnMouseLeftButtonUp"
+        MouseRightButtonDown="OnMouseRightButtonDown">
+    <Border CornerRadius="10" BorderBrush="#10000000" BorderThickness="1" Background="#01FFFFFF">
         <Border.Effect>
             <DropShadowEffect BlurRadius="16" Opacity="0.12" ShadowDepth="4" Color="Black"/>
         </Border.Effect>
         <Grid>
             <Border CornerRadius="10" ClipToBounds="True">
-                <Image x:Name="compactImage" Stretch="Uniform"
-                       MouseLeftButtonDown="OnMouseLeftButtonDown"
-                       MouseMove="OnMouseMove"
-                       MouseLeftButtonUp="OnMouseLeftButtonUp"
-                       MouseRightButtonDown="OnMouseRightButtonDown"/>
+                <Image x:Name="compactImage" Stretch="Uniform"/>
             </Border>
         </Grid>
     </Border>

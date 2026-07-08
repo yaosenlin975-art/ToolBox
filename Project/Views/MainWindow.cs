@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -58,6 +58,8 @@ public partial class MainWindow : Window
 
         LayerManager.Instance.Init();
         CacheManager.Instance.Init();
+        scrapBook.ScrapAdded += CacheManager.Instance.ScrapAdded;
+        scrapBook.ScrapRemoved += CacheManager.Instance.ScrapRemoved;
         CacheManager.Instance.RestoreScraps(scrapBook);
 
         RegisterHotkeys();
@@ -191,7 +193,7 @@ public partial class MainWindow : Window
     {
         using var icon = SystemIcons.Application;
         var clonedIcon = (Icon)icon.Clone();
-        trayIcon = new WpfTrayIcon(this, "ToolBox", clonedIcon, () => ShowOptions(), ShowTrayContextMenu);
+        trayIcon = new WpfTrayIcon(this, (Application.Current.FindResource("Lang_Workbench_Title") as string) ?? "ToolBox", clonedIcon, () => ShowOptions(), ShowTrayContextMenu);
     }
 
     private void ShowTrayContextMenu()
@@ -218,7 +220,7 @@ public partial class MainWindow : Window
             mi.FontSize = 13;
         }
 
-        var scrapMenuItem = new System.Windows.Controls.MenuItem { Header = "参考图列表" };
+        var scrapMenuItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_ScrapList") as string) ?? "参考图列表" };
         if (scrapBook.ScrapCount > 0)
         {
             foreach (var window in Application.Current.Windows)
@@ -241,39 +243,39 @@ public partial class MainWindow : Window
         }
         else
         {
-            scrapMenuItem.Items.Add(new System.Windows.Controls.MenuItem { Header = "(无)", IsEnabled = false });
+            scrapMenuItem.Items.Add(new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_Tray_None") as string) ?? "(无)", IsEnabled = false });
         }
         menu.Items.Add(scrapMenuItem);
 
         menu.Items.Add(new System.Windows.Controls.Separator());
 
-        var captureItem = new System.Windows.Controls.MenuItem { Header = "截图" };
+        var captureItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_Capture2") as string) ?? "截图" };
         captureItem.Click += (s, e) => StartCapture();
         menu.Items.Add(captureItem);
 
-        var pasteItem = new System.Windows.Controls.MenuItem { Header = "粘贴" };
+        var pasteItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_Paste") as string) ?? "粘贴" };
         pasteItem.Click += (s, e) => PasteImage();
         menu.Items.Add(pasteItem);
 
         menu.Items.Add(new System.Windows.Controls.Separator());
 
-        var aiItem = new System.Windows.Controls.MenuItem { Header = "AI 助手" };
+        var aiItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_Tray_AI") as string) ?? "AI 助手" };
         aiItem.Click += (s, e) => ShowChatWindow();
         menu.Items.Add(aiItem);
 
-        var todoItem = new System.Windows.Controls.MenuItem { Header = "待办" };
+        var todoItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_Tray_Todo") as string) ?? "待办" };
         todoItem.Click += (s, e) => ShowTodoWindow();
         menu.Items.Add(todoItem);
 
         menu.Items.Add(new System.Windows.Controls.Separator());
 
-        var optionItem = new System.Windows.Controls.MenuItem { Header = "设置" };
+        var optionItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_Settings") as string) ?? "设置" };
         optionItem.Click += (s, e) => ShowOptions();
         menu.Items.Add(optionItem);
 
         menu.Items.Add(new System.Windows.Controls.Separator());
 
-        var exitItem = new System.Windows.Controls.MenuItem { Header = "退出" };
+        var exitItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_Exit") as string) ?? "退出" };
         exitItem.Click += (s, e) => Shutdown();
         menu.Items.Add(exitItem);
 
@@ -330,7 +332,7 @@ public partial class MainWindow : Window
     public MainWindow ShowVersion()
     {
         var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-        MessageBox.Show($"ToolBox WPF v{version}\n\n从 SETUNA2 WinForms 移植到 WPF", "版本信息", MessageBoxButton.OK, MessageBoxImage.Information);
+        MessageBox.Show($"ToolBox WPF v{version}\n\n从 SETUNA2 WinForms 移植到 WPF", (Application.Current.FindResource("Lang_About") as string) ?? "版本信息", MessageBoxButton.OK, MessageBoxImage.Information);
         return this;
     }
 
@@ -407,6 +409,7 @@ public partial class MainWindow : Window
 
     public MainWindow Shutdown()
     {
+        scrapBook.IsShuttingDown = true;
         scrapBook.CloseAllScrap();
         HotkeyManager.Instance.UnregisterAll();
         trayIcon?.Dispose();

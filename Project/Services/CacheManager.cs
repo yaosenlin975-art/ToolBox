@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
@@ -58,11 +58,13 @@ public class CacheManager : IScrapAddedListener, IScrapRemovedListener, IScrapLo
             var image = item.ReadImage();
             if (image != null)
             {
+                // 关联已有缓存项，关闭时即可删除对应缓存，避免重启后再次浮窗展示
                 mainBook.AddScrap(image,
                     (int)item.Position.X,
                     (int)item.Position.Y,
                     image.PixelWidth,
-                    image.PixelHeight);
+                    image.PixelHeight,
+                    item);
             }
         }
 

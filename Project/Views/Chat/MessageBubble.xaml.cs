@@ -1,18 +1,29 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using ToolBox.Core.Markdown;
 
 namespace ToolBox.Views.Chat;
 
 public partial class MessageBubble : UserControl
 {
+    private string _rawText = "";
+
     public MessageBubble()
     {
         InitializeComponent();
     }
 
+    public event Action<string>? QuoteRequested;
+
+    private void QuoteMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        QuoteRequested?.Invoke(_rawText);
+    }
+
     public void SetMessage(string role, string content, bool showRole = false)
     {
+        _rawText = content ?? "";
         RoleLabel.Text = role switch
         {
             "user" => "你",
@@ -21,14 +32,11 @@ public partial class MessageBubble : UserControl
             "tool" => "工具",
             _ => role
         };
-
         RoleLabel.Visibility = showRole ? Visibility.Visible : Visibility.Collapsed;
-        ContentText.Text = content;
 
         Brush bg;
         Brush fg;
         HorizontalAlignment align;
-
         switch (role)
         {
             case "user":
@@ -59,9 +67,11 @@ public partial class MessageBubble : UserControl
         }
 
         BubbleBorder.Background = bg;
-        ContentText.Foreground = fg;
         RoleLabel.Foreground = fg;
         HorizontalAlignment = align;
+        ContentDocument.Foreground = fg;
+
+        RenderMarkdown();
     }
 
     public void SetStreaming(bool isStreaming)
@@ -71,6 +81,23 @@ public partial class MessageBubble : UserControl
 
     public void AppendContent(string text)
     {
-        ContentText.Text += text;
+        _rawText += text ?? "";
+        RenderMarkdown();
+    }
+
+    public void RenderMarkdown()
+    {
+        try
+        {
+            var doc = MarkdownDocument.Parse(_rawText);
+            ContentDocument.Document = doc;
+        }
+        catch
+        {
+            // Fallback: plain text
+            var doc = new System.Windows.Documents.FlowDocument();
+            doc.Blocks.Add(new System.Windows.Documents.Paragraph(new System.Windows.Documents.Run(_rawText)));
+            ContentDocument.Document = doc;
+        }
     }
 }

@@ -24,11 +24,11 @@ public partial class WorkbenchWindow : Window
     {
         PageTitle.Text = page switch
         {
-            "dashboard" => "工作台",
-            "assistant" => "AI 助手",
-            "todos" => "待办管理",
-            "screenshots" => "截图历史",
-            "settings" => "设置",
+            "dashboard" => (FindResource("Lang_Page_Dashboard") as string) ?? "工作台",
+            "assistant" => (FindResource("Lang_Page_Assistant") as string) ?? "AI 助手",
+            "todos" => (FindResource("Lang_Page_Todos") as string) ?? "待办管理",
+            "screenshots" => (FindResource("Lang_Page_Screenshots") as string) ?? "截图历史",
+            "settings" => (FindResource("Lang_Page_Settings") as string) ?? "设置",
             _ => string.Empty
         };
         TheHeader.Title = PageTitle.Text;

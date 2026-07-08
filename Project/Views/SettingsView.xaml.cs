@@ -45,8 +45,8 @@ public partial class SettingsView : UserControl
         rdoLineSolid.IsChecked = !data.SelectLineSolid;
         rdoLineDotted.IsChecked = data.SelectLineSolid;
 
-        sldCompactOpacity.Value = data.CompactOpacity;
-        txtCompactOpacityValue.Text = data.CompactOpacity.ToString();
+        sldCompactOpacity.Value = Math.Max(30, data.CompactOpacity);
+        txtCompactOpacityValue.Text = ((int)sldCompactOpacity.Value).ToString();
 
         LoadProviders();
 
@@ -191,7 +191,7 @@ public partial class SettingsView : UserControl
         config.BaseUrl = txtBaseUrl.Text.Trim();
 
         btnDiscoverModels.IsEnabled = false;
-        btnDiscoverModels.Content = "发现中...";
+        btnDiscoverModels.Content = (FindResource("Lang_Discovering") as string) ?? "发现中...";
 
         _ = DiscoverModelsAsync(name);
     }
@@ -204,21 +204,30 @@ public partial class SettingsView : UserControl
             if (models.Count > 0)
             {
                 LoadModels();
-                MessageWindow.Show("发现模型", $"发现 {models.Count} 个模型", GetOwner());
+                MessageWindow.Show(
+                    (FindResource("Lang_DiscoverModels") as string) ?? "发现模型",
+                    string.Format((FindResource("Lang_DiscoveredCount") as string) ?? "发现 {0} 个模型", models.Count),
+                    GetOwner());
             }
             else
             {
-                MessageWindow.Show("发现模型", "未发现模型，请检查连接配置", GetOwner());
+                MessageWindow.Show(
+                    (FindResource("Lang_DiscoverModels") as string) ?? "发现模型",
+                    (FindResource("Lang_NoModelsFound") as string) ?? "未发现模型，请检查连接配置",
+                    GetOwner());
             }
         }
         catch (Exception ex)
         {
-            MessageWindow.Show("错误", $"发现模型失败: {ex.Message}", GetOwner());
+            MessageWindow.Show(
+                (FindResource("Lang_Error") as string) ?? "错误",
+                string.Format((FindResource("Lang_DiscoverFailed") as string) ?? "发现模型失败: {0}", ex.Message),
+                GetOwner());
         }
         finally
         {
             btnDiscoverModels.IsEnabled = true;
-            btnDiscoverModels.Content = "发现模型";
+            btnDiscoverModels.Content = (FindResource("Lang_DiscoverModels") as string) ?? "发现模型";
         }
     }
 
@@ -236,7 +245,7 @@ public partial class SettingsView : UserControl
         if (sender is TextBox tb)
         {
             tb.Background = (Brush)FindResource("AccentSoftBrush");
-            tb.Text = "按下快捷键组合...";
+            tb.Text = (FindResource("Lang_HotkeyPressing") as string) ?? "按下快捷键组合...";
         }
     }
 
@@ -305,9 +314,15 @@ public partial class SettingsView : UserControl
             ProviderManager.Instance.SetActiveModel(providerName, modelId);
             var provider = ProviderManager.Instance.CreateActiveProvider();
             if (provider != null)
-                MessageWindow.Show("测试", "连接成功!", GetOwner());
+                MessageWindow.Show(
+                    (FindResource("Lang_Test") as string) ?? "测试",
+                    (FindResource("Lang_ConnSuccess") as string) ?? "连接成功!",
+                    GetOwner());
             else
-                MessageWindow.Show("测试", "连接失败，请检查配置", GetOwner());
+                MessageWindow.Show(
+                    (FindResource("Lang_Test") as string) ?? "测试",
+                    (FindResource("Lang_ConnFail") as string) ?? "连接失败，请检查配置",
+                    GetOwner());
         }
     }
 
@@ -315,9 +330,13 @@ public partial class SettingsView : UserControl
     {
         CollectSettings();
         result.Save();
+        App.ApplyLanguage(result.Language);
         App.MainWindow?.ReRegisterHotkeys();
         Core.Scheduling.ScheduleManager.Apply(result.Data);
-        MessageWindow.Show("保存", "设置已保存", GetOwner());
+        MessageWindow.Show(
+            (FindResource("Lang_Save") as string) ?? "保存",
+            (FindResource("Lang_Saved") as string) ?? "设置已保存",
+            GetOwner());
     }
 
     private Window? GetOwner() => Window.GetWindow(this);

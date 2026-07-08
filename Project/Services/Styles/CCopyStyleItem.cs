@@ -20,7 +20,7 @@ public class CCopyStyleItem : IStyleItem
 
     public void Apply(ScrapWindow scrap, Point clickPoint)
     {
-        var bitmap = scrap.GetViewImage();
+        var bitmap = scrap.GetOriginalBitmap();
         if (bitmap == null) return;
 
         if (CopyFromSource)

@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using ToolBox.Core.Native;
 
 namespace ToolBox.Views;
 
@@ -38,8 +39,14 @@ public class ClickCaptureWindow : Window
 
     private void CaptureFullScreen()
     {
-        var screenWidth = (int)SystemParameters.PrimaryScreenWidth;
-        var screenHeight = (int)SystemParameters.PrimaryScreenHeight;
+        // 以物理像素采集整屏，避免高 DPI 屏下截图从源头被降采样（详见 CaptureWindow）。
+        var screenWidth = NativeMethods.GetSystemMetrics(NativeMethods.SM_CXSCREEN);
+        var screenHeight = NativeMethods.GetSystemMetrics(NativeMethods.SM_CYSCREEN);
+        if (screenWidth <= 0 || screenHeight <= 0)
+        {
+            screenWidth = (int)SystemParameters.PrimaryScreenWidth;
+            screenHeight = (int)SystemParameters.PrimaryScreenHeight;
+        }
 
         screenBitmap = new Bitmap(screenWidth, screenHeight);
         using (var g = Graphics.FromImage(screenBitmap))
@@ -53,9 +60,16 @@ public class ClickCaptureWindow : Window
         var capturePoint = e.GetPosition(this);
         var screenPoint = PointToScreen(capturePoint);
 
+        // screenBitmap 以物理像素采集，screenPoint 为 WPF 逻辑(DIP)坐标，
+        // 需换算到物理像素再作为源矩形索引，保证裁剪区域与点击位置精确对应。
+        double scaleX = screenBitmap.Width > 0 && SystemParameters.PrimaryScreenWidth > 0
+            ? screenBitmap.Width / SystemParameters.PrimaryScreenWidth : 1.0;
+        double scaleY = screenBitmap.Height > 0 && SystemParameters.PrimaryScreenHeight > 0
+            ? screenBitmap.Height / SystemParameters.PrimaryScreenHeight : 1.0;
+
         var regionSize = 200;
-        var startX = Math.Max(0, (int)screenPoint.X - 100);
-        var startY = Math.Max(0, (int)screenPoint.Y - 100);
+        var startX = Math.Max(0, (int)(screenPoint.X * scaleX) - 100);
+        var startY = Math.Max(0, (int)(screenPoint.Y * scaleY) - 100);
 
         var cropped = new Bitmap(regionSize, regionSize);
         using (var g = Graphics.FromImage(cropped))

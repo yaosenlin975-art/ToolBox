@@ -83,14 +83,14 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <Button x:Name="ExpandToggleBtn" Grid.Column="0" Content="▲"
-                            Style="{StaticResource CompactIconButton}" Click="ExpandToggleBtn_Click" ToolTip="打开工作台"/>
+                            Style="{StaticResource CompactIconButton}" Click="ExpandToggleBtn_Click" ToolTip="{DynamicResource Lang_Compact_OpenWorkbench}"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Button x:Name="TabTodo" Content="待办" Style="{StaticResource CompactTabButtonActive}" Click="Tab_Click" Tag="todo"/>
-                        <Button x:Name="TabChat" Content="助手" Style="{StaticResource CompactTabButton}" Click="Tab_Click" Tag="chat"/>
-                        <Button x:Name="TabScreenshot" Content="截图" Style="{StaticResource CompactTabButton}" Click="Tab_Click" Tag="screenshot"/>
+                        <Button x:Name="TabTodo" Content="{DynamicResource Lang_Compact_Todo}" Style="{StaticResource CompactTabButtonActive}" Click="Tab_Click" Tag="todo"/>
+                        <Button x:Name="TabChat" Content="{DynamicResource Lang_Compact_Assistant}" Style="{StaticResource CompactTabButton}" Click="Tab_Click" Tag="chat"/>
+                        <Button x:Name="TabScreenshot" Content="{DynamicResource Lang_Compact_Screenshot}" Style="{StaticResource CompactTabButton}" Click="Tab_Click" Tag="screenshot"/>
                     </StackPanel>
                     <Button x:Name="BtnSettings" Grid.Column="2" Content="≡"
-                            Style="{StaticResource CompactIconButton}" Click="BtnSettings_Click" ToolTip="设置" FontSize="16"/>
+                            Style="{StaticResource CompactIconButton}" Click="BtnSettings_Click" ToolTip="{DynamicResource Lang_Settings}" FontSize="16"/>
                 </Grid>
             </Border>
 
@@ -107,7 +107,7 @@
                               BorderBrush="{DynamicResource BorderDefaultBrush}" DisplayMemberPath="Title"
                               SelectionChanged="SessionSelector_SelectionChanged"/>
                     <Button x:Name="NewSessionBtn" Grid.Column="1" Content="+" Style="{StaticResource CompactIconButton}"
-                            Click="NewSessionBtn_Click" ToolTip="新建会话"/>
+                            Click="NewSessionBtn_Click" ToolTip="{DynamicResource LLM.Session.NewSession}"/>
                 </Grid>
             </Border>
 
@@ -133,7 +133,7 @@
                     <Button HorizontalAlignment="Right" VerticalAlignment="Bottom"
                             Margin="0,0,8,8" Width="32" Height="32"
                             Style="{StaticResource CompactIconButton}" Content="+"
-                            Click="QuickAddTodo_Click" ToolTip="快速添加" FontSize="18"
+                            Click="QuickAddTodo_Click" ToolTip="{DynamicResource Lang_QuickAdd}" FontSize="18"
                             Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource TextPrimaryBrush}"/>
                 </Grid>
 
@@ -147,7 +147,8 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" Margin="0,3">
-                                    <Image Source="{Binding Thumbnail}" Width="56" Height="40" Stretch="UniformToFill"/>
+                                    <Image Source="{Binding Thumbnail}" Width="56" Height="40" Stretch="UniformToFill"
+                                           MouseLeftButtonUp="ScreenshotItem_Click" ToolTip="{DynamicResource Lang_Compact_ViewOriginal}"/>
                                     <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding TimeDisplay}" FontSize="11"
                                                    Foreground="{DynamicResource TextPrimaryBrush}"/>

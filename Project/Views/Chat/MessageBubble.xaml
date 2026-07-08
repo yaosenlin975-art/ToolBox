@@ -3,10 +3,24 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Margin="16,4">
     <Border x:Name="BubbleBorder" CornerRadius="8" Padding="12,10" MaxWidth="500" HorizontalAlignment="Left">
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="引用" Click="QuoteMenuItem_Click"/>
+            </ContextMenu>
+        </Border.ContextMenu>
         <StackPanel>
             <TextBlock x:Name="RoleLabel" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4" Visibility="Collapsed"/>
-            <TextBlock x:Name="ContentText" TextWrapping="Wrap" FontSize="13" LineHeight="20"/>
-            <TextBlock x:Name="StreamingDot" Text="●" FontSize="10" Foreground="{StaticResource ChatStreamingDotBrush}" Visibility="Collapsed" Margin="0,4,0,0"/>
+            <FlowDocumentScrollViewer x:Name="ContentDocument"
+                                      FontSize="13"
+                                      VerticalScrollBarVisibility="Disabled"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Padding="0"
+                                      Margin="0"
+                                      MinHeight="0"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"/>
+            <TextBlock x:Name="StreamingDot" Text="..." FontSize="10" Foreground="{StaticResource ChatStreamingDotBrush}" Visibility="Collapsed" Margin="0,4,0,0"/>
         </StackPanel>
     </Border>
 </UserControl>

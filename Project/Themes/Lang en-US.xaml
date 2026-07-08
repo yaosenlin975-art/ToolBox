@@ -13,6 +13,7 @@
     <sys:String x:Key="Lang_Cancel">Cancel</sys:String>
     <sys:String x:Key="Lang_AppMode">Application Mode</sys:String>
     <sys:String x:Key="Lang_ResidentMode">Resident Mode</sys:String>
+    <sys:String x:Key="Lang_ResidentModeDesc">Minimize to system tray and stay resident</sys:String>
     <sys:String x:Key="Lang_ShowMainWindow">Show main window on startup</sys:String>
     <sys:String x:Key="Lang_ShowSplash">Show splash screen</sys:String>
     <sys:String x:Key="Lang_AutoStartup">Auto start on boot</sys:String>
@@ -58,7 +59,7 @@
     <sys:String x:Key="Lang_NoHistory">No history yet</sys:String>
     <sys:String x:Key="Lang_Version">Screenshots &amp; Pins</sys:String>
     <sys:String x:Key="Lang_Language">Language</sys:String>
-    <sys:String x:Key="Lang_LanguageHint">Restart required after changing language</sys:String>
+    <sys:String x:Key="Lang_LanguageHint">Applied immediately after saving</sys:String>
 
     <!-- LLM Assistant -->
     <sys:String x:Key="LLM.ChatWindow.Title">ToolBox AI Assistant</sys:String>
@@ -76,5 +77,102 @@
     <sys:String x:Key="LLM.Error.ProviderUnavailable">Current model unavailable, switched to local model</sys:String>
     <sys:String x:Key="LLM.Error.ToolFailed">Tool failed: {0}</sys:String>
     <sys:String x:Key="LLM.ScrapWindow.StartChat">Start Chat</sys:String>
+
+    <!-- Phase 1: Core windows -->
+    <sys:String x:Key="Lang_Settings">Settings</sys:String>
+    <sys:String x:Key="Lang_Schedule">Schedule</sys:String>
+
+    <sys:String x:Key="Lang_GeneralSettings">General Settings</sys:String>
+    <sys:String x:Key="Lang_GeneralHint">Configure basic behavior and appearance</sys:String>
+    <sys:String x:Key="Lang_RunMode">Run mode</sys:String>
+    <sys:String x:Key="Lang_RunModeHint">Choose how the app runs in the system</sys:String>
+    <sys:String x:Key="Lang_AppModeDesc">Window closeable, no background resident</sys:String>
+    <sys:String x:Key="Lang_AutoStartupHint">Automatically run ToolBox at system startup</sys:String>
+    <sys:String x:Key="Lang_Theme">Theme</sys:String>
+    <sys:String x:Key="Lang_ThemeHint">Choose the UI theme (applies instantly)</sys:String>
+    <sys:String x:Key="Lang_MiniOpacity">Mini window opacity</sys:String>
+    <sys:String x:Key="Lang_MiniOpacityHint">Adjust mini-mode window background opacity (live preview)</sys:String>
+
+    <sys:String x:Key="Lang_HotkeyHint2">Configure global hotkeys</sys:String>
+    <sys:String x:Key="Lang_GlobalHotkey">Global hotkeys</sys:String>
+    <sys:String x:Key="Lang_EnableHotkeyHint">Enable to trigger capture / show-hide via hotkeys</sys:String>
+    <sys:String x:Key="Lang_HotkeyInputHint">Click the box, then press a key combination</sys:String>
+    <sys:String x:Key="Lang_HotkeyPressing">Press a key combination...</sys:String>
+
+    <sys:String x:Key="Lang_CaptureSettings">Capture Settings</sys:String>
+    <sys:String x:Key="Lang_CaptureHint">Adjust capture behavior</sys:String>
+    <sys:String x:Key="Lang_TransparencyHint">Opacity of the capture selection mask</sys:String>
+    <sys:String x:Key="Lang_LineStyle">Selection border style</sys:String>
+    <sys:String x:Key="Lang_LineStyleHint">How the selection border is shown during capture</sys:String>
+
+    <sys:String x:Key="Lang_LlmTitle">LLM Assistant</sys:String>
+    <sys:String x:Key="Lang_LlmHint">Configure the large language model provider</sys:String>
+    <sys:String x:Key="Lang_ProviderConfig">Provider configuration</sys:String>
+    <sys:String x:Key="Lang_Provider">Provider</sys:String>
+    <sys:String x:Key="Lang_Model">Model</sys:String>
+    <sys:String x:Key="Lang_DiscoverModels">Discover models</sys:String>
+    <sys:String x:Key="Lang_TestConnection">Test connection</sys:String>
+    <sys:String x:Key="Lang_Test">Test</sys:String>
+
+    <sys:String x:Key="Lang_ScheduleTitle">Scheduled Screenshot &amp; Daily Report</sys:String>
+    <sys:String x:Key="Lang_ScheduleHint">Configure auto screenshot and daily summary</sys:String>
+    <sys:String x:Key="Lang_ScheduleTask">Scheduled tasks</sys:String>
+    <sys:String x:Key="Lang_AutoScreenshot">Scheduled full-screen capture</sys:String>
+    <sys:String x:Key="Lang_AutoScreenshotHint">Capture full screen on a Cron schedule</sys:String>
+    <sys:String x:Key="Lang_CronExpr">Cron expression</sys:String>
+    <sys:String x:Key="Lang_CronHint">Minute-level: min hour day month week (e.g. 0 */30 * * * *)</sys:String>
+    <sys:String x:Key="Lang_DailyReport">Daily behavior summary</sys:String>
+    <sys:String x:Key="Lang_DailyReportHint">Generate a daily report from the day's screenshots</sys:String>
+    <sys:String x:Key="Lang_SummaryTime">Summary time</sys:String>
+    <sys:String x:Key="Lang_SummaryTimeHint">Format: HH:mm, e.g. 18:00</sys:String>
+
+    <sys:String x:Key="Lang_InterfaceLanguage">Interface language</sys:String>
+    <sys:String x:Key="Lang_Zh">Chinese</sys:String>
+    <sys:String x:Key="Lang_AppInfo">App info</sys:String>
+    <sys:String x:Key="Lang_VersionLabel">Version:</sys:String>
+    <sys:String x:Key="Lang_ProjectUrl">Project:</sys:String>
+    <sys:String x:Key="Lang_AboutDesc">ToolBox is a desktop toolkit integrating screenshot, scrap/pin, OCR, LLM assistant and to-do management.</sys:String>
+    <sys:String x:Key="Lang_Reset">Reset to defaults</sys:String>
+    <sys:String x:Key="Lang_Saved">Settings saved</sys:String>
+
+    <sys:String x:Key="Lang_Discovering">Discovering...</sys:String>
+    <sys:String x:Key="Lang_DiscoveredCount">Discovered {0} models</sys:String>
+    <sys:String x:Key="Lang_NoModelsFound">No models found, check connection settings</sys:String>
+    <sys:String x:Key="Lang_Error">Error</sys:String>
+    <sys:String x:Key="Lang_DiscoverFailed">Failed to discover models: {0}</sys:String>
+    <sys:String x:Key="Lang_ConnSuccess">Connection successful!</sys:String>
+    <sys:String x:Key="Lang_ConnFail">Connection failed, check configuration</sys:String>
+
+    <sys:String x:Key="Lang_Compact_Todo">To-Do</sys:String>
+    <sys:String x:Key="Lang_Compact_Assistant">Assistant</sys:String>
+    <sys:String x:Key="Lang_Compact_Screenshot">Screenshots</sys:String>
+    <sys:String x:Key="Lang_Compact_OpenWorkbench">Open workbench</sys:String>
+    <sys:String x:Key="Lang_Compact_ViewOriginal">Click to view original</sys:String>
+    <sys:String x:Key="Lang_QuickAdd">Quick add</sys:String>
+    <sys:String x:Key="Lang_QuickAddTitle">Quick add to-do</sys:String>
+    <sys:String x:Key="Lang_QuickAddPrompt">Enter a title:</sys:String>
+
+    <sys:String x:Key="Lang_Workbench_Title">ToolBox</sys:String>
+    <sys:String x:Key="Lang_Workbench_ToCompact">Switch to compact mode</sys:String>
+    <sys:String x:Key="Lang_Workbench_Minimize">Minimize</sys:String>
+    <sys:String x:Key="Lang_Workbench_Maximize">Maximize / Restore</sys:String>
+    <sys:String x:Key="Lang_Workbench_Close">Close</sys:String>
+    <sys:String x:Key="Lang_Page_Dashboard">Workbench</sys:String>
+    <sys:String x:Key="Lang_Page_Assistant">AI Assistant</sys:String>
+    <sys:String x:Key="Lang_Page_Todos">To-Do</sys:String>
+    <sys:String x:Key="Lang_Page_Screenshots">Screenshot History</sys:String>
+    <sys:String x:Key="Lang_Page_Settings">Settings</sys:String>
+
+    <sys:String x:Key="Lang_Tray_AI">AI Assistant</sys:String>
+    <sys:String x:Key="Lang_Tray_Todo">To-Dos</sys:String>
+    <sys:String x:Key="Lang_Tray_None">(None)</sys:String>
+
+    <sys:String x:Key="Lang_DateToday">Today</sys:String>
+    <sys:String x:Key="Lang_DateWeek">This week</sys:String>
+    <sys:String x:Key="Lang_DateMonth">This month</sys:String>
+    <sys:String x:Key="Lang_DateAll">All</sys:String>
+
+    <sys:String x:Key="Lang_Loading">Loading...</sys:String>
+    <sys:String x:Key="Lang_RecordCount">{0} records</sys:String>
 
 </ResourceDictionary>

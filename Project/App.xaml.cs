@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading;
 using System.Windows;
 
@@ -15,8 +16,32 @@ public partial class App : Application
     public static Views.WorkbenchWindow? Workbench => Current is App app ? app.workbench : null;
     public static Views.MainWindow? MainWindow => Current is App app ? app.mainWindow : null;
 
+    /// <summary>
+    /// 切换界面语言资源字典，使设置中的语言修改即时生效，无需重启。
+    /// </summary>
+    public static void ApplyLanguage(string lang)
+    {
+        var uri = new System.Uri(
+            lang == "en-US" ? "Themes/Lang en-US.xaml" : "Themes/Lang zh-CN.xaml",
+            System.UriKind.Relative);
+        var md = Current.Resources.MergedDictionaries;
+        // 移除全部语言字典，避免多次切换时累积旧字典
+        for (int i = md.Count - 1; i >= 0; i--)
+        {
+            if ((md[i].Source?.OriginalString ?? "").Contains("Lang "))
+                md.RemoveAt(i);
+        }
+        md.Add(new ResourceDictionary { Source = uri });
+    }
+
     protected override void OnStartup(StartupEventArgs e)
     {
+        // 启用进程级 DPI 感知，使 GDI（屏幕采集 CopyFromScreen）按物理像素工作，
+        // 避免高 DPI 屏（125%/150%/200%）下截图从源头被降采样而变糊。
+        // 若 WPF 运行时已设置更高等级的 DPI 感知，此调用会安全返回 false 而不产生副作用。
+        try { Core.Native.NativeMethods.SetProcessDPIAware(); }
+        catch (Exception) { /* 忽略：DPI 感知已在别处设置 */ }
+
         base.OnStartup(e);
 
         if (!SingleMutex.WaitOne(0, false))
@@ -26,9 +51,7 @@ public partial class App : Application
         }
 
         var options = Models.ToolBoxOption.Load();
-        var langFile = options.Language == "en-US" ? "Themes/Lang en-US.xaml" : "Themes/Lang zh-CN.xaml";
-        var langDict = new ResourceDictionary { Source = new System.Uri(langFile, System.UriKind.Relative) };
-        Resources.MergedDictionaries.Add(langDict);
+        ApplyLanguage(options.Language);
 
         Core.Theming.ThemeManager.Instance.Initialize(options.Data.Theme);
 

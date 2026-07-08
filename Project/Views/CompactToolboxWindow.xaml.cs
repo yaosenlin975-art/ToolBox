@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -170,7 +171,8 @@ public partial class CompactToolboxWindow : Window
                 ScreenshotList.Items.Add(new HistoryItemViewModel
                 {
                     CacheItem = item,
-                    Thumbnail = image,
+                    Thumbnail = ImageHelper.MakeOpaque(image),
+                    FullImage = image,
                     TimeDisplay = item.CreateTime.ToString("MM-dd HH:mm"),
                     SizeDisplay = image.PixelWidth + " × " + image.PixelHeight
                 });
@@ -186,7 +188,9 @@ public partial class CompactToolboxWindow : Window
 
     private void QuickAddTodo_Click(object sender, RoutedEventArgs e)
     {
-        var input = new InputWindow("快速添加待办", "请输入标题:");
+        var input = new InputWindow(
+            (FindResource("Lang_QuickAddTitle") as string) ?? "快速添加待办",
+            (FindResource("Lang_QuickAddPrompt") as string) ?? "请输入标题:");
         input.Owner = this;
         if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
             TodoStore.Instance.Add(input.Value.Trim());
@@ -198,9 +202,10 @@ public partial class CompactToolboxWindow : Window
             ChatPanel.SelectSession(session.Id);
     }
 
-    private void NewSessionBtn_Click(object sender, RoutedEventArgs e)
+    private async void NewSessionBtn_Click(object sender, RoutedEventArgs e)
     {
-        var session = ChatPanel.CreateNewSession();
+        var session = await ChatPanel.CreateNewSessionAsync();
+        LoadSessions();
         LoadSessions();
         for (int i = 0; i < SessionSelector.Items.Count; i++)
         {
@@ -212,14 +217,27 @@ public partial class CompactToolboxWindow : Window
         }
     }
 
+    private void ScreenshotItem_Click(object sender, MouseButtonEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is HistoryItemViewModel vm && vm.FullImage != null)
+            new ImagePreviewWindow(vm.FullImage).ShowDialog();
+    }
+
+    
     private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        // Interactive controls handle their own clicks - only drag the window from non-interactive areas
         var source = e.OriginalSource as DependencyObject;
         while (source != null)
         {
             if (source is Button || source is ComboBox || source is CheckBox) return;
+            if (source is TextBox || source is RichTextBox) return;
+            if (source is ItemsControl items && !(items is ComboBox)) return;
+            if (source is ScrollBar || source is Slider || source is InkCanvas) return;
             source = VisualTreeHelper.GetParent(source);
         }
-        DragMove();
+        if (e.LeftButton == MouseButtonState.Pressed)
+            DragMove();
     }
+
 }

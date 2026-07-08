@@ -11,6 +11,9 @@ public partial class CompactScrapWindow : Window
 {
     private ScrapWindow parentScrap;
     private bool isDragging;
+    private System.Windows.Point dragStartPoint;
+    private double startLeft;
+    private double startTop;
 
     public CompactScrapWindow(ScrapWindow scrap)
     {
@@ -48,6 +51,10 @@ public partial class CompactScrapWindow : Window
 
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        // 基于增量拖动：记录按下点与窗口初始位置，Move 时按位移差平滑移动，避免抓取偏离中心跳动。
+        dragStartPoint = e.GetPosition(this);
+        startLeft = parentScrap.Left;
+        startTop = parentScrap.Top;
         isDragging = true;
         CaptureMouse();
     }
@@ -56,9 +63,9 @@ public partial class CompactScrapWindow : Window
     {
         if (!isDragging) return;
 
-        var pos = e.GetPosition(this);
-        parentScrap.Left += pos.X - Width / 2;
-        parentScrap.Top += pos.Y - Height / 2;
+        var p = e.GetPosition(this);
+        parentScrap.Left = startLeft + (p.X - dragStartPoint.X);
+        parentScrap.Top = startTop + (p.Y - dragStartPoint.Y);
     }
 
     private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
