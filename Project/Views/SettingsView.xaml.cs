@@ -63,6 +63,17 @@ public partial class SettingsView : UserControl
             ? data.ScreenshotMaxAge + " 天"
             : "永久保留";
 
+        // Scrap opacity
+        chkInactiveAlpha.IsChecked = result.Scrap.InactiveAlphaChange;
+        sldInactiveAlpha.Value = Math.Max(5, result.Scrap.InactiveAlphaValue);
+        sldInactiveAlpha.IsEnabled = result.Scrap.InactiveAlphaChange;
+        txtInactiveAlphaValue.Text = result.Scrap.InactiveAlphaValue + "%";
+        chkMouseOverAlpha.IsChecked = result.Scrap.MouseOverAlphaChange;
+        sldMouseOverAlpha.Value = Math.Max(5, result.Scrap.MouseOverAlphaValue);
+        sldMouseOverAlpha.IsEnabled = result.Scrap.MouseOverAlphaChange;
+        txtMouseOverAlphaValue.Text = result.Scrap.MouseOverAlphaValue + "%";
+
+
         try
         {
             txtVersion.Text = System.Reflection.Assembly.GetExecutingAssembly()
@@ -171,6 +182,12 @@ public partial class SettingsView : UserControl
         result.Data.DailyReportTime = txtDailyReportTime.Text.Trim();
         result.Data.ScreenshotMaxAge = (int)sldScreenshotMaxAge.Value;
 
+        result.Scrap.InactiveAlphaChange = chkInactiveAlpha.IsChecked == true;
+        result.Scrap.InactiveAlphaValue = (int)sldInactiveAlpha.Value;
+        result.Scrap.MouseOverAlphaChange = chkMouseOverAlpha.IsChecked == true;
+        result.Scrap.MouseOverAlphaValue = (int)sldMouseOverAlpha.Value;
+
+
         if (cmbProvider.SelectedItem is string providerName)
         {
             var config = ProviderManager.Instance.GetConfig(providerName);
@@ -252,6 +269,36 @@ public partial class SettingsView : UserControl
         var v = (int)sldScreenshotMaxAge.Value;
         txtScreenshotMaxAgeValue.Text = v > 0 ? v + " 天" : "永久保留";
         result.Data.ScreenshotMaxAge = v;
+    }
+
+    private void ChkInactiveAlpha_Changed(object sender, RoutedEventArgs e)
+    {
+        if (isLoading || result == null) return;
+        sldInactiveAlpha.IsEnabled = chkInactiveAlpha.IsChecked == true;
+        result.Scrap.InactiveAlphaChange = chkInactiveAlpha.IsChecked == true;
+    }
+
+    private void SldInactiveAlpha_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (isLoading || result == null) return;
+        var v = (int)sldInactiveAlpha.Value;
+        txtInactiveAlphaValue.Text = v + "%";
+        result.Scrap.InactiveAlphaValue = v;
+    }
+
+    private void ChkMouseOverAlpha_Changed(object sender, RoutedEventArgs e)
+    {
+        if (isLoading || result == null) return;
+        sldMouseOverAlpha.IsEnabled = chkMouseOverAlpha.IsChecked == true;
+        result.Scrap.MouseOverAlphaChange = chkMouseOverAlpha.IsChecked == true;
+    }
+
+    private void SldMouseOverAlpha_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (isLoading || result == null) return;
+        var v = (int)sldMouseOverAlpha.Value;
+        txtMouseOverAlphaValue.Text = v + "%";
+        result.Scrap.MouseOverAlphaValue = v;
     }
 
     private void HotKey_GotFocus(object sender, RoutedEventArgs e)

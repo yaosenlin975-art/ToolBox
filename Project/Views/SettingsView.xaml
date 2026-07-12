@@ -412,6 +412,50 @@
                                                    Foreground="{DynamicResource TextSecondaryBrush}" MinWidth="50" TextAlignment="Right" Margin="12,0,0,0"/>
                                     </StackPanel>
                                 </Grid>
+
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{DynamicResource Lang_InactiveAlpha}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_InactiveAlphaHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Width="280">
+                                        <CheckBox x:Name="chkInactiveAlpha" VerticalAlignment="Center" Margin="0,0,8,0"
+                                                  Style="{StaticResource ModernCheckBox}" Checked="ChkInactiveAlpha_Changed" Unchecked="ChkInactiveAlpha_Changed"/>
+                                        <Slider x:Name="sldInactiveAlpha" Style="{StaticResource ModernSlider}" Width="170"
+                                                Minimum="5" Maximum="100" VerticalAlignment="Center" IsEnabled="False"
+                                                ValueChanged="SldInactiveAlpha_ValueChanged"/>
+                                        <TextBlock x:Name="txtInactiveAlphaValue" Text="10%" FontSize="11" FontFamily="{StaticResource FontMono}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" MinWidth="36" TextAlignment="Right" Margin="12,0,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{DynamicResource Lang_MouseOverAlpha}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_MouseOverAlphaHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Width="280">
+                                        <CheckBox x:Name="chkMouseOverAlpha" VerticalAlignment="Center" Margin="0,0,8,0"
+                                                  Style="{StaticResource ModernCheckBox}" Checked="ChkMouseOverAlpha_Changed" Unchecked="ChkMouseOverAlpha_Changed"/>
+                                        <Slider x:Name="sldMouseOverAlpha" Style="{StaticResource ModernSlider}" Width="170"
+                                                Minimum="5" Maximum="100" VerticalAlignment="Center" IsEnabled="False"
+                                                ValueChanged="SldMouseOverAlpha_ValueChanged"/>
+                                        <TextBlock x:Name="txtMouseOverAlphaValue" Text="90%" FontSize="11" FontFamily="{StaticResource FontMono}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" MinWidth="36" TextAlignment="Right" Margin="12,0,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                             </StackPanel>
                         </Border>
                     </StackPanel>

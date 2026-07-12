@@ -186,14 +186,14 @@ public partial class CompactToolboxWindow : Window
             TodoStore.Instance.Complete(id);
     }
 
-    private void QuickAddTodo_Click(object sender, RoutedEventArgs e)
+    private async void QuickAddTodo_Click(object sender, RoutedEventArgs e)
     {
         var input = new InputWindow(
             (FindResource("Lang_QuickAddTitle") as string) ?? "快速添加待办",
             (FindResource("Lang_QuickAddPrompt") as string) ?? "请输入标题:");
         input.Owner = this;
         if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
-            TodoStore.Instance.Add(input.Value.Trim());
+            await TodoStore.Instance.AddAsync(input.Value.Trim());
     }
 
     private void SessionSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)

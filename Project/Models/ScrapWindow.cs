@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -463,10 +463,10 @@ public class ScrapWindow : Window
 
     private void OnMouseRightButtonDownHandler(object sender, MouseButtonEventArgs e)
     {
-        ShowContextMenu(e.GetPosition(this));
+        ShowContextMenu();
     }
 
-    private void ShowContextMenu(Point position)
+    private void ShowContextMenu()
     {
         var menu = new System.Windows.Controls.ContextMenu
         {
@@ -474,10 +474,7 @@ public class ScrapWindow : Window
             Foreground = (System.Windows.Media.Brush)Application.Current.FindResource("TextPrimaryBrush"),
             BorderBrush = (System.Windows.Media.Brush)Application.Current.FindResource("BorderBrush"),
             Padding = new System.Windows.Thickness(4),
-            PlacementTarget = this,
-            Placement = System.Windows.Controls.Primitives.PlacementMode.Absolute,
-            HorizontalOffset = position.X,
-            VerticalOffset = position.Y
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Mouse
         };
 
         if (Manager?.BindForm?.GetOptions()?.Scrap.SubMenuStyles != null)
@@ -496,7 +493,7 @@ public class ScrapWindow : Window
                 menuItem.Click += (s, e) =>
                 {
                     var clickedStyle = (CStyle)((System.Windows.Controls.MenuItem)s).Tag;
-                    clickedStyle.Apply(this, position);
+                    clickedStyle.Apply(this, new Point(0, 0));
                 };
                 menu.Items.Add(menuItem);
             }

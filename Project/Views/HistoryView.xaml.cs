@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
@@ -157,6 +157,52 @@ public partial class HistoryView : UserControl
             var preview = new ImagePreviewWindow(vm.FullImage);
             preview.ShowDialog();
         }
+    }
+
+    private void HistoryItem_RightClick(object sender, MouseButtonEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not HistoryItemViewModel vm || vm.FullImage == null) return;
+
+        e.Handled = true;
+        var contextMenu = new System.Windows.Controls.ContextMenu();
+
+        var copyItem = new System.Windows.Controls.MenuItem { Header = (FindResource("Lang_Copy") as string) ?? "复制" };
+        copyItem.Click += (_, _) => CopyBitmapToClipboard(vm.FullImage);
+        contextMenu.Items.Add(copyItem);
+
+        var saveItem = new System.Windows.Controls.MenuItem { Header = (FindResource("Lang_SaveAs") as string) ?? "另存为" };
+        saveItem.Click += (_, _) => SaveBitmapToFile(vm.FullImage);
+        contextMenu.Items.Add(saveItem);
+
+        contextMenu.PlacementTarget = sender as UIElement;
+        contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Mouse;
+        contextMenu.IsOpen = true;
+    }
+
+    private static void CopyBitmapToClipboard(BitmapSource source)
+    {
+        try
+        {
+            Clipboard.Clear();
+            Clipboard.SetImage(source);
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] copy failed: {ex.Message}"); }
+    }
+
+    private static void SaveBitmapToFile(BitmapSource source)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "PNG 图片|*.png|JPEG 图片|*.jpg;*.jpeg|所有文件|*.*",
+            DefaultExt = ".png",
+            FileName = "截图_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".png"
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        using var fs = new System.IO.FileStream(dialog.FileName, System.IO.FileMode.Create);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(source));
+        encoder.Save(fs);
     }
 }
 

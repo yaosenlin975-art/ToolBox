@@ -54,6 +54,8 @@ public class ScrapBook
         scrap.OnScrapStyleApplied += OnScrapStyleApplied;
         scrap.OnScrapStyleRemoved += OnScrapStyleRemoved;
 
+        ApplyScrapOption(scrap);
+
         scraps.Add(scrap);
         scrap.Show();
         scrap.InitializedValue = true;
@@ -93,6 +95,7 @@ public class ScrapBook
         scrap.OnScrapStyleRemoved += OnScrapStyleRemoved;
 
         scraps.Add(scrap);
+        ApplyScrapOption(scrap);
         scrap.Show();
         scrap.InitializedValue = true;
         scrap.RaiseScrapCreated();
@@ -224,6 +227,26 @@ public class ScrapBook
     private void OnScrapImageChanged(object sender, ScrapEventArgs e) { }
     private void OnScrapStyleApplied(object sender, ScrapEventArgs e) { }
     private void OnScrapStyleRemoved(object sender, ScrapEventArgs e) { }
+
+    private void ApplyScrapOption(Models.ScrapWindow scrap)
+    {
+        var opt = BindForm?.GetOptions();
+        if (opt == null) return;
+        scrap.ActiveOpacityValue = 1.0;
+        scrap.InactiveOpacityValue = opt.Scrap.InactiveAlphaChange && opt.Scrap.InactiveAlphaValue < 100
+            ? opt.Scrap.InactiveAlphaValue / 100.0 : 1.0;
+        scrap.RolloverOpacityValue = opt.Scrap.MouseOverAlphaChange && opt.Scrap.MouseOverAlphaValue < 100
+            ? opt.Scrap.MouseOverAlphaValue / 100.0 : 1.0;
+        if (!opt.Scrap.InactiveAlphaChange && !opt.Scrap.MouseOverAlphaChange)
+        {
+            scrap.Opacity = 1.0;
+        }
+        else
+        {
+            // Apply inactive opacity as initial; will switch on MouseEnter/MouseLeave
+            scrap.Opacity = scrap.InactiveOpacityValue;
+        }
+    }
 }
 
 

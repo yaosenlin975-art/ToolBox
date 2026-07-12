@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -109,6 +110,55 @@ public partial class ImagePreviewWindow : Window
             Top = originalPosition.Y;
             isCropMode = false;
         }
+    }
+
+
+    private void OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        clickTimer?.Stop();
+        clickTimer = null;
+
+        var source = (isCropMode ? fullSource : previewImage.Source) as BitmapSource;
+        if (source == null) return;
+
+        var menu = new System.Windows.Controls.ContextMenu();
+        var copyItem = new System.Windows.Controls.MenuItem { Header = "复制" };
+        copyItem.Click += (_, _) => CopyToClipboard(source);
+        menu.Items.Add(copyItem);
+
+        var saveItem = new System.Windows.Controls.MenuItem { Header = "另存为" };
+        saveItem.Click += (_, _) => SaveToFile(source);
+        menu.Items.Add(saveItem);
+
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Mouse;
+        menu.IsOpen = true;
+    }
+
+    private static void CopyToClipboard(BitmapSource source)
+    {
+        try
+        {
+            System.Windows.Clipboard.Clear();
+            System.Windows.Clipboard.SetImage(source);
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] copy failed: {ex.Message}"); }
+    }
+
+    private static void SaveToFile(BitmapSource source)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "PNG 图片|*.png|JPEG 图片|*.jpg;*.jpeg|所有文件|*.*",
+            DefaultExt = ".png",
+            FileName = "截图_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".png"
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        using var fs = new FileStream(dialog.FileName, FileMode.Create);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(source));
+        encoder.Save(fs);
     }
 
     private void OnKeyDown(object sender, KeyEventArgs e)

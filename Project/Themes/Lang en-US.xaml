@@ -32,7 +32,9 @@
     <sys:String x:Key="Lang_FullscreenCursor">Fullscreen crosshair</sys:String>
     <sys:String x:Key="Lang_Magnifier">Pixel magnifier</sys:String>
     <sys:String x:Key="Lang_AllowDrag">Allow drag image to scrap</sys:String>
-    <sys:String x:Key="Lang_InactiveAlpha">Dim when inactive</sys:String>
+        <sys:String x:Key="Lang_InactiveAlphaHint">Opacity when the pointer is not over the floating window</sys:String>
+    <sys:String x:Key="Lang_MouseOverAlphaHint">Opacity when the pointer hovers over the floating window</sys:String>
+<sys:String x:Key="Lang_InactiveAlpha">Dim when inactive</sys:String>
     <sys:String x:Key="Lang_MouseOverAlpha">Adjust on hover</sys:String>
     <sys:String x:Key="Lang_DustBox">Enable dust box</sys:String>
     <sys:String x:Key="Lang_Capacity">Capacity</sys:String>
@@ -173,6 +175,9 @@
     <sys:String x:Key="Lang_DateAll">All</sys:String>
 
     <sys:String x:Key="Lang_Loading">Loading...</sys:String>
+            <sys:String x:Key="Lang_Copy">Copy</sys:String>
+        <sys:String x:Key="Lang_SaveAs">Save As</sys:String>
+
     <sys:String x:Key="Lang_RecordCount">{0} records</sys:String>
 
 </ResourceDictionary>

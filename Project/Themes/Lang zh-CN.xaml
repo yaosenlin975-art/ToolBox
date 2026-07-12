@@ -32,7 +32,9 @@
     <sys:String x:Key="Lang_FullscreenCursor">全屏十字光标</sys:String>
     <sys:String x:Key="Lang_Magnifier">像素放大镜</sys:String>
     <sys:String x:Key="Lang_AllowDrag">允许拖拽图片到贴图</sys:String>
-    <sys:String x:Key="Lang_InactiveAlpha">非活动时降低透明度</sys:String>
+        <sys:String x:Key="Lang_InactiveAlphaHint">鼠标不在浮窗上时的透明度</sys:String>
+    <sys:String x:Key="Lang_MouseOverAlphaHint">鼠标悬停浮窗时的透明度</sys:String>
+<sys:String x:Key="Lang_InactiveAlpha">非活动时降低透明度</sys:String>
     <sys:String x:Key="Lang_MouseOverAlpha">鼠标悬停时调整透明度</sys:String>
     <sys:String x:Key="Lang_DustBox">启用回收箱</sys:String>
     <sys:String x:Key="Lang_Capacity">容量</sys:String>
@@ -173,6 +175,9 @@
     <sys:String x:Key="Lang_DateAll">全部</sys:String>
 
     <sys:String x:Key="Lang_Loading">加载中...</sys:String>
+            <sys:String x:Key="Lang_Copy">复制</sys:String>
+        <sys:String x:Key="Lang_SaveAs">另存为</sys:String>
+
     <sys:String x:Key="Lang_RecordCount">{0} 条记录</sys:String>
 
 </ResourceDictionary>

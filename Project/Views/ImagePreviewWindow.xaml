@@ -10,10 +10,12 @@
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterScreen"
         MouseLeftButtonDown="OnMouseLeftButtonDown"
-        KeyDown="OnKeyDown">
+        KeyDown="OnKeyDown"
+        MouseRightButtonDown="OnMouseRightButtonDown">
     <Border x:Name="previewBorder" Margin="24" Background="Transparent" Cursor="Hand">
         <Image x:Name="previewImage" Stretch="Uniform"
                RenderOptions.BitmapScalingMode="HighQuality"
-               MouseLeftButtonDown="OnMouseLeftButtonDown"/>
+               MouseLeftButtonDown="OnMouseLeftButtonDown"
+               MouseRightButtonDown="OnMouseRightButtonDown"/>
     </Border>
 </Window>
