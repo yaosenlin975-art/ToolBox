@@ -33,34 +33,22 @@ public class ChatManager
         sessionsDir = Path.Combine(basePath, "sessions");
         Directory.CreateDirectory(sessionsDir);
         Load();
-        autoSaveTimer = new System.Threading.Timer(_ => AutoSave(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        autoSaveTimer = new System.Threading.Timer(_ => _ = AutoSaveAsync(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
     }
-
-    // Sync wrappers
-    public ChatSession CreateSession(string title = "新会话")
-        => CreateSessionAsync(title).GetAwaiter().GetResult();
-
-    public void TogglePin(string sessionId)
-        => TogglePinAsync(sessionId).GetAwaiter().GetResult();
-
-    public void DeleteSession(string sessionId)
-        => DeleteSessionAsync(sessionId).GetAwaiter().GetResult();
-
-    public void SaveSessionMessages(ChatSession session)
-        => SaveSessionMessagesAsync(session).GetAwaiter().GetResult();
 
     public async Task<ChatSession> CreateSessionAsync(string title = "新会话")
     {
         var session = new ChatSession { Title = title };
         sessions.Insert(0, session);
-        await SaveChatsIndexAsync();
+        await SaveChatsIndexAsync().ConfigureAwait(false);
         NotifySessionsChanged();
         return session;
     }
 
     public ChatSession CreateSessionWithImage(byte[] imageData, string title = "截图对话")
     {
-        var session = CreateSession(title);
+        var session = new ChatSession { Title = title };
+        sessions.Insert(0, session);
         var imageDir = Path.Combine(sessionsDir, session.Id, "images");
         Directory.CreateDirectory(imageDir);
         var imagePath = Path.Combine(imageDir, $"{DateTime.UtcNow:yyyyMMddHHmmssfff}.png");
@@ -72,7 +60,18 @@ public class ChatManager
             Content = "请描述这张截图的内容",
             ImagePath = imagePath
         });
-        SaveSessionMessages(session);
+        _ = SaveSessionMessagesAsync(session);
+        return session;
+    }
+
+    public async Task<ChatSession?> SwitchSessionAsync(string sessionId)
+    {
+        var session = sessions.FirstOrDefault(s => s.Id == sessionId);
+        if (session != null)
+        {
+            ActiveSession = session;
+            LoadSessionMessages(session);
+        }
         return session;
     }
 
@@ -92,7 +91,7 @@ public class ChatManager
         if (session == null) return;
         session.IsPinned = !session.IsPinned;
         ReorderSessions();
-        await SaveChatsIndexAsync();
+        await SaveChatsIndexAsync().ConfigureAwait(false);
         NotifySessionsChanged();
     }
 
@@ -111,7 +110,7 @@ public class ChatManager
         var sessionDir = Path.Combine(sessionsDir, sessionId);
         if (Directory.Exists(sessionDir))
             Directory.Delete(sessionDir, true);
-        await SaveChatsIndexAsync();
+        await SaveChatsIndexAsync().ConfigureAwait(false);
     }
 
     public async Task SaveSessionMessagesAsync(ChatSession session)
@@ -121,7 +120,7 @@ public class ChatManager
         {
             WriteIndented = true
         });
-        await AtomicWriteAsync(path, json);
+        await AtomicWriteAsync(path, json).ConfigureAwait(false);
     }
 
     public void LoadSessionMessages(ChatSession session)
@@ -170,16 +169,16 @@ public class ChatManager
             }).ToList()
         };
         var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
-        await AtomicWriteAsync(chatsJsonPath, json);
+        await AtomicWriteAsync(chatsJsonPath, json).ConfigureAwait(false);
     }
 
     private async Task AtomicWriteAsync(string path, string content)
     {
-        await writeLock.WaitAsync();
+        await writeLock.WaitAsync().ConfigureAwait(false);
         try
         {
             var tmpPath = path + ".tmp";
-            await File.WriteAllTextAsync(tmpPath, content);
+            await File.WriteAllTextAsync(tmpPath, content).ConfigureAwait(false);
             using (var fs = new FileStream(tmpPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
             {
                 fs.Flush(true);
@@ -192,21 +191,7 @@ public class ChatManager
         }
     }
 
-    
-    public void AutoGenerateTitle(ChatSession session)
-    {
-        AutoGenerateTitleAsync(session).GetAwaiter().GetResult();
-    }
-
-    public void RenameSession(ChatSession session, string newTitle)
-    {
-        if (string.IsNullOrWhiteSpace(newTitle)) return;
-        session.Title = newTitle.Trim();
-        _ = SaveChatsIndexAsync();
-        NotifySessionsChanged();
-    }
-
-    private async Task AutoGenerateTitleAsync(ChatSession session)
+    public async Task AutoGenerateTitleAsync(ChatSession session)
     {
         if (session.IsTitleLocked) return;
         if (!session.Title.StartsWith("Screenshot") && !session.Title.StartsWith("New") &&
@@ -217,21 +202,30 @@ public class ChatManager
         var t = msg.Content!.Trim();
         session.Title = t.Length > 25 ? t[..25] + "..." : t;
         session.IsTitleLocked = false;
-        await SaveChatsIndexAsync();
+        await SaveChatsIndexAsync().ConfigureAwait(false);
         NotifySessionsChanged();
     }
-public async void LockTitle(ChatSession session)
+
+    public void RenameSession(ChatSession session, string newTitle)
     {
-        session.IsTitleLocked = true;
-        await SaveChatsIndexAsync();
+        if (string.IsNullOrWhiteSpace(newTitle)) return;
+        session.Title = newTitle.Trim();
+        _ = SaveChatsIndexAsync();
+        NotifySessionsChanged();
     }
 
-    private async void AutoSave()
+    public async Task LockTitleAsync(ChatSession session)
+    {
+        session.IsTitleLocked = true;
+        await SaveChatsIndexAsync().ConfigureAwait(false);
+    }
+
+    private async Task AutoSaveAsync()
     {
         try
         {
             if (ActiveSession != null && ActiveSession.Status == "running")
-                await SaveSessionMessagesAsync(ActiveSession);
+                await SaveSessionMessagesAsync(ActiveSession).ConfigureAwait(false);
         }
         catch { }
     }

@@ -19,6 +19,7 @@ public class CacheItem
     [JsonConverter(typeof(PointJsonConverter))]
     public Point StyleClickPoint { get; set; }
     public int SortingOrder { get; set; }
+    public bool IsFloating { get; set; }
 
     public string FolderPath => Path.Combine(CacheManager.CachePath, CreateTime.ToString("yyyyMMddHHmmssfff"));
 
@@ -38,7 +39,8 @@ public class CacheItem
             CreateTime = createTime,
             Position = pos,
             StyleId = styleId,
-            StyleClickPoint = clickPoint
+            StyleClickPoint = clickPoint,
+            IsFloating = true
         };
 
         item.SaveImage(image);

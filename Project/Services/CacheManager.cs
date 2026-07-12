@@ -59,6 +59,7 @@ public class CacheManager : IScrapAddedListener, IScrapRemovedListener, IScrapLo
         for (int i = 0; i < list.Count; i++)
         {
             var item = list[i];
+            if (!item.IsFloating) continue;
             var image = item.ReadImage();
             if (image != null)
             {

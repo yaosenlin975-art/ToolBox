@@ -56,8 +56,10 @@ public partial class TodoView : UserControl
     {
         if (sender is CheckBox cb && cb.DataContext is TodoItem item)
         {
-            await TodoStore.Instance.CompleteAsync(item.Id);
-            LoadTodos();
+            if (cb.IsChecked == true)
+                await TodoStore.Instance.CompleteAsync(item.Id);
+            else
+                await TodoStore.Instance.UncompleteAsync(item.Id);
         }
     }
 
@@ -89,6 +91,10 @@ public partial class TodoView : UserControl
         PriLow.IsChecked = item.Priority == 0;
         PriMid.IsChecked = item.Priority == 1;
         PriHigh.IsChecked = item.Priority == 2;
+
+        DetailDueDate.SelectedDate = item.DueDate?.ToLocalTime();
+        DetailProgress.Value = item.Progress;
+        DetailProgressText.Text = item.Progress + "%";
     }
 
     private void HideDetail()
@@ -118,6 +124,23 @@ public partial class TodoView : UserControl
         int p = PriHigh.IsChecked == true ? 2 : PriMid.IsChecked == true ? 1 : 0;
         if (p != selected.Priority)
             await TodoStore.Instance.UpdateAsync(selected.Id, priority: p);
+    }
+
+    private async void DetailDueDate_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (selected == null) return;
+        DateTime? val = DetailDueDate.SelectedDate?.ToUniversalTime();
+        if (val != selected.DueDate)
+            await TodoStore.Instance.UpdateAsync(selected.Id, dueDate: val);
+    }
+
+    private async void DetailProgress_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (selected == null || DetailProgressText == null) return;
+        int val = (int)e.NewValue;
+        DetailProgressText.Text = val + "%";
+        if (val != selected.Progress)
+            await TodoStore.Instance.UpdateAsync(selected.Id, progress: val);
     }
 
     private async void DetailDelete_Click(object sender, RoutedEventArgs e)

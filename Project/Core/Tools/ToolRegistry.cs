@@ -23,7 +23,8 @@ public class ToolRegistry
             {
                 Name = attr.Name,
                 Description = attr.Description,
-                Handler = method
+                Handler = method,
+                IsAsync = method.ReturnType == typeof(Task<string>)
             };
 
             foreach (var param in method.GetParameters())
@@ -58,7 +59,8 @@ public class ToolRegistry
             {
                 Name = attr.Name,
                 Description = attr.Description,
-                Handler = method
+                Handler = method,
+                IsAsync = method.ReturnType == typeof(Task<string>)
             };
 
             foreach (var param in method.GetParameters())
@@ -104,8 +106,43 @@ public class ToolRegistry
         }
 
         var result = method.Invoke(null, args);
+        if (result is Task<string> task)
+            return task.GetAwaiter().GetResult();
         return result?.ToString() ?? string.Empty;
     }
+
+    public async Task<string> ExecuteAsync(string toolName, Dictionary<string, object> arguments)
+    {
+        if (!handlers.TryGetValue(toolName, out var method))
+            throw new ToolNotFoundException(toolName);
+
+        var paramInfos = method.GetParameters();
+        var args = new object[paramInfos.Length];
+
+        for (int i = 0; i < paramInfos.Length; i++)
+        {
+            if (arguments.TryGetValue(paramInfos[i].Name!, out var value))
+            {
+                args[i] = Convert.ChangeType(value, paramInfos[i].ParameterType);
+            }
+            else if (paramInfos[i].HasDefaultValue)
+            {
+                args[i] = paramInfos[i].DefaultValue!;
+            }
+            else
+            {
+                throw new MissingParameterException(paramInfos[i].Name!);
+            }
+        }
+
+        var result = method.Invoke(null, args);
+        if (result is Task<string> task)
+            return await task.ConfigureAwait(false);
+        return result?.ToString() ?? string.Empty;
+    }
+
+    public bool IsAsync(string toolName) =>
+        tools.TryGetValue(toolName, out var tool) && tool.IsAsync;
 
     public IReadOnlyList<ToolInfo> GetAllTools() => tools.Values.ToList().AsReadOnly();
 

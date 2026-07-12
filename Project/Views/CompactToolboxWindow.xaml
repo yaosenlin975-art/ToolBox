@@ -74,7 +74,7 @@
             </Grid.RowDefinitions>
 
             <!-- 顶栏:展开按钮 + Tab 组 + 三横线设置 -->
-            <Border Grid.Row="0" Padding="8,4" Background="Transparent"
+            <Border x:Name="TopBar" Grid.Row="0" Padding="8,4" Background="Transparent"
                     CornerRadius="0" BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,0,0,1">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -130,11 +130,16 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                    <Button HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                            Margin="0,0,8,8" Width="32" Height="32"
-                            Style="{StaticResource CompactIconButton}" Content="+"
-                            Click="QuickAddTodo_Click" ToolTip="{DynamicResource Lang_QuickAdd}" FontSize="18"
-                            Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                  Orientation="Horizontal" Margin="0,0,8,8">
+                        <Button x:Name="TodoCollapseBtn" Width="28" Height="28" Content="&#x25BC;"
+                                Style="{StaticResource CompactIconButton}" FontSize="10"
+                                Click="TodoCollapse_Click" ToolTip="精简模式"/>
+                        <Button x:Name="TodoAddBtn" Width="32" Height="32" Margin="4,0,0,0"
+                                Style="{StaticResource CompactIconButton}" Content="+"
+                                Click="QuickAddTodo_Click" ToolTip="{DynamicResource Lang_QuickAdd}" FontSize="18"
+                                Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </StackPanel>
                 </Grid>
 
                 <!-- 助手 -->

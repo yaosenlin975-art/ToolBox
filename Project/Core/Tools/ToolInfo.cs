@@ -8,6 +8,7 @@ public class ToolInfo
     public string Description { get; set; } = string.Empty;
     public List<ToolParamInfo> Parameters { get; set; } = [];
     public object? Handler { get; set; }  // MethodInfo or delegate
+    public bool IsAsync { get; set; }
 
     public string ToJsonSchema()
     {

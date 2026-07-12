@@ -144,9 +144,44 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </StackPanel>
-                            <TextBlock Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0"
-                                       FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"
-                                       Text="{Binding DueDate, StringFormat='{}{0:MM-dd}'}"/>
+                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                                <Border CornerRadius="4" Padding="4,1" Margin="0,0,4,0">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Priority}" Value="1">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Setter Property="Background" Value="#22F5A623"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Priority}" Value="2">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Setter Property="Background" Value="#22E74C3C"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock FontSize="10" FontWeight="SemiBold">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Priority}" Value="1">
+                                                        <Setter Property="Text" Value="重要"/>
+                                                        <Setter Property="Foreground" Value="#F5A623"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Priority}" Value="2">
+                                                        <Setter Property="Text" Value="紧急"/>
+                                                        <Setter Property="Foreground" Value="#E74C3C"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Border>
+                                <TextBlock VerticalAlignment="Center" FontSize="11"
+                                           Foreground="{DynamicResource TextTertiaryBrush}"
+                                           Text="{Binding DueDate, StringFormat='{}{0:MM-dd}'}"/>
+                            </StackPanel>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
@@ -202,7 +237,30 @@
                                          Style="{StaticResource PriOptionStyle}" Click="Priority_Changed"/>
                         </StackPanel>
 
-                        <!-- 描述 -->
+                                                <!-- 截止日期 -->
+                        <TextBlock Text="截止日期" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                        <DatePicker x:Name="DetailDueDate" FontSize="12" Margin="0,0,0,16"
+                                    SelectedDateChanged="DetailDueDate_Changed"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                        <!-- 进度 -->
+                        <TextBlock Text="完成进度" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Slider x:Name="DetailProgress" Grid.Column="0" Minimum="0" Maximum="100"
+                                    TickFrequency="10" IsSnapToTickEnabled="True" TickPlacement="None"
+                                    ValueChanged="DetailProgress_Changed"/>
+                            <TextBlock x:Name="DetailProgressText" Grid.Column="1" Text="0%" Width="36"
+                                       TextAlignment="Right" FontSize="12" Margin="8,0,0,0"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+<!-- 描述 -->
                         <TextBlock Text="描述" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                         <TextBox x:Name="DetailDesc" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80"

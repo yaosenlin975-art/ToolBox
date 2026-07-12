@@ -65,9 +65,6 @@ public partial class ChatView : UserControl
         }
     }
 
-    // Sync wrapper
-    public ChatSession CreateNewSession()
-        => CreateNewSessionAsync().GetAwaiter().GetResult();
     public async Task<ChatSession> CreateNewSessionAsync()
     {
         var session = await chatManager.CreateSessionAsync();
@@ -84,9 +81,9 @@ public partial class ChatView : UserControl
         }
     }
 
-    private void NewSessionBtn_Click(object sender, RoutedEventArgs e)
+    private async void NewSessionBtn_Click(object sender, RoutedEventArgs e)
     {
-        CreateNewSession();
+        await CreateNewSessionAsync();
     }
 
     private Agent? CreateAgent(ChatSession session)
@@ -187,13 +184,13 @@ public partial class ChatView : UserControl
             // 将本轮完整对话（含最终助手回复与工具调用轮次）持久化，避免重启后丢失
             foreach (var m in currentAgent.TurnMessages)
                 currentSession.Messages.Add(m);
-            
-        // Auto-title the session from the first user message once the first exchange completes
-        if (!currentSession.IsTitleLocked && currentSession.Messages.Count >= 2)
-        {
-            ChatManager.Instance.AutoGenerateTitle(currentSession);
-            LoadSessions();
-        }
+
+            // Auto-title the session from the first user message once the first exchange completes
+            if (!currentSession.IsTitleLocked && currentSession.Messages.Count >= 2)
+            {
+                await ChatManager.Instance.AutoGenerateTitleAsync(currentSession);
+                LoadSessions();
+            }
         }
 
         catch (Exception ex)

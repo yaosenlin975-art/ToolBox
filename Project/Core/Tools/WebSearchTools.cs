@@ -8,7 +8,7 @@ public static class WebSearchTools
     private static readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(15) };
 
     [Tool("web_search", "网络搜索，返回相关结果摘要（使用 DuckDuckGo Instant Answer API）")]
-    public static string WebSearch(
+    public static async Task<string> WebSearch(
         [ToolParam("搜索关键词")] string query,
         [ToolParam("返回结果数量，默认5")] int count = 5)
     {
@@ -18,7 +18,7 @@ public static class WebSearchTools
         {
             var q = System.Uri.EscapeDataString(query);
             var url = "https://api.duckduckgo.com/?q=" + q + "&format=json&no_html=1&skip_disambig=1&t=ToolBox";
-            var json = http.GetStringAsync(url).GetAwaiter().GetResult();
+            var json = await http.GetStringAsync(url).ConfigureAwait(false);
             using var doc = JsonDocument.Parse(json);
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("搜索: " + query);

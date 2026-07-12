@@ -403,17 +403,14 @@ public class ScrapWindow : Window
             crop.Freeze();
             SetImage(crop);
 
-            // 让窗口缩到裁切区域的实际显示大小, 并保持在点击点的相对位置
-            var displayRatioX = ActualWidth > 0 ? ActualWidth / sourceBitmap.PixelWidth : 1.0;
-            var displayRatioY = ActualHeight > 0 ? ActualHeight / sourceBitmap.PixelHeight : 1.0;
-            var newW = cropW * displayRatioX;
-            var newH = cropH * displayRatioY;
-            // 点击点在窗体中的当前屏幕位置保持不变 (即光标相对于窗体左上角不变)
+            // 窗口缩为 50x50 屏幕像素，裁切区域左上角对齐点击点
+            var cropLocalX = srcX - cropX;
+            var cropLocalY = srcY - cropY;
             var screenClick = PointToScreen(e.GetPosition(this));
-            Left = screenClick.X - pos.X / ActualWidth * newW;
-            Top = screenClick.Y - pos.Y / ActualHeight * newH;
-            Width = newW;
-            Height = newH;
+            Left = screenClick.X - cropLocalX;
+            Top = screenClick.Y - cropLocalY;
+            Width = 50;
+            Height = 50;
             isThumbnailMode = true;
         }
     }
@@ -553,7 +550,7 @@ public class ScrapWindow : Window
                 enc.Save(ms);
                 var imageBytes = ms.ToArray();
 
-                var session = Core.Llm.ChatManager.Instance.CreateSession("代办识别");
+                var session = await Core.Llm.ChatManager.Instance.CreateSessionAsync("代办识别");
                 var imageDir = System.IO.Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                     "ToolBox", "sessions", session.Id, "images");

@@ -59,6 +59,17 @@ public class TodoStore
         return true;
     }
 
+    public async Task<bool> UncompleteAsync(string id)
+    {
+        var item = items.FirstOrDefault(t => t.Id == id);
+        if (item == null) return false;
+        item.IsCompleted = false;
+        item.CompletedAt = null;
+        await SaveAsync();
+        NotifyChanged();
+        return true;
+    }
+
     public async Task<bool> DeleteAsync(string id)
     {
         var removed = items.RemoveAll(t => t.Id == id);
@@ -66,7 +77,7 @@ public class TodoStore
         return removed > 0;
     }
 
-    public async Task<bool> UpdateAsync(string id, string? title = null, string? description = null, int? priority = null, List<string>? tags = null, DateTime? dueDate = null)
+    public async Task<bool> UpdateAsync(string id, string? title = null, string? description = null, int? priority = null, List<string>? tags = null, DateTime? dueDate = null, int? progress = null)
     {
         var item = items.FirstOrDefault(t => t.Id == id);
         if (item == null) return false;
@@ -75,6 +86,7 @@ public class TodoStore
         if (priority.HasValue) item.Priority = priority.Value;
         if (tags != null) item.Tags = tags;
         if (dueDate.HasValue) item.DueDate = dueDate;
+        if (progress.HasValue) item.Progress = progress.Value;
         await SaveAsync();
         NotifyChanged();
         return true;
@@ -99,6 +111,9 @@ public class TodoStore
 
     public bool Complete(string id)
         => Task.Run(() => CompleteAsync(id)).GetAwaiter().GetResult();
+
+    public bool Uncomplete(string id)
+        => Task.Run(() => UncompleteAsync(id)).GetAwaiter().GetResult();
 
     public bool Delete(string id)
         => Task.Run(() => DeleteAsync(id)).GetAwaiter().GetResult();

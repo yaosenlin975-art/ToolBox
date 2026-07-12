@@ -70,9 +70,9 @@ public partial class SessionSidebar : UserControl
                 FontSize = 13,
                 Foreground = (Brush)Application.Current.FindResource("TextPrimaryBrush")
             };
-            pinItem.Click += (s, args) =>
+            pinItem.Click += async (s, args) =>
             {
-                ChatManager.Instance.TogglePin(session.Id);
+                await ChatManager.Instance.TogglePinAsync(session.Id);
                 RefreshSessions();
             };
 
@@ -83,9 +83,9 @@ public partial class SessionSidebar : UserControl
                 FontSize = 13,
                 Foreground = (Brush)Application.Current.FindResource("DangerBrush")
             };
-            deleteItem.Click += (s, args) =>
+            deleteItem.Click += async (s, args) =>
             {
-                ChatManager.Instance.DeleteSession(session.Id);
+                await ChatManager.Instance.DeleteSessionAsync(session.Id);
                 RefreshSessions();
             };
 
@@ -97,11 +97,11 @@ public partial class SessionSidebar : UserControl
         }
     }
 
-    private void DeleteSessionBtn_Click(object sender, RoutedEventArgs e)
+    private async void DeleteSessionBtn_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement fe && fe.DataContext is ChatSession session)
         {
-            ChatManager.Instance.DeleteSession(session.Id);
+            await ChatManager.Instance.DeleteSessionAsync(session.Id);
             RefreshSessions();
             e.Handled = true;
         }

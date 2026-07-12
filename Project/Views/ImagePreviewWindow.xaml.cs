@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -84,9 +84,14 @@ public partial class ImagePreviewWindow : Window
             cropped.Freeze();
 
             previewBorder.Margin = new Thickness(0);
+            previewImage.MaxWidth = double.PositiveInfinity;
+            previewImage.MaxHeight = double.PositiveInfinity;
+            previewImage.Width = crop;
+            previewImage.Height = crop;
             previewImage.Source = cropped;
-            MaxWidth = double.PositiveInfinity;
-            MaxHeight = double.PositiveInfinity;
+            SizeToContent = System.Windows.SizeToContent.Manual;
+            Width = crop;
+            Height = crop;
 
             // 保持点击点在光标下：让 50×50 小图中心对齐点击点的屏幕坐标
             var screen = previewImage.PointToScreen(click);
@@ -98,14 +103,15 @@ public partial class ImagePreviewWindow : Window
         else
         {
             previewImage.Source = fullSource;
+            previewImage.Width = double.NaN;
+            previewImage.Height = double.NaN;
             previewBorder.Margin = new Thickness(24);
             var area = SystemParameters.WorkArea;
             MaxWidth = area.Width * 0.9;
             MaxHeight = area.Height * 0.9;
             previewImage.MaxWidth = area.Width * 0.9 - 48;
             previewImage.MaxHeight = area.Height * 0.9 - 48;
-            Width = originalSize.Width;
-            Height = originalSize.Height;
+            SizeToContent = System.Windows.SizeToContent.WidthAndHeight;
             Left = originalPosition.X;
             Top = originalPosition.Y;
             isCropMode = false;

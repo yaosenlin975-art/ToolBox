@@ -9,6 +9,7 @@ public class TodoItem
     public int Priority { get; set; }
     public List<string> Tags { get; set; } = new();
     public DateTime? DueDate { get; set; }
+    public int Progress { get; set; }
     public string? SessionId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAt { get; set; }

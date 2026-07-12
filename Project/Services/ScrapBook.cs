@@ -216,8 +216,12 @@ public class ScrapBook
     private void OnScrapClose(object sender, ScrapEventArgs e)
     {
         scraps.Remove(e.Scrap);
-        // 关闭截图浮窗时不删除缓存，保留历史记录供用户查看。
-        // 缓存清理仅通过：1) 用户在历史视图中手动删除；2) 超过最大时效自动清理。
+        // 用户手动关闭时标记为非浮窗，下次启动不再恢复；应用退出时保留标记以便持久化。
+        if (!IsShuttingDown && e.Scrap.CacheItem != null)
+        {
+            e.Scrap.CacheItem.IsFloating = false;
+            e.Scrap.CacheItem.SaveInfo();
+        }
     }
 
     private void OnScrapCreated(object sender, ScrapEventArgs e) { }

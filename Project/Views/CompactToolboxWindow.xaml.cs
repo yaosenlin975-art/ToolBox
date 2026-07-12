@@ -17,9 +17,12 @@ public partial class CompactToolboxWindow : Window
     private static readonly (double w, double h) TodoSize = (200, 350);
     private static readonly (double w, double h) ChatSize = (400, 400);
     private static readonly (double w, double h) ScreenshotSize = (200, 350);
+    private const double TodoItemHeight = 26;
+    private const double TodoCollapsedPad = 12;
 
     private readonly ToolBoxOption options;
     private string currentTab = "todo";
+    private bool isTodoCollapsed;
 
     public CompactToolboxWindow()
     {
@@ -28,8 +31,9 @@ public partial class CompactToolboxWindow : Window
 
         PositionWindow();
         SwitchToTab("todo");
+        LoadTodos();
 
-        TodoStore.Instance.ItemsChanged += () => Dispatcher.Invoke(LoadTodos);
+        TodoStore.Instance.ItemsChanged += () => Dispatcher.BeginInvoke(LoadTodos);
         ChatManager.Instance.SessionsChanged += () => Dispatcher.Invoke(LoadSessions);
         CacheManager.Instance.OnScrapCached += (_, _) => Dispatcher.Invoke(LoadScreenshots);
     }
@@ -49,6 +53,13 @@ public partial class CompactToolboxWindow : Window
     public void SwitchToTab(string tab)
     {
         currentTab = tab;
+        if (isTodoCollapsed)
+        {
+            isTodoCollapsed = false;
+            TopBar.Visibility = Visibility.Visible;
+            TodoAddBtn.Visibility = Visibility.Visible;
+            TodoCollapseBtn.Content = "\u25BC";
+        }
         TodoPanel.Visibility = Visibility.Collapsed;
         ChatPanel.Visibility = Visibility.Collapsed;
         ScreenshotPanel.Visibility = Visibility.Collapsed;
@@ -65,9 +76,12 @@ public partial class CompactToolboxWindow : Window
             _ => TodoSize
         };
 
+        var right = Left + Width;
+        var bottom = Top + Height;
         Width = w;
         Height = h;
-        PositionWindow();
+        Left = right - w;
+        Top = bottom - h;
 
         // Opacity: chat always 1, others use setting
         if (tab == "chat")
@@ -146,6 +160,7 @@ public partial class CompactToolboxWindow : Window
     private void LoadTodos()
     {
         TodoList.ItemsSource = TodoStore.Instance.GetPending();
+        FitTodoHeight();
     }
 
     private void LoadScreenshots()
@@ -180,10 +195,40 @@ public partial class CompactToolboxWindow : Window
         }
     }
 
-    private void TodoItem_Changed(object sender, RoutedEventArgs e)
+    private async void TodoItem_Changed(object sender, RoutedEventArgs e)
     {
         if (sender is CheckBox cb && cb.Tag is string id)
-            TodoStore.Instance.Complete(id);
+        {
+            if (cb.IsChecked == true)
+                await TodoStore.Instance.CompleteAsync(id);
+            else
+                await TodoStore.Instance.UncompleteAsync(id);
+        }
+    }
+
+    private void TodoCollapse_Click(object sender, RoutedEventArgs e)
+    {
+        isTodoCollapsed = !isTodoCollapsed;
+
+        TopBar.Visibility = isTodoCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        TodoAddBtn.Visibility = isTodoCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        TodoCollapseBtn.Content = isTodoCollapsed ? "\u25B2" : "\u25BC";
+
+        FitTodoHeight();
+    }
+
+    private void FitTodoHeight()
+    {
+        if (!isTodoCollapsed || currentTab != "todo") return;
+
+        int count = TodoList.Items.Count;
+        double targetH = count * TodoItemHeight + TodoCollapsedPad;
+        targetH = Math.Max(targetH, MinHeight);
+
+        var right = Left + Width;
+        var bottom = Top + Height;
+        Height = targetH;
+        Top = bottom - targetH;
     }
 
     private async void QuickAddTodo_Click(object sender, RoutedEventArgs e)
