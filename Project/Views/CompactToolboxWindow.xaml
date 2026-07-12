@@ -135,7 +135,7 @@
             <!-- 内容区 -->
             <Grid Grid.Row="2">
                 <!-- 迷你待办 -->
-                <Grid x:Name="TodoPanel" Visibility="Visible">
+                <Grid x:Name="TodoPanel" Visibility="Visible" Background="Transparent" MouseLeftButtonDown="Border_MouseLeftButtonDown">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,4">
                         <ItemsControl x:Name="TodoList">
                             <ItemsControl.ItemTemplate>

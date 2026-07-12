@@ -544,32 +544,69 @@ public class ScrapWindow : Window
             if (bitmap == null) return;
             try
             {
-                using var ms = new System.IO.MemoryStream();
-                var enc = new PngBitmapEncoder();
-                enc.Frames.Add(BitmapFrame.Create(bitmap));
-                enc.Save(ms);
-                var imageBytes = ms.ToArray();
-
-                var session = await Core.Llm.ChatManager.Instance.CreateSessionAsync("代办识别");
-                var imageDir = System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "ToolBox", "sessions", session.Id, "images");
-                System.IO.Directory.CreateDirectory(imageDir);
-                var imagePath = System.IO.Path.Combine(imageDir, $"{DateTime.UtcNow:yyyyMMddHHmmssfff}.png");
-                System.IO.File.WriteAllBytes(imagePath, imageBytes);
-
-                session.Messages.Add(new Core.Llm.ChatMessage
+                var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ToolBox_ocr_" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff") + ".png");
+                using (var ms = new System.IO.MemoryStream())
                 {
-                    Role = "user",
-                    Content = "请分析这张图片中的内容，识别出需要作为待办事项的任务。如果有，请使用 add_todo 工具创建对应的待办。",
-                    ImagePath = imagePath
-                });
+                    var enc = new PngBitmapEncoder();
+                    enc.Frames.Add(BitmapFrame.Create(bitmap));
+                    enc.Save(ms);
+                    System.IO.File.WriteAllBytes(tempPath, ms.ToArray());
+                }
 
-                App.CompactToolbox?.SwitchToTab("chat");
+                var provider = Core.Providers.ProviderManager.Instance.CreateActiveProvider();
+                if (provider == null) { System.IO.File.Delete(tempPath); return; }
+
+                var prompt = @"请分析这张图片，识别其中所有需要作为待办事项的任务。请严格以 JSON 数组格式返回，每个元素包含 title（任务标题）和 priority（0=普通 1=重要 2=紧急）。只返回 JSON，不要添加任何其他文字或代码块标记。";
+
+                var messages = new List<Core.Llm.ChatMessage>
+                {
+                    new Core.Llm.ChatMessage { Role = "user", Content = prompt, ImagePath = tempPath }
+                };
+
+                var sb = new System.Text.StringBuilder();
+                await foreach (var chunk in provider.ChatAsync(messages, null, System.Threading.CancellationToken.None))
+                {
+                    if (chunk.Text != null) sb.Append(chunk.Text);
+                }
+
+                System.IO.File.Delete(tempPath);
+                var response = sb.ToString().Trim();
+
+                var candidates = new List<Views.TodoConfirmWindow.TodoCandidate>();
+                try
+                {
+                    var jsonStart = response.IndexOf('[');
+                    var jsonEnd = response.LastIndexOf(']');
+                    if (jsonStart >= 0 && jsonEnd > jsonStart)
+                    {
+                        var json = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                        var arr = System.Text.Json.JsonSerializer.Deserialize<List<JsonTodoItem>>(json);
+                        if (arr != null)
+                            foreach (var item in arr)
+                                candidates.Add(new Views.TodoConfirmWindow.TodoCandidate { Title = item.title ?? "", Priority = item.priority });
+                    }
+                }
+                catch { }
+
+                if (candidates.Count == 0)
+                {
+                    System.Windows.MessageBox.Show("未能从图片中识别出待办事项。", "待办识别", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                    return;
+                }
+
+                var confirmWnd = new Views.TodoConfirmWindow(candidates) { Owner = System.Windows.Application.Current.MainWindow };
+                if (confirmWnd.ShowDialog() == true && confirmWnd.ConfirmedItems.Count > 0)
+                {
+                    foreach (var item in confirmWnd.ConfirmedItems)
+                    {
+                        if (string.IsNullOrWhiteSpace(item.Title)) continue;
+                        await Core.Todo.TodoStore.Instance.AddAsync(item.Title.Trim(), priority: item.Priority);
+                    }
+                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[ToolBox] Todo identification failed: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine("[ToolBox] Todo identification failed: " + ex.Message);
             }
         };
         menu.Items.Add(todoItem);
@@ -668,6 +705,9 @@ public class ScrapWindow : Window
     }
 
 }
+
+file record JsonTodoItem(string? title, int priority);
+
 
 
 

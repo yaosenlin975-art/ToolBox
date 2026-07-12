@@ -277,7 +277,6 @@ public partial class CompactToolboxWindow : Window
         {
             if (source is Button || source is ComboBox || source is CheckBox) return;
             if (source is TextBox || source is RichTextBox) return;
-            if (source is ItemsControl items && !(items is ComboBox)) return;
             if (source is ScrollBar || source is Slider || source is InkCanvas) return;
             source = VisualTreeHelper.GetParent(source);
         }
