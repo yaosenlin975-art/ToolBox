@@ -61,7 +61,28 @@
                 </Setter.Value>
             </Setter>
         </Style>
-    </Window.Resources>
+            <!-- blood-bar progress -->
+        <Style x:Key="HealthBar" TargetType="ProgressBar">
+            <Setter Property="Minimum" Value="0"/>
+            <Setter Property="Maximum" Value="100"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Border CornerRadius="2" Background="#33FFFFFF" Width="24" Height="4" ClipToBounds="True">
+                            <Border x:Name="Fill" CornerRadius="2" HorizontalAlignment="Left"
+                                    Background="#4CAF50" Height="4"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Value, RelativeSource={RelativeSource Self}}" Value="0">
+                                <Setter TargetName="Fill" Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+</Window.Resources>
 
     <Border x:Name="RootBorder" Background="{DynamicResource BgElevatedBrush}" CornerRadius="0"
             BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
@@ -119,13 +140,81 @@
                         <ItemsControl x:Name="TodoList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Margin="0,3">
-                                        <CheckBox IsChecked="{Binding IsCompleted}" Tag="{Binding Id}"
-                                                  Checked="TodoItem_Changed" Unchecked="TodoItem_Changed"/>
-                                        <TextBlock Text="{Binding Title}" FontSize="12" Margin="6,0,0,0"
-                                                   VerticalAlignment="Center"
+                                    <Grid Margin="0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsCompleted}" Tag="{Binding Id}"
+                                                  Checked="TodoItem_Changed" Unchecked="TodoItem_Changed"
+                                                  VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="12" Margin="6,0,4,0"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                    Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                    </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                        <ProgressBar Value="{Binding Progress}" Width="24" Height="4" Margin="0,0,4,0" VerticalAlignment="Center">
+                                                <ProgressBar.Style>
+                                                    <Style TargetType="ProgressBar" BasedOn="{StaticResource HealthBar}">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Progress}" Value="0">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ProgressBar.Style>
+                                            </ProgressBar>
+<Border CornerRadius="3" Padding="3,0" Margin="0,0,4,0">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Priority}" Value="1">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                <Setter Property="Background" Value="#22F5A623"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Priority}" Value="2">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                <Setter Property="Background" Value="#22E74C3C"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock FontSize="9" FontWeight="SemiBold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Priority}" Value="1">
+                                                                    <Setter Property="Text" Value="重要"/>
+                                                                    <Setter Property="Foreground" Value="#F5A623"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Priority}" Value="2">
+                                                                    <Setter Property="Text" Value="紧急"/>
+                                                                    <Setter Property="Foreground" Value="#E74C3C"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                            <TextBlock FontSize="10" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextTertiaryBrush}"
+                                                       Text="{Binding DueDate, StringFormat='{}{0:MM-dd}'}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding DueDate}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
