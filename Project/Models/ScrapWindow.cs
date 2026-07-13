@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -268,6 +268,8 @@ public class ScrapWindow : Window
         isMouseEnter = true;
         if (Manager != null && !Manager.IsActiveScrap(this))
             Opacity = rolloverOpacity;
+        if (sourceBitmap != null)
+            imageView.ToolTip = $"{sourceBitmap.PixelWidth} × {sourceBitmap.PixelHeight}";
     }
 
     private void OnMouseLeaveHandler(object sender, MouseEventArgs e)
@@ -275,6 +277,7 @@ public class ScrapWindow : Window
         isMouseEnter = false;
         if (Manager != null && !Manager.IsActiveScrap(this))
             Opacity = inactiveOpacity;
+        imageView.ToolTip = null;
     }
 
     private void OnKeyDownHandler(object sender, KeyEventArgs e)

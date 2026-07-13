@@ -15,6 +15,9 @@
                RenderOptions.BitmapScalingMode="NearestNeighbor"/>
         <Rectangle x:Name="selectionRect" Stroke="#E8734A" StrokeThickness="2"
                    Fill="#20E8734A" Visibility="Collapsed"/>
+        <Border x:Name="sizeIndicator" Background="#CC000000" CornerRadius="4" Padding="6,3" Visibility="Collapsed" IsHitTestVisible="False">
+            <TextBlock x:Name="sizeText" FontSize="12" Foreground="White" FontFamily="Consolas"/>
+        </Border>
     </Canvas>
 </Window>
 

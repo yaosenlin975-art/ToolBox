@@ -1,4 +1,4 @@
-<Window x:Class="ToolBox.Views.InputWindow"
+﻿<Window x:Class="ToolBox.Views.InputWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="输入" Width="360" SizeToContent="Height"
@@ -35,6 +35,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" x:Name="Prompt" FontSize="12"
                            Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -44,10 +45,40 @@
                          BorderBrush="{DynamicResource BorderDefaultBrush}"
                          CaretBrush="{DynamicResource TextPrimaryBrush}"
                          KeyDown="Input_KeyDown"/>
-                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-                    <Button Content="取消" Width="72" Height="28" Margin="0,0,8,0"
+                <!-- 分类 + 优先级 + 截止日期 -->
+                <StackPanel x:Name="TodoExtraPanel" Grid.Row="2" Visibility="Collapsed" Margin="0,10,0,0">
+                    <TextBlock Text="分类" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                    <Grid Margin="0,0,0,12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBox x:Name="CategoryInput" Grid.Row="0" FontSize="12" Padding="6,4"
+                                 Background="{DynamicResource BgSunkenBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                 BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
+                                 TextChanged="CategoryInput_TextChanged"/>
+                        <ListBox x:Name="CategorySuggestions" Grid.Row="1" MaxHeight="80" Margin="0,2,0,0"
+                                 Visibility="Collapsed" FontSize="11" Background="{DynamicResource BgElevatedBrush}"
+                                 BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
+                                 SelectionChanged="CategorySuggestion_Selected"/>
+                    </Grid>
+                    <TextBlock Text="紧急程度" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <RadioButton x:Name="PriLow" Content="普通" IsChecked="True" Margin="0,0,8,0"
+                                     Style="{StaticResource PriOptionStyle}"/>
+                        <RadioButton x:Name="PriMid" Content="重要" Margin="0,0,8,0"
+                                     Style="{StaticResource PriOptionStyle}"/>
+                        <RadioButton x:Name="PriHigh" Content="紧急"
+                                     Style="{StaticResource PriOptionStyle}"/>
+                    </StackPanel>
+                    <TextBlock Text="截止日期" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                    <DatePicker x:Name="DueDatePicker" FontSize="12"
+                                Foreground="{DynamicResource TextPrimaryBrush}"/>
+                </StackPanel>
+                <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                    <Button Content="取消" Width="72" Margin="0,0,8,0"
                             Style="{StaticResource OutlineButton}" Click="Cancel_Click"/>
-                    <Button Content="确定" Width="72" Height="28"
+                    <Button Content="确定" Width="72"
                             Style="{StaticResource BtnPrimary}" Click="OK_Click"/>
                 </StackPanel>
             </Grid>

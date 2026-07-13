@@ -31,12 +31,10 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
         <Style x:Key="CompactTabButtonActive" TargetType="Button" BasedOn="{StaticResource CompactTabButton}">
             <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
-
         <Style x:Key="CompactIconButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}"/>
@@ -61,7 +59,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-            <!-- blood-bar progress -->
         <Style x:Key="HealthBar" TargetType="ProgressBar">
             <Setter Property="Minimum" Value="0"/>
             <Setter Property="Maximum" Value="100"/>
@@ -70,8 +67,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
                         <Border CornerRadius="2" Background="#33FFFFFF" Width="24" Height="4" ClipToBounds="True">
-                            <Border x:Name="Fill" CornerRadius="2" HorizontalAlignment="Left"
-                                    Background="#4CAF50" Height="4"/>
+                            <Border x:Name="Fill" CornerRadius="2" HorizontalAlignment="Left" Background="#4CAF50" Height="4"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <DataTrigger Binding="{Binding Value, RelativeSource={RelativeSource Self}}" Value="0">
@@ -82,172 +78,120 @@
                 </Setter.Value>
             </Setter>
         </Style>
-</Window.Resources>
-
-    <Border x:Name="RootBorder" Background="{DynamicResource BgElevatedBrush}" CornerRadius="0"
-            BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
-            MouseLeftButtonDown="Border_MouseLeftButtonDown">
+        <Style x:Key="DrawerExpander" TargetType="Expander">
+            <Setter Property="Background" Value="{DynamicResource BgElevatedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Expander">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Margin="0,0,0,3">
+                            <DockPanel>
+                                <ToggleButton x:Name="Toggle" DockPanel.Dock="Top" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}" Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="8,6">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="Transparent" Padding="8,6">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock x:Name="Arrow" Text="&#x25BC;" FontSize="9" Margin="0,0,6,0" Foreground="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                                                        <TextBlock.RenderTransform><RotateTransform Angle="0"/></TextBlock.RenderTransform>
+                                                    </TextBlock>
+                                                    <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Arrow" Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+                                                </Trigger>
+                                                <Trigger Property="IsChecked" Value="False">
+                                                    <Setter TargetName="Arrow" Property="RenderTransform">
+                                                        <Setter.Value><RotateTransform Angle="-90"/></Setter.Value>
+                                                    </Setter>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                    <ContentPresenter/>
+                                </ToggleButton>
+                                <Border x:Name="Content" DockPanel.Dock="Bottom" Padding="6,0,6,6">
+                                    <ContentPresenter ContentSource="Content"/>
+                                </Border>
+                            </DockPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsExpanded" Value="False">
+                                <Setter TargetName="Content" Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Border x:Name="RootBorder" Background="{DynamicResource BgElevatedBrush}" CornerRadius="0" BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1" PreviewMouseLeftButtonDown="RootBorder_PreviewMouseLeftButtonDown" PreviewMouseMove="RootBorder_PreviewMouseMove">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-
-            <!-- 顶栏:展开按钮 + Tab 组 + 三横线设置 -->
-            <Border x:Name="TopBar" Grid.Row="0" Padding="8,4" Background="Transparent"
-                    CornerRadius="0" BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,0,0,1">
+            <Border x:Name="TopBar" Grid.Row="0" Padding="8,4" Background="Transparent" CornerRadius="0" BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,0,0,1">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Button x:Name="ExpandToggleBtn" Grid.Column="0" Content="▲"
-                            Style="{StaticResource CompactIconButton}" Click="ExpandToggleBtn_Click" ToolTip="{DynamicResource Lang_Compact_OpenWorkbench}"/>
+                    <Button x:Name="ExpandToggleBtn" Grid.Column="0" Content="&#x25A0;" Style="{StaticResource CompactIconButton}" Click="ExpandToggleBtn_Click" ToolTip="{DynamicResource Lang_Compact_OpenWorkbench}"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Button x:Name="TabTodo" Content="{DynamicResource Lang_Compact_Todo}" Style="{StaticResource CompactTabButtonActive}" Click="Tab_Click" Tag="todo"/>
                         <Button x:Name="TabChat" Content="{DynamicResource Lang_Compact_Assistant}" Style="{StaticResource CompactTabButton}" Click="Tab_Click" Tag="chat"/>
                         <Button x:Name="TabScreenshot" Content="{DynamicResource Lang_Compact_Screenshot}" Style="{StaticResource CompactTabButton}" Click="Tab_Click" Tag="screenshot"/>
                     </StackPanel>
-                    <Button x:Name="BtnSettings" Grid.Column="2" Content="≡"
-                            Style="{StaticResource CompactIconButton}" Click="BtnSettings_Click" ToolTip="{DynamicResource Lang_Settings}" FontSize="16"/>
+                    <Button x:Name="BtnSettings" Grid.Column="2" Content="&#x2699;" Style="{StaticResource CompactIconButton}" Click="BtnSettings_Click" ToolTip="{DynamicResource Lang_Settings}" FontSize="16"/>
                 </Grid>
             </Border>
-
-            <!-- 会话切换行(仅 chat tab 显示) -->
-            <Border Grid.Row="1" x:Name="SessionRow" Padding="8,4" Background="{DynamicResource BgSunkenBrush}"
-                    BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,0,0,1" Visibility="Collapsed">
+            <Border Grid.Row="1" x:Name="SessionRow" Padding="8,4" Background="{DynamicResource BgSunkenBrush}" BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,0,0,1" Visibility="Collapsed">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <ComboBox x:Name="SessionSelector" Grid.Column="0" Height="24" FontSize="11"
-                              Background="{DynamicResource BgElevatedBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
-                              BorderBrush="{DynamicResource BorderDefaultBrush}" DisplayMemberPath="Title"
-                              SelectionChanged="SessionSelector_SelectionChanged"/>
-                    <Button x:Name="NewSessionBtn" Grid.Column="1" Content="+" Style="{StaticResource CompactIconButton}"
-                            Click="NewSessionBtn_Click" ToolTip="{DynamicResource LLM.Session.NewSession}"/>
+                    <ComboBox x:Name="SessionSelector" Grid.Column="0" Height="24" FontSize="11" Background="{DynamicResource BgElevatedBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderDefaultBrush}" DisplayMemberPath="Title" SelectionChanged="SessionSelector_SelectionChanged"/>
+                    <Button x:Name="NewSessionBtn" Grid.Column="1" Content="+" Style="{StaticResource CompactIconButton}" Click="NewSessionBtn_Click" ToolTip="{DynamicResource LLM.Session.NewSession}"/>
                 </Grid>
             </Border>
-
-            <!-- 内容区 -->
             <Grid Grid.Row="2">
-                <!-- 迷你待办 -->
-                <Grid x:Name="TodoPanel" Visibility="Visible" Background="Transparent" MouseLeftButtonDown="Border_MouseLeftButtonDown">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,4">
-                        <ItemsControl x:Name="TodoList">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsCompleted}" Tag="{Binding Id}"
-                                                  Checked="TodoItem_Changed" Unchecked="TodoItem_Changed"
-                                                  VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="12" Margin="6,0,4,0"
-                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                                                                        <ProgressBar Value="{Binding Progress}" Width="24" Height="4" Margin="0,0,4,0" VerticalAlignment="Center">
-                                                <ProgressBar.Style>
-                                                    <Style TargetType="ProgressBar" BasedOn="{StaticResource HealthBar}">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Progress}" Value="0">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </ProgressBar.Style>
-                                            </ProgressBar>
-<Border CornerRadius="3" Padding="3,0" Margin="0,0,4,0">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Setter Property="Background" Value="Transparent"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Priority}" Value="1">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                                <Setter Property="Background" Value="#22F5A623"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Priority}" Value="2">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                                <Setter Property="Background" Value="#22E74C3C"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock FontSize="9" FontWeight="SemiBold">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Priority}" Value="1">
-                                                                    <Setter Property="Text" Value="重要"/>
-                                                                    <Setter Property="Foreground" Value="#F5A623"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Priority}" Value="2">
-                                                                    <Setter Property="Text" Value="紧急"/>
-                                                                    <Setter Property="Foreground" Value="#E74C3C"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Border>
-                                            <TextBlock FontSize="10" VerticalAlignment="Center"
-                                                       Foreground="{DynamicResource TextTertiaryBrush}"
-                                                       Text="{Binding DueDate, StringFormat='{}{0:MM-dd}'}">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding DueDate}" Value="{x:Null}">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </StackPanel>
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                  Orientation="Horizontal" Margin="0,0,8,8">
-                        <Button x:Name="TodoCollapseBtn" Width="28" Height="28" Content="&#x25BC;"
-                                Style="{StaticResource CompactIconButton}" FontSize="10"
-                                Click="TodoCollapse_Click" ToolTip="精简模式"/>
-                        <Button x:Name="TodoAddBtn" Width="32" Height="32" Margin="4,0,0,0"
-                                Style="{StaticResource CompactIconButton}" Content="+"
-                                Click="QuickAddTodo_Click" ToolTip="{DynamicResource Lang_QuickAdd}" FontSize="18"
-                                Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                    </StackPanel>
+                <Grid x:Name="TodoPanel" Visibility="Visible" Background="Transparent">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border x:Name="CollapsedDragHandle" Grid.Row="0" Height="6" Background="Transparent" Cursor="SizeAll" MouseLeftButtonDown="Border_MouseLeftButtonDown" Visibility="Collapsed"/>
+                    <Grid Grid.Row="1">
+                        <ScrollViewer x:Name="TodoScrollViewer" VerticalScrollBarVisibility="Auto" Padding="8,4">
+                            <StackPanel x:Name="TodoItemsPanel"/>
+                        </ScrollViewer>
+                        <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Orientation="Horizontal" Margin="0,0,8,8">
+                            <Button x:Name="TodoCollapseBtn" Width="28" Height="28" Content="&#x25BC;" Style="{StaticResource CompactIconButton}" FontSize="10" Click="TodoCollapse_Click" ToolTip="\u7D27\u51D1\u6A21\u5F0F"/>
+                            <Button x:Name="TodoAddBtn" Width="32" Height="32" Margin="4,0,0,0" Style="{StaticResource CompactIconButton}" Content="+" Click="QuickAddTodo_Click" ToolTip="{DynamicResource Lang_QuickAdd}" FontSize="18" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </StackPanel>
+                    </Grid>
                 </Grid>
-
-                <!-- 助手 -->
                 <chat:ChatView x:Name="ChatPanel" Visibility="Collapsed" IsCompactMode="True"/>
-
-                <!-- 截图历史 -->
-                <ScrollViewer x:Name="ScreenshotPanel" Visibility="Collapsed"
-                              VerticalScrollBarVisibility="Auto" Padding="8,4">
+                <ScrollViewer x:Name="ScreenshotPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="8,4">
                     <ItemsControl x:Name="ScreenshotList">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" Margin="0,3">
-                                    <Image Source="{Binding Thumbnail}" Width="56" Height="40" Stretch="UniformToFill"
-                                           MouseLeftButtonUp="ScreenshotItem_Click" ToolTip="{DynamicResource Lang_Compact_ViewOriginal}"/>
+                                    <Image Source="{Binding Thumbnail}" Width="56" Height="40" Stretch="UniformToFill" MouseLeftButtonUp="ScreenshotItem_Click" ToolTip="{DynamicResource Lang_Compact_ViewOriginal}"/>
                                     <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding TimeDisplay}" FontSize="11"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="{Binding SizeDisplay}" FontSize="10"
-                                                   Foreground="{DynamicResource TextTertiaryBrush}"/>
+                                        <TextBlock Text="{Binding TimeDisplay}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{Binding SizeDisplay}" FontSize="10" Foreground="{DynamicResource TextTertiaryBrush}"/>
                                     </StackPanel>
                                 </StackPanel>
                             </DataTemplate>

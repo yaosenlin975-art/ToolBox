@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -9,6 +9,7 @@ using ToolBox.Core.Llm;
 using ToolBox.Core.Todo;
 using ToolBox.Models;
 using ToolBox.Services;
+using ToolBox.Views.Todo;
 
 namespace ToolBox.Views;
 
@@ -19,10 +20,17 @@ public partial class CompactToolboxWindow : Window
     private static readonly (double w, double h) ScreenshotSize = (200, 350);
     private const double TodoItemHeight = 26;
     private const double TodoCollapsedPad = 12;
+    private const double MaxFitWidth = 280;
+    private const double MaxFitHeight = 500;
 
     private readonly ToolBoxOption options;
     private string currentTab = "todo";
     private bool isTodoCollapsed;
+    private double savedWidth;
+    private double savedHeight;
+    private TodoItem? detailItem;
+    private Point dragOrigin;
+    private bool dragStarted;
 
     public CompactToolboxWindow()
     {
@@ -58,6 +66,7 @@ public partial class CompactToolboxWindow : Window
             isTodoCollapsed = false;
             TopBar.Visibility = Visibility.Visible;
             TodoAddBtn.Visibility = Visibility.Visible;
+            CollapsedDragHandle.Visibility = Visibility.Collapsed;
             TodoCollapseBtn.Content = "\u25BC";
         }
         TodoPanel.Visibility = Visibility.Collapsed;
@@ -83,15 +92,10 @@ public partial class CompactToolboxWindow : Window
         Left = right - w;
         Top = bottom - h;
 
-        // Opacity: chat always 1, others use setting
         if (tab == "chat")
-        {
             RootBorder.Opacity = 1.0;
-        }
         else
-        {
             RootBorder.Opacity = options.Data.CompactOpacity / 100.0;
-        }
 
         switch (tab)
         {
@@ -157,10 +161,303 @@ public partial class CompactToolboxWindow : Window
         }
     }
 
+    // --- Todo tree with category drawers ---
+
     private void LoadTodos()
     {
-        TodoList.ItemsSource = TodoStore.Instance.GetPending();
+        if (TodoItemsPanel == null) return;
+        TodoItemsPanel.Children.Clear();
+
+        var grouped = TodoStore.Instance.GetGroupedTree(pendingOnly: true);
+        foreach (var (category, roots) in grouped)
+        {
+            var display = category == "\u9ED8\u8BA4" ? "\u672A\u5206\u7C7B" : category;
+            var drawer = new Expander
+            {
+                IsExpanded = true,
+                Margin = new Thickness(0, 0, 0, 4),
+                Background = (Brush)FindResource("BgElevatedBrush"),
+                BorderBrush = (Brush)FindResource("BorderBrush"),
+                BorderThickness = new Thickness(1),
+                Tag = category,
+            };
+            drawer.SetResourceReference(StyleProperty, "DrawerExpander");
+
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(4, 0, 0, 0) };
+            header.Children.Add(new TextBlock
+            {
+                Text = display, FontSize = 12, FontWeight = FontWeights.SemiBold,
+                Foreground = (Brush)FindResource("TextPrimaryBrush"), VerticalAlignment = VerticalAlignment.Center
+            });
+            header.Children.Add(new TextBlock
+            {
+                Text = roots.Count.ToString(), FontSize = 10, Margin = new Thickness(6, 0, 0, 0),
+                Foreground = (Brush)FindResource("TextTertiaryBrush"), VerticalAlignment = VerticalAlignment.Center
+            });
+            drawer.Header = header;
+
+            var panel = new StackPanel { Margin = new Thickness(0, 2, 0, 0) };
+            foreach (var item in roots)
+                AddCompactItemAndChildren(panel, item, 0);
+            drawer.Content = panel;
+            TodoItemsPanel.Children.Add(drawer);
+        }
+
         FitTodoHeight();
+    }
+
+    private void AddCompactItemAndChildren(StackPanel panel, TodoItem item, int depth)
+    {
+        panel.Children.Add(CreateCompactItemRow(item, depth));
+        foreach (var child in TodoStore.Instance.GetChildren(item.Id))
+            AddCompactItemAndChildren(panel, child, depth + 1);
+    }
+
+    private Border CreateCompactItemRow(TodoItem item, int depth)
+    {
+        var grid = new Grid { Cursor = Cursors.Hand };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var cb = new CheckBox
+        {
+            IsChecked = item.IsCompleted, Margin = new Thickness(0, 0, 6, 0),
+            VerticalAlignment = VerticalAlignment.Center, DataContext = item
+        };
+        cb.SetResourceReference(StyleProperty, "ModernCheckBox");
+        cb.Checked += CompactTodoCheck_Changed;
+        cb.Unchecked += CompactTodoCheck_Changed;
+        Grid.SetColumn(cb, 0);
+        grid.Children.Add(cb);
+
+        if (item.Priority > 0 && !item.IsCompleted)
+        {
+            var dot = new System.Windows.Shapes.Ellipse
+            {
+                Width = 6, Height = 6, Margin = new Thickness(0, 0, 6, 0),
+                Fill = (Brush)FindResource("AccentBrush"), VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(dot, 1);
+            grid.Children.Add(dot);
+        }
+
+        var title = new TextBlock
+        {
+            Text = item.Title, FontSize = 12,
+            Foreground = item.IsCompleted ? (Brush)FindResource("TextTertiaryBrush") : (Brush)FindResource("TextPrimaryBrush"),
+            TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center
+        };
+        if (item.IsCompleted) title.TextDecorations = TextDecorations.Strikethrough;
+        Grid.SetColumn(title, 2);
+        grid.Children.Add(title);
+
+        var rightStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
+        if (item.Progress > 0)
+        {
+            var pbar = new ProgressBar
+            {
+                Value = item.Progress, Width = 24, Height = 4,
+                Margin = new Thickness(0, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center
+            };
+            pbar.SetResourceReference(StyleProperty, "HealthBar");
+            rightStack.Children.Add(pbar);
+        }
+        if (item.Priority > 0 && !item.IsCompleted)
+        {
+            var priColor = item.Priority == 2 ? "#E74C3C" : "#F5A623";
+            var priText = item.Priority == 2 ? "\u7D27\u6025" : "\u91CD\u8981";
+            var badge = new Border
+            {
+                CornerRadius = new CornerRadius(3), Padding = new Thickness(3, 0, 3, 0),
+                Margin = new Thickness(0, 0, 4, 0),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(priColor + "22"))
+            };
+            var badgeText = new TextBlock
+            {
+                Text = priText, FontSize = 9, FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(priColor))
+            };
+            badge.Child = badgeText;
+            rightStack.Children.Add(badge);
+        }
+        if (item.DueDate.HasValue)
+        {
+            rightStack.Children.Add(new TextBlock
+            {
+                Text = item.DueDate.Value.ToLocalTime().ToString("MM-dd"), FontSize = 10,
+                Foreground = (Brush)FindResource("TextTertiaryBrush"), VerticalAlignment = VerticalAlignment.Center
+            });
+        }
+        Grid.SetColumn(rightStack, 3);
+        grid.Children.Add(rightStack);
+
+        var row = new Border
+        {
+            Padding = new Thickness(10, 4, 10, 4), Cursor = Cursors.Hand, DataContext = item,
+            Background = Brushes.Transparent, CornerRadius = new CornerRadius(4),
+            Margin = new Thickness(depth * 16, 1, 0, 1)
+        };
+        row.Child = grid;
+
+        row.MouseLeftButtonUp += (s, e) =>
+        {
+            if (e.OriginalSource is CheckBox) return;
+            ShowDetail(item);
+        };
+        row.MouseEnter += (s, e) => row.Background = (Brush)FindResource("BgHoverBrush");
+        row.MouseLeave += (s, e) => row.Background = Brushes.Transparent;
+        return row;
+    }
+
+    private async void CompactTodoCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        if (sender is CheckBox cb && cb.DataContext is TodoItem item)
+        {
+            if (cb.IsChecked == true)
+                await TodoStore.Instance.CompleteAsync(item.Id);
+            else
+                await TodoStore.Instance.UncompleteAsync(item.Id);
+        }
+    }
+
+
+    private void ShowDetail(TodoItem item)
+    {
+        var dlg = new TodoDetailWindow(item);
+        dlg.Owner = this;
+        dlg.ShowDialog();
+    }
+    // --- Drag support via Preview events ---
+
+    private void RootBorder_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        var source = e.OriginalSource as DependencyObject;
+        while (source != null)
+        {
+            if (source is Button || source is ComboBox || source is CheckBox) return;
+            if (source is TextBox || source is RichTextBox) return;
+            if (source is Slider || source is InkCanvas) return;
+            if (source is DatePicker) return;
+            if (source is ScrollBar) return;
+            source = VisualTreeHelper.GetParent(source);
+        }
+        dragOrigin = e.GetPosition(this);
+        dragStarted = false;
+    }
+
+    private void RootBorder_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed) return;
+        if (dragStarted) return;
+        var pos = e.GetPosition(this);
+        if (Math.Abs(pos.X - dragOrigin.X) >= SystemParameters.MinimumHorizontalDragDistance ||
+            Math.Abs(pos.Y - dragOrigin.Y) >= SystemParameters.MinimumVerticalDragDistance)
+        {
+            dragStarted = true;
+            DragMove();
+        }
+    }
+
+    // --- Legacy handler kept for collapsed drag handle area ---
+    private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        var source = e.OriginalSource as DependencyObject;
+        while (source != null)
+        {
+            if (source is Button || source is ComboBox || source is CheckBox) return;
+            if (source is TextBox || source is RichTextBox) return;
+            source = VisualTreeHelper.GetParent(source);
+        }
+        if (e.LeftButton == MouseButtonState.Pressed)
+            DragMove();
+    }
+
+    // --- Todo collapse / expand ---
+
+    private void TodoCollapse_Click(object sender, RoutedEventArgs e)
+    {
+        isTodoCollapsed = !isTodoCollapsed;
+
+        TopBar.Visibility = isTodoCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        TodoAddBtn.Visibility = isTodoCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        CollapsedDragHandle.Visibility = isTodoCollapsed ? Visibility.Visible : Visibility.Collapsed;
+        TodoCollapseBtn.Content = isTodoCollapsed ? "\u25B2" : "\u25BC";
+
+        if (isTodoCollapsed)
+        {
+            savedWidth = Width;
+            savedHeight = Height;
+            FitTodoHeight();
+        }
+        else
+        {
+            var bottom = Top + Height;
+            var right = Left + Width;
+            Width = savedWidth > 0 ? savedWidth : TodoSize.w;
+            Height = savedHeight > 0 ? savedHeight : TodoSize.h;
+            Top = bottom - Height;
+            Left = right - Width;
+        }
+    }
+
+    private void FitTodoHeight()
+    {
+        if (!isTodoCollapsed || currentTab != "todo") return;
+
+        int count = TodoItemsPanel?.Children.Count ?? 0;
+        if (count == 0) count = 1;
+        double targetH = count * TodoItemHeight + TodoCollapsedPad;
+        targetH = Math.Max(targetH, MinHeight);
+        targetH = Math.Min(targetH, MaxFitHeight);
+
+        double targetW = MaxFitWidth;
+        if ((TodoItemsPanel?.Children.Count ?? 0) == 0) targetW = TodoSize.w;
+
+        var bottom = Top + Height;
+        var right = Left + Width;
+        Width = targetW;
+        Height = targetH;
+        Top = bottom - targetH;
+        Left = right - targetW;
+    }
+
+    private async void QuickAddTodo_Click(object sender, RoutedEventArgs e)
+    {
+        var input = new InputWindow(
+            (FindResource("Lang_QuickAddTitle") as string) ?? "\u5FEB\u901F\u6DFB\u52A0\u5F85\u529E",
+            (FindResource("Lang_QuickAddPrompt") as string) ?? "\u8BF7\u8F93\u5165\u6807\u9898:");
+        input.Owner = this;
+        input.ShowTodoFields();
+        if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
+            await TodoStore.Instance.AddAsync(input.Value.Trim(), priority: input.Priority, category: input.Category, dueDate: input.DueDate);
+    }
+
+    private void SessionSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (SessionSelector.SelectedItem is ChatSession session)
+            ChatPanel.SelectSession(session.Id);
+    }
+
+    private async void NewSessionBtn_Click(object sender, RoutedEventArgs e)
+    {
+        var session = await ChatPanel.CreateNewSessionAsync();
+        LoadSessions();
+        for (int i = 0; i < SessionSelector.Items.Count; i++)
+        {
+            if (SessionSelector.Items[i] is ChatSession s && s.Id == session.Id)
+            {
+                SessionSelector.SelectedIndex = i;
+                break;
+            }
+        }
+    }
+
+    private void ScreenshotItem_Click(object sender, MouseButtonEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is HistoryItemViewModel vm && vm.FullImage != null)
+            new ImagePreviewWindow(vm.FullImage).ShowDialog();
     }
 
     private void LoadScreenshots()
@@ -189,99 +486,9 @@ public partial class CompactToolboxWindow : Window
                     Thumbnail = ImageHelper.MakeOpaque(image),
                     FullImage = image,
                     TimeDisplay = item.CreateTime.ToString("MM-dd HH:mm"),
-                    SizeDisplay = image.PixelWidth + " × " + image.PixelHeight
+                    SizeDisplay = image.PixelWidth + " \u00D7 " + image.PixelHeight
                 });
             }
         }
     }
-
-    private async void TodoItem_Changed(object sender, RoutedEventArgs e)
-    {
-        if (sender is CheckBox cb && cb.Tag is string id)
-        {
-            if (cb.IsChecked == true)
-                await TodoStore.Instance.CompleteAsync(id);
-            else
-                await TodoStore.Instance.UncompleteAsync(id);
-        }
-    }
-
-    private void TodoCollapse_Click(object sender, RoutedEventArgs e)
-    {
-        isTodoCollapsed = !isTodoCollapsed;
-
-        TopBar.Visibility = isTodoCollapsed ? Visibility.Collapsed : Visibility.Visible;
-        TodoAddBtn.Visibility = isTodoCollapsed ? Visibility.Collapsed : Visibility.Visible;
-        TodoCollapseBtn.Content = isTodoCollapsed ? "\u25B2" : "\u25BC";
-
-        FitTodoHeight();
-    }
-
-    private void FitTodoHeight()
-    {
-        if (!isTodoCollapsed || currentTab != "todo") return;
-
-        int count = TodoList.Items.Count;
-        double targetH = count * TodoItemHeight + TodoCollapsedPad;
-        targetH = Math.Max(targetH, MinHeight);
-
-        var right = Left + Width;
-        var bottom = Top + Height;
-        Height = targetH;
-        Top = bottom - targetH;
-    }
-
-    private async void QuickAddTodo_Click(object sender, RoutedEventArgs e)
-    {
-        var input = new InputWindow(
-            (FindResource("Lang_QuickAddTitle") as string) ?? "快速添加待办",
-            (FindResource("Lang_QuickAddPrompt") as string) ?? "请输入标题:");
-        input.Owner = this;
-        if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
-            await TodoStore.Instance.AddAsync(input.Value.Trim());
-    }
-
-    private void SessionSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (SessionSelector.SelectedItem is ChatSession session)
-            ChatPanel.SelectSession(session.Id);
-    }
-
-    private async void NewSessionBtn_Click(object sender, RoutedEventArgs e)
-    {
-        var session = await ChatPanel.CreateNewSessionAsync();
-        LoadSessions();
-        LoadSessions();
-        for (int i = 0; i < SessionSelector.Items.Count; i++)
-        {
-            if (SessionSelector.Items[i] is ChatSession s && s.Id == session.Id)
-            {
-                SessionSelector.SelectedIndex = i;
-                break;
-            }
-        }
-    }
-
-    private void ScreenshotItem_Click(object sender, MouseButtonEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is HistoryItemViewModel vm && vm.FullImage != null)
-            new ImagePreviewWindow(vm.FullImage).ShowDialog();
-    }
-
-    
-    private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        // Interactive controls handle their own clicks - only drag the window from non-interactive areas
-        var source = e.OriginalSource as DependencyObject;
-        while (source != null)
-        {
-            if (source is Button || source is ComboBox || source is CheckBox) return;
-            if (source is TextBox || source is RichTextBox) return;
-            if (source is ScrollBar || source is Slider || source is InkCanvas) return;
-            source = VisualTreeHelper.GetParent(source);
-        }
-        if (e.LeftButton == MouseButtonState.Pressed)
-            DragMove();
-    }
-
 }

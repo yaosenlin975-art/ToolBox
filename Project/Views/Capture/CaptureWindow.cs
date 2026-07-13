@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
@@ -43,6 +43,7 @@ public partial class CaptureWindow : Window
         MouseLeftButtonUp += OnMouseLeftButtonUp;
         MouseMove += OnMouseMove;
         KeyDown += OnKeyDown;
+        MouseRightButtonDown += OnMouseRightButtonDown;
         Deactivated += OnDeactivated;
     }
 
@@ -135,12 +136,21 @@ public partial class CaptureWindow : Window
         Canvas.SetTop(selectionRect, y);
         selectionRect.Width = w;
         selectionRect.Height = h;
+
+        sizeText.Text = $"{w} × {h}";
+        sizeIndicator.Visibility = Visibility.Visible;
+        var tipX = Math.Min(ptStartX, ptEndX) + Math.Abs(ptEndX - ptStartX) / 2.0 - 30;
+        var tipY = Math.Min(ptStartY, ptEndY) - 28;
+        if (tipY < 0) tipY = Math.Max(ptStartY, ptEndY) + 4;
+        Canvas.SetLeft(sizeIndicator, Math.Max(0, tipX));
+        Canvas.SetTop(sizeIndicator, tipY);
     }
 
     private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (!isDragging) return;
         isDragging = false;
+        sizeIndicator.Visibility = Visibility.Collapsed;
 
         var pos = e.GetPosition(this);
         ptEndX = (int)pos.X;
@@ -181,9 +191,17 @@ public partial class CaptureWindow : Window
     {
         if (e.Key == Key.Escape)
         {
+            sizeIndicator.Visibility = Visibility.Collapsed;
             CaptureCancelled?.Invoke();
             Close();
         }
+    }
+
+    private void OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        sizeIndicator.Visibility = Visibility.Collapsed;
+        CaptureCancelled?.Invoke();
+        Close();
     }
 
     [DllImport("gdi32.dll")]

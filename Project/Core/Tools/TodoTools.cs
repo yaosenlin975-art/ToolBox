@@ -1,4 +1,4 @@
-﻿using ToolBox.Core.Todo;
+using ToolBox.Core.Todo;
 
 namespace ToolBox.Core.Tools;
 
@@ -14,7 +14,7 @@ public static class TodoTools
     {
         var tagList = string.IsNullOrWhiteSpace(tags) ? new List<string>() : tags.Split(',').Select(t => t.Trim()).ToList();
         DateTime? due = DateTime.TryParse(dueDate, out var d) ? d : null;
-        var item = TodoStore.Instance.Add(title, description, priority, tagList, due);
+        var item = TodoStore.Instance.Add(title, description, priority, tags: tagList, dueDate: due);
         return "已添加 Todo [" + item.Id + "]: " + item.Title;
     }
 

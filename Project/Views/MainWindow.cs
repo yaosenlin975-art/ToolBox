@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -509,6 +509,11 @@ public partial class MainWindow : Window
                 scrapBook.AddScrap(bmpSource, rect.X, rect.Y, rect.Width, rect.Height);
         }
         return this;
+    }
+
+    public void RefreshScrapOpacity()
+    {
+        scrapBook.RefreshOpacity();
     }
 
     public MainWindow SetAllScrapsActive(bool active)

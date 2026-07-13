@@ -602,6 +602,74 @@
                         </Border>
                     </StackPanel>
 
+
+                    <!-- Section: Categories -->
+                    <StackPanel x:Name="SectionCategory" Visibility="Collapsed" Margin="0,0,0,8">
+                        <TextBlock Text="分类管理" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="管理待办事项的分类，分类会以抽屉形式展示在列表中" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
+
+                        <Border Style="{StaticResource SettingsSection}">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="NewCategoryInput" Grid.Column="0" FontSize="13" Padding="8,4"
+                                             Style="{StaticResource InputField}" Margin="0,0,8,0"/>
+                                    <Button Grid.Column="1" Content="添加分类" Style="{StaticResource BtnPrimary}"
+                                            Click="AddCategory_Click" Padding="12,4" FontSize="12"/>
+                                </Grid>
+                                <ListBox x:Name="CategoryList" MaxHeight="300"
+                                         Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Padding" Value="0"/>
+                                            <Setter Property="Margin" Value="0,1"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListBoxItem">
+                                                        <Border Background="Transparent" CornerRadius="6" Padding="10,8">
+                                                            <ContentPresenter/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding}" FontSize="13"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                                           VerticalAlignment="Center"/>
+                                                <Button Grid.Column="1" Content="&#xE74D;" FontFamily="Segoe MDL2 Assets"
+                                                        FontSize="12" Width="24" Height="24"
+                                                        Click="DeleteCategory_Click" Tag="{Binding}">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding}" Value="默认">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
                     <!-- ── Section: 语言 ── -->
                     <StackPanel x:Name="SectionLanguage" Visibility="Collapsed" Margin="0,0,0,8">
                         <TextBlock Text="{DynamicResource Lang_Language}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>

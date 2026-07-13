@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Input;
@@ -250,6 +250,12 @@ public class ScrapBook
             // Apply inactive opacity as initial; will switch on MouseEnter/MouseLeave
             scrap.Opacity = scrap.InactiveOpacityValue;
         }
+    }
+
+    public void RefreshOpacity()
+    {
+        foreach (var scrap in scraps)
+            ApplyScrapOption(scrap);
     }
 }
 
