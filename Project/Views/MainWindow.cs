@@ -351,18 +351,18 @@ public partial class MainWindow : Window
 
     public MainWindow ShowHistory()
     {
-        OpenWorkbench("history");
+        OpenWorkbench("screenshots");
         return this;
     }
 
     private void ShowChatWindow()
     {
-        OpenWorkbench("chat");
+        OpenWorkbench("assistant");
     }
 
     private void ShowTodoWindow()
     {
-        OpenWorkbench("todo");
+        OpenWorkbench("todos");
     }
 
     private void OpenWorkbench(string tab)

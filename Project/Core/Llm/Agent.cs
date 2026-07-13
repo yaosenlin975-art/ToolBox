@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using ToolBox.Core.Memory;
 using ToolBox.Core.Providers;
 using ToolBox.Core.Tools;
 using System.Runtime.CompilerServices;
@@ -11,8 +12,10 @@ public class Agent
     private readonly ToolRegistry tools;
     private readonly ISystemPromptBuilder promptBuilder;
     private readonly ChatSession session;
+    private readonly ContextCompressor contextCompressor;
     private CancellationTokenSource? cts;
     private List<ChatMessage>? turnMessages;
+    private int runCount;
 
     public Agent(ILlmProvider provider, ToolRegistry tools, ISystemPromptBuilder promptBuilder, ChatSession session)
     {
@@ -20,6 +23,7 @@ public class Agent
         this.tools = tools;
         this.promptBuilder = promptBuilder;
         this.session = session;
+        this.contextCompressor = new ContextCompressor();
     }
 
     public ChatSession Session => session;
@@ -46,23 +50,53 @@ public class Agent
             // 工具调用循环，最多 10 轮
             for (int round = 0; round < 10; round++)
             {
+                // 上下文压缩：发送 LLM 请求前检查并压缩超长上下文
+                await contextCompressor.CheckAndCompressAsync(messages);
+
                 ChatChunk? lastChunk = null;
                 StringBuilder? currentText = null;
+                bool llmSuccess = false;
 
-                // 边收边 yield（去除缓冲）：直接遍历 provider 的流式响应，
-                // 每收到一个 chunk 立即向上层吐出，确保 UI 真正逐字流式显示。
-                await foreach (var chunk in provider.ChatAsync(messages, tools.GetAllTools(), cts.Token))
+                // 每轮最多 3 次重试（缓冲区模式：try/catch 内收集到 List，外部统一 yield return）
+                for (int retry = 0; retry < 3 && !llmSuccess; retry++)
                 {
-                    lastChunk = chunk;
-                    if (chunk.Text != null)
+                    lastChunk = null;
+                    currentText = null;
+                    var chunks = new List<ChatChunk>();
+                    try
                     {
-                        currentText ??= new StringBuilder();
-                        currentText.Append(chunk.Text);
+                        await foreach (var chunk in provider.ChatAsync(messages, tools.GetAllTools(), cts.Token))
+                        {
+                            lastChunk = chunk;
+                            if (chunk.Text != null)
+                            {
+                                currentText ??= new StringBuilder();
+                                currentText.Append(chunk.Text);
+                            }
+                            chunks.Add(chunk);
+                        }
+                        llmSuccess = true;
                     }
-                    yield return chunk;
+                    catch (Exception ex) when (retry < 2 && !cts.Token.IsCancellationRequested)
+                    {
+                        chunks.Add(new ChatChunk { Error = $"请求失败，正在重试 ({retry + 2}/3): {ex.Message}" });
+                        await Task.Delay(1000, cts.Token);
+                    }
+
+                    // 统一 yield：成功数据或重试错误信息
+                    foreach (var c in chunks)
+                    {
+                        yield return c;
+                    }
                 }
 
-                                // 无工具调用 → 完成：落盘并通过最后一个 text chunk 把最终文本刷新到 UI
+                if (!llmSuccess)
+                {
+                    yield return new ChatChunk { Error = "请求失败，已达最大重试次数（3次）" };
+                    break;
+                }
+
+                // 无工具调用 → 完成：落盘并通过最后一个 text chunk 把最终文本刷新到 UI
                 if (lastChunk?.ToolCall == null)
                 {
                     if (currentText != null && currentText.Length > 0)
@@ -107,14 +141,22 @@ public class Agent
         {
             session.Status = "idle";
             session.UpdatedAt = DateTime.UtcNow;
+
+            // 定期清理过期记忆（每 20 次对话清理一次）
+            runCount++;
+            if (runCount % 20 == 0)
+            {
+                try { MemoryStore.Instance.Cleanup(); } catch { /* 静默忽略清理失败 */ }
+            }
         }
     }
 
     private List<ChatMessage> BuildMessages()
     {
+        var memories = MemoryStore.Instance.GetRelevant(session.Id);
         var messages = new List<ChatMessage>
         {
-            new ChatMessage { Role = "system", Content = promptBuilder.Build() }
+            new ChatMessage { Role = "system", Content = promptBuilder.BuildWithMemory(memories) }
         };
         messages.AddRange(session.Messages);
         // User message is already in session.Messages

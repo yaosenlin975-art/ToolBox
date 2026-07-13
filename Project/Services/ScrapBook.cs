@@ -224,13 +224,28 @@ public class ScrapBook
         }
     }
 
-    private void OnScrapCreated(object sender, ScrapEventArgs e) { }
+    private void OnScrapCreated(object sender, ScrapEventArgs e)
+    {
+        CacheManager.Instance.ScrapAdded(sender, e);
+    }
     private void OnScrapActive(object sender, ScrapEventArgs e) { }
     private void OnScrapInactive(object sender, ScrapEventArgs e) { }
-    private void OnScrapLocationChanged(object sender, ScrapEventArgs e) { }
-    private void OnScrapImageChanged(object sender, ScrapEventArgs e) { }
-    private void OnScrapStyleApplied(object sender, ScrapEventArgs e) { }
-    private void OnScrapStyleRemoved(object sender, ScrapEventArgs e) { }
+    private void OnScrapLocationChanged(object sender, ScrapEventArgs e)
+    {
+        CacheManager.Instance.ScrapLocationChanged(sender, e);
+    }
+    private void OnScrapImageChanged(object sender, ScrapEventArgs e)
+    {
+        CacheManager.Instance.ScrapImageChanged(sender, e);
+    }
+    private void OnScrapStyleApplied(object sender, ScrapEventArgs e)
+    {
+        CacheManager.Instance.ScrapStyleApplied(sender, e);
+    }
+    private void OnScrapStyleRemoved(object sender, ScrapEventArgs e)
+    {
+        CacheManager.Instance.ScrapStyleRemoved(sender, e);
+    }
 
     private void ApplyScrapOption(Models.ScrapWindow scrap)
     {

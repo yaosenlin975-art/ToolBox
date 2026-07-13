@@ -10,6 +10,7 @@ namespace ToolBox.Services;
 
 public class CacheManager : IScrapAddedListener, IScrapRemovedListener, IScrapLocationChangedListener, IScrapImageChangedListener, IScrapStyleAppliedListener, IScrapStyleRemovedListener
 {
+    // TODO: 迁移到 "ToolBox" 目录与其他数据统一；当前保留 "Setuna" 以兼容旧版截图缓存。
     public static readonly string CachePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Setuna");

@@ -14,6 +14,8 @@ public class WindowManager
 
     private WindowInfo foregroundWindow;
     private WindowInfo topMostWindow;
+    private IntPtr lastFiredForegroundHandle = IntPtr.Zero;
+    private IntPtr lastFiredTopMostHandle = IntPtr.Zero;
 
     public WindowInfo CurrentForegroundWindow => foregroundWindow;
     public WindowInfo TopMostWindow => topMostWindow;
@@ -32,8 +34,18 @@ public class WindowManager
             topMostWindow = GetWindowInfo(topHwnd);
         }
 
-        WindowActived?.Invoke(this, foregroundWindow);
-        TopMostChanged?.Invoke(this, topMostWindow);
+        if (foregroundWindow.Handle != lastFiredForegroundHandle)
+        {
+            lastFiredForegroundHandle = foregroundWindow.Handle;
+            WindowActived?.Invoke(this, foregroundWindow);
+        }
+
+        if (topMostWindow.Handle != lastFiredTopMostHandle)
+        {
+            lastFiredTopMostHandle = topMostWindow.Handle;
+            TopMostChanged?.Invoke(this, topMostWindow);
+        }
+
         return this;
     }
 

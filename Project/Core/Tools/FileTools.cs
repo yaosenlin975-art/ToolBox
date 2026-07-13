@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Text;
+using ToolBox.Core.Security;
 
 namespace ToolBox.Core.Tools;
 
@@ -9,6 +10,8 @@ public static class FileTools
     public static string ReadFile(
         [ToolParam("文件路径")] string path)
     {
+        if (!FileAccessWhitelist.Instance.IsAllowed(path))
+            return "安全限制: 路径不在白名单内: " + path;
         if (!File.Exists(path)) return "文件不存在: " + path;
         try
         {
@@ -24,6 +27,8 @@ public static class FileTools
         [ToolParam("文件路径")] string path,
         [ToolParam("文件内容")] string content)
     {
+        if (!FileAccessWhitelist.Instance.IsAllowed(path))
+            return "安全限制: 路径不在白名单内: " + path;
         try
         {
             var dir = Path.GetDirectoryName(path);
@@ -54,6 +59,8 @@ public static class FileTools
     public static string CreateDirectory(
         [ToolParam("目录路径")] string path)
     {
+        if (!FileAccessWhitelist.Instance.IsAllowed(path))
+            return "安全限制: 路径不在白名单内: " + path;
         try
         {
             Directory.CreateDirectory(path);
@@ -66,6 +73,10 @@ public static class FileTools
     public static string DeleteFile(
         [ToolParam("文件或目录路径")] string path)
     {
+        if (!FileAccessWhitelist.Instance.IsAllowed(path))
+            return "安全限制: 路径不在白名单内: " + path;
+        if (!ConfirmDialog.Show(path, "delete"))
+            return "用户取消删除操作: " + path;
         try
         {
             if (File.Exists(path)) { File.Delete(path); return "已删除文件: " + path; }
@@ -80,6 +91,10 @@ public static class FileTools
         [ToolParam("源文件路径")] string source,
         [ToolParam("目标文件路径")] string destination)
     {
+        if (!FileAccessWhitelist.Instance.IsAllowed(source))
+            return "安全限制: 源路径不在白名单内: " + source;
+        if (!FileAccessWhitelist.Instance.IsAllowed(destination))
+            return "安全限制: 目标路径不在白名单内: " + destination;
         try
         {
             var dir = Path.GetDirectoryName(destination);
@@ -95,6 +110,12 @@ public static class FileTools
         [ToolParam("源文件路径")] string source,
         [ToolParam("目标文件路径")] string destination)
     {
+        if (!FileAccessWhitelist.Instance.IsAllowed(source))
+            return "安全限制: 源路径不在白名单内: " + source;
+        if (!FileAccessWhitelist.Instance.IsAllowed(destination))
+            return "安全限制: 目标路径不在白名单内: " + destination;
+        if (!ConfirmDialog.Show(source, "move", destination))
+            return "用户取消移动操作: " + source;
         try
         {
             var dir = Path.GetDirectoryName(destination);

@@ -69,31 +69,52 @@ public class AnthropicProvider : IProvider, ILlmProvider
         var systemMsg = messages.FirstOrDefault(m => m.Role == "system");
         var nonSystem = messages.Where(m => m.Role != "system").ToList();
 
-        var request = new AnthropicRequest
+        // 构建请求体
+        var requestBody = new Dictionary<string, object>
         {
-            Model = model.ModelId,
-            MaxTokens = model.MaxOutputTokens > 0 ? model.MaxOutputTokens : 8192,
-            System = systemMsg?.Content,
-            Messages = nonSystem.Select(m => new AnthropicMessage
-            {
-                Role = m.Role == "tool" ? "user" : m.Role,
-                Content = m.Content ?? ""
-            }).ToList()
+            ["model"] = model.ModelId,
+            ["max_tokens"] = model.MaxOutputTokens > 0 ? model.MaxOutputTokens : 8192,
+            ["stream"] = true,
+            ["messages"] = nonSystem.Select(BuildAnthropicMessage).ToList()
         };
+        if (systemMsg?.Content != null)
+            requestBody["system"] = systemMsg.Content;
 
-        var json = JsonSerializer.Serialize(request, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower });
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        // 发送 tools 参数（Anthropic 格式）
+        if (tools != null && tools.Count > 0)
+        {
+            requestBody["tools"] = tools.Select(t =>
+            {
+                var schema = JsonSerializer.Deserialize<JsonElement>(t.ToJsonSchema());
+                return new Dictionary<string, object>
+                {
+                    ["name"] = t.Name,
+                    ["description"] = t.Description,
+                    ["input_schema"] = schema
+                };
+            }).ToList();
+        }
+
+        var json = JsonSerializer.Serialize(requestBody,
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower });
+        var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
 
         httpClient.DefaultRequestHeaders.Remove("x-api-key");
         httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
         httpClient.DefaultRequestHeaders.Remove("anthropic-version");
         httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
 
-        using var response = await httpClient.PostAsync($"{baseUrl}/v1/messages", content, ct);
+        using var response = await httpClient.PostAsync($"{baseUrl}/v1/messages", httpContent, ct);
         response.EnsureSuccessStatusCode();
 
         using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
+
+        // 跟踪 tool_use 状态
+        string? pendingToolId = null;
+        string? pendingToolName = null;
+        var pendingToolArgs = new StringBuilder();
+        bool isInToolUse = false;
 
         while (!reader.EndOfStream)
         {
@@ -103,46 +124,144 @@ public class AnthropicProvider : IProvider, ILlmProvider
             var data = line[6..];
             if (data == "[DONE]") break;
 
-            AnthropicStreamChunk? chunk = null;
-            try
-            {
-                chunk = JsonSerializer.Deserialize<AnthropicStreamChunk>(data);
-            }
+            JsonDocument? doc = null;
+            try { doc = JsonDocument.Parse(data); }
             catch { continue; }
 
-            if (chunk?.Type == "content_block_delta" && chunk.Delta?.Text != null)
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("type", out var typeProp)) continue;
+            var eventType = typeProp.GetString();
+
+            switch (eventType)
             {
-                yield return new ChatChunk { Text = chunk.Delta.Text };
+                case "content_block_start":
+                    if (root.TryGetProperty("content_block", out var block) &&
+                        block.TryGetProperty("type", out var blockType) &&
+                        blockType.GetString() == "tool_use")
+                    {
+                        isInToolUse = true;
+                        pendingToolId = block.TryGetProperty("id", out var idProp) ? idProp.GetString() : "";
+                        pendingToolName = block.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : "";
+                        pendingToolArgs.Clear();
+                    }
+                    break;
+
+                case "content_block_delta":
+                    if (root.TryGetProperty("delta", out var delta) &&
+                        delta.TryGetProperty("type", out var deltaType))
+                    {
+                        var dt = deltaType.GetString();
+                        if (dt == "text_delta" && delta.TryGetProperty("text", out var textProp))
+                        {
+                            var text = textProp.GetString();
+                            if (text != null)
+                                yield return new ChatChunk { Text = text };
+                        }
+                        else if (dt == "input_json_delta" && isInToolUse &&
+                                 delta.TryGetProperty("partial_json", out var jsonProp))
+                        {
+                            var partial = jsonProp.GetString();
+                            if (partial != null)
+                                pendingToolArgs.Append(partial);
+                        }
+                    }
+                    break;
+
+                case "content_block_stop":
+                    if (isInToolUse && pendingToolId != null)
+                    {
+                        yield return new ChatChunk
+                        {
+                            ToolCall = new ToolCallInfo
+                            {
+                                Id = pendingToolId,
+                                Name = pendingToolName ?? "",
+                                Arguments = pendingToolArgs.ToString()
+                            }
+                        };
+                        isInToolUse = false;
+                        pendingToolId = null;
+                        pendingToolName = null;
+                    }
+                    break;
+
+                case "message_stop":
+                    yield return new ChatChunk { IsDone = true };
+                    yield break;
             }
         }
+
+        // 流结束时如果没有收到 message_stop，手动发送结束信号
+        yield return new ChatChunk { IsDone = true };
     }
-}
 
-internal class AnthropicRequest
-{
-    public string Model { get; set; } = "";
-    public int MaxTokens { get; set; } = 8192;
-    public bool Stream { get; set; } = true;
-    public string? System { get; set; }
-    public List<AnthropicMessage> Messages { get; set; } = [];
-}
+    /// <summary>
+    /// 将 ChatMessage 转换为 Anthropic Messages API 格式。
+    /// 处理 tool_use（assistant 消息中的工具调用）和 tool_result（tool 角色的工具结果）。
+    /// </summary>
+    private static object BuildAnthropicMessage(ChatMessage msg)
+    {
+        // 工具结果消息 → Anthropic user 消息，content 为 tool_result 块
+        if (msg.Role == "tool")
+        {
+            return new Dictionary<string, object>
+            {
+                ["role"] = "user",
+                ["content"] = new[]
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["type"] = "tool_result",
+                        ["tool_use_id"] = msg.ToolCallId ?? "",
+                        ["content"] = msg.Content ?? ""
+                    }
+                }
+            };
+        }
 
-internal class AnthropicMessage
-{
-    public string Role { get; set; } = "";
-    public string Content { get; set; } = "";
-}
+        // assistant 消息带 ToolCalls → content 为 text + tool_use 块数组
+        if (msg.ToolCalls != null && msg.ToolCalls.Count > 0)
+        {
+            var blocks = new List<object>();
+            if (!string.IsNullOrEmpty(msg.Content))
+            {
+                blocks.Add(new Dictionary<string, object>
+                {
+                    ["type"] = "text",
+                    ["text"] = msg.Content
+                });
+            }
+            foreach (var tc in msg.ToolCalls)
+            {
+                object input;
+                try
+                {
+                    input = !string.IsNullOrEmpty(tc.Arguments)
+                        ? JsonSerializer.Deserialize<JsonElement>(tc.Arguments)
+                        : new Dictionary<string, object>();
+                }
+                catch { input = new Dictionary<string, object>(); }
 
-internal class AnthropicStreamChunk
-{
-    [System.Text.Json.Serialization.JsonPropertyName("type")]
-    public string? Type { get; set; }
-    [System.Text.Json.Serialization.JsonPropertyName("delta")]
-    public AnthropicDelta? Delta { get; set; }
-}
+                blocks.Add(new Dictionary<string, object>
+                {
+                    ["type"] = "tool_use",
+                    ["id"] = tc.Id,
+                    ["name"] = tc.Name,
+                    ["input"] = input
+                });
+            }
+            return new Dictionary<string, object>
+            {
+                ["role"] = "assistant",
+                ["content"] = blocks
+            };
+        }
 
-internal class AnthropicDelta
-{
-    [System.Text.Json.Serialization.JsonPropertyName("text")]
-    public string? Text { get; set; }
+        // 普通文本消息（user / assistant 无工具调用）
+        return new Dictionary<string, object>
+        {
+            ["role"] = msg.Role,
+            ["content"] = msg.Content ?? ""
+        };
+    }
 }

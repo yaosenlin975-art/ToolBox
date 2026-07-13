@@ -8,6 +8,8 @@ namespace ToolBox.Views.Chat;
 public partial class MessageBubble : UserControl
 {
     private string _rawText = "";
+    private bool _needsRender;
+    private int cachedChatFontSize = -1;
 
     public MessageBubble()
     {
@@ -44,6 +46,7 @@ public partial class MessageBubble : UserControl
     public void SetMessage(string role, string content, bool showRole = false)
     {
         _rawText = content ?? "";
+        _needsRender = false;
         RoleLabel.Text = role switch
         {
             "user" => "你",
@@ -99,16 +102,21 @@ public partial class MessageBubble : UserControl
     public void SetStreaming(bool isStreaming)
     {
         StreamingDot.Visibility = isStreaming ? Visibility.Visible : Visibility.Collapsed;
+        if (!isStreaming && _needsRender)
+        {
+            RenderMarkdown();
+        }
     }
 
     public void AppendContent(string text)
     {
         _rawText += text ?? "";
-        RenderMarkdown();
+        _needsRender = true;
     }
 
     public void RenderMarkdown()
     {
+        _needsRender = false;
         try
         {
             var doc = MarkdownDocument.Parse(_rawText);
@@ -122,9 +130,10 @@ public partial class MessageBubble : UserControl
             ContentDocument.Document = doc;
         }
 
-        var fontSize = ToolBox.Models.ToolBoxOption.Load().Data.ChatFontSize;
-        if (fontSize > 0)
-            ContentDocument.FontSize = fontSize;
+        if (cachedChatFontSize < 0)
+            cachedChatFontSize = ToolBox.Models.ToolBoxOption.Load().Data.ChatFontSize;
+        if (cachedChatFontSize > 0)
+            ContentDocument.FontSize = cachedChatFontSize;
     }
 }
 

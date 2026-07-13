@@ -45,6 +45,7 @@ public class ToolBoxOption
 
     private static readonly string configPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        // TODO: 迁移到 "ToolBox" 目录与其他数据统一；当前保留 "Setuna" 以兼容旧版配置。
         "Setuna", "config.xml");
 
     public static ToolBoxOption GetDefaultOption()

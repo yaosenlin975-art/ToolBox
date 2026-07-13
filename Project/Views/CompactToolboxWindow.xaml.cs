@@ -83,7 +83,10 @@ public partial class CompactToolboxWindow : Window
         var (w, h) = tab switch
         {
             "chat" => ChatSize,
+            "assistant" => ChatSize,
             "screenshot" => ScreenshotSize,
+            "screenshots" => ScreenshotSize,
+            "history" => ScreenshotSize,
             _ => TodoSize
         };
 
@@ -94,7 +97,7 @@ public partial class CompactToolboxWindow : Window
         Left = right - w;
         Top = bottom - h;
 
-        if (tab == "chat")
+        if (tab == "chat" || tab == "assistant")
             RootBorder.Opacity = 1.0;
         else
             RootBorder.Opacity = options.Data.CompactOpacity / 100.0;
@@ -102,18 +105,25 @@ public partial class CompactToolboxWindow : Window
         switch (tab)
         {
             case "todo":
+            case "todos":
                 TodoPanel.Visibility = Visibility.Visible;
                 TabTodo.Style = (Style)FindResource("CompactTabButtonActive");
                 break;
             case "chat":
+            case "assistant":
                 ChatPanel.Visibility = Visibility.Visible;
                 TabChat.Style = (Style)FindResource("CompactTabButtonActive");
                 SessionRow.Visibility = Visibility.Visible;
                 break;
             case "screenshot":
+            case "screenshots":
+            case "history":
                 ScreenshotPanel.Visibility = Visibility.Visible;
                 TabScreenshot.Style = (Style)FindResource("CompactTabButtonActive");
                 LoadScreenshots();
+                break;
+            case "settings":
+                OpenWorkbench();
                 break;
         }
     }

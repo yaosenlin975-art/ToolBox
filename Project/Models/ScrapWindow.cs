@@ -157,7 +157,6 @@ public class ScrapWindow : Window
     {
         closePrepare = true;
         Close();
-        GC.Collect();
         return this;
     }
 

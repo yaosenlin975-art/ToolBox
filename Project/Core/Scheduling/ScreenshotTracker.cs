@@ -29,6 +29,7 @@ public class ScreenshotTracker
 
     public void RecordWindowSwitch(string appName, string windowTitle)
     {
+        if (appName == lastApp) return;
         var now = DateTime.UtcNow;
         var duration = (int)(now - lastSwitchTime).TotalSeconds;
 
