@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ToolBox.Views.Chat;
@@ -71,12 +71,12 @@ public partial class WorkbenchWindow : Window
         if (WindowState == WindowState.Maximized)
         {
             WindowState = WindowState.Normal;
-            BtnMaximize.Content = "\uE922";
+            BtnMaximize.Content = "";
         }
         else
         {
             WindowState = WindowState.Maximized;
-            BtnMaximize.Content = "\uE923";
+            BtnMaximize.Content = "";
         }
     }
 

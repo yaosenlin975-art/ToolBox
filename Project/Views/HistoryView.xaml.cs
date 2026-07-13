@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
@@ -30,9 +30,6 @@ public partial class HistoryView : UserControl
         Unloaded += (s, e) => CacheManager.Instance.OnScrapCached -= OnScrapCached;
     }
 
-    /// <summary>
-    /// 新截图写入缓存后自动刷新历史列表（无论是否手动保存都会显示）。
-    /// </summary>
     private void OnScrapCached(object? sender, EventArgs e)
     {
         Dispatcher.Invoke(LoadHistory);
@@ -101,7 +98,7 @@ public partial class HistoryView : UserControl
                     Thumbnail = ImageHelper.MakeOpaque(image),
                     FullImage = image,
                     TimeDisplay = item.CreateTime.ToString("MM-dd HH:mm"),
-                    SizeDisplay = image.PixelWidth + " × " + image.PixelHeight
+                    SizeDisplay = image.PixelWidth + " x " + image.PixelHeight
                 };
                 lstHistory.Items.Add(vm);
             }
@@ -147,9 +144,6 @@ public partial class HistoryView : UserControl
 
     private void BtnLoadMore_Click(object sender, RoutedEventArgs e) => LoadNextPage();
 
-    /// <summary>
-    /// 点击历史缩略图查看原图（带 alpha 的原图）。
-    /// </summary>
     private void HistoryItem_Click(object sender, MouseButtonEventArgs e)
     {
         if ((sender as FrameworkElement)?.DataContext is HistoryItemViewModel vm && vm.FullImage != null)
@@ -173,6 +167,11 @@ public partial class HistoryView : UserControl
         var saveItem = new System.Windows.Controls.MenuItem { Header = (FindResource("Lang_SaveAs") as string) ?? "另存为" };
         saveItem.Click += (_, _) => SaveBitmapToFile(vm.FullImage);
         contextMenu.Items.Add(saveItem);
+
+        var deleteItem = new System.Windows.Controls.MenuItem { Header = (FindResource("Lang_Delete") as string) ?? "删除" };
+        deleteItem.Click += (_, _) => DeleteHistoryItem(vm);
+        contextMenu.Items.Add(new Separator());
+        contextMenu.Items.Add(deleteItem);
 
         contextMenu.PlacementTarget = sender as UIElement;
         contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Mouse;
@@ -203,6 +202,17 @@ public partial class HistoryView : UserControl
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(source));
         encoder.Save(fs);
+    }
+
+    private void DeleteHistoryItem(HistoryItemViewModel vm)
+    {
+        try
+        {
+            if (Directory.Exists(vm.CacheItem.FolderPath))
+                Directory.Delete(vm.CacheItem.FolderPath, true);
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] delete failed: {ex.Message}"); }
+        lstHistory.Items.Remove(vm);
     }
 }
 

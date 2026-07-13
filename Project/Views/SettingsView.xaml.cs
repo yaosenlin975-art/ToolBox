@@ -85,6 +85,11 @@ public partial class SettingsView : UserControl
 
             txtAreaTransparentValue.Text = ((int)sldAreaTransparent.Value).ToString();
 
+        sldChatFontSize.Value = data.ChatFontSize;
+        txtChatFontSizeValue.Text = data.ChatFontSize.ToString();
+        sldChatFontSize.ValueChanged += (s, e) =>
+            txtChatFontSizeValue.Text = ((int)sldChatFontSize.Value).ToString();
+
 
 
         rdoLineSolid.IsChecked = !data.SelectLineSolid;
@@ -366,8 +371,7 @@ public partial class SettingsView : UserControl
         result.Data.DailyReportTime = txtDailyReportTime.Text.Trim();
 
         result.Data.ScreenshotMaxAge = (int)sldScreenshotMaxAge.Value;
-
-
+        result.Data.ChatFontSize = (int)sldChatFontSize.Value;
 
         result.Scrap.InactiveAlphaChange = chkInactiveAlpha.IsChecked == true;
 

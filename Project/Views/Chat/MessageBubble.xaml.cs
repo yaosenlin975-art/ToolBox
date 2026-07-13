@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using ToolBox.Core.Markdown;
@@ -12,6 +12,26 @@ public partial class MessageBubble : UserControl
     public MessageBubble()
     {
         InitializeComponent();
+        ContentDocument.PreviewMouseWheel += OnPreviewMouseWheel;
+    }
+
+    private void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        e.Handled = true;
+        var parentScroller = FindParentScrollViewer(this);
+        if (parentScroller != null)
+            parentScroller.ScrollToVerticalOffset(parentScroller.VerticalOffset - e.Delta / 3.0);
+    }
+
+    private static ScrollViewer? FindParentScrollViewer(DependencyObject child)
+    {
+        var parent = VisualTreeHelper.GetParent(child);
+        while (parent != null)
+        {
+            if (parent is ScrollViewer sc) return sc;
+            parent = VisualTreeHelper.GetParent(parent);
+        }
+        return null;
     }
 
     public event Action<string>? QuoteRequested;
@@ -45,7 +65,7 @@ public partial class MessageBubble : UserControl
                 align = HorizontalAlignment.Right;
                 break;
             case "assistant":
-                bg = (Brush)FindResource("ChatBgAssistantBrush");
+                bg = Brushes.Transparent;
                 fg = (Brush)FindResource("ChatTextAssistantBrush");
                 align = HorizontalAlignment.Left;
                 break;
@@ -67,9 +87,11 @@ public partial class MessageBubble : UserControl
         }
 
         BubbleBorder.Background = bg;
+        BubbleBorder.BorderThickness = role == "assistant" ? new Thickness(0) : new Thickness(1);
         RoleLabel.Foreground = fg;
         HorizontalAlignment = align;
         ContentDocument.Foreground = fg;
+        Margin = role == "assistant" ? new Thickness(16, 2, 16, 2) : new Thickness(16, 4, 16, 4);
 
         RenderMarkdown();
     }
@@ -99,5 +121,10 @@ public partial class MessageBubble : UserControl
             doc.Blocks.Add(new System.Windows.Documents.Paragraph(new System.Windows.Documents.Run(_rawText)));
             ContentDocument.Document = doc;
         }
+
+        var fontSize = ToolBox.Models.ToolBoxOption.Load().Data.ChatFontSize;
+        if (fontSize > 0)
+            ContentDocument.FontSize = fontSize;
     }
 }
+

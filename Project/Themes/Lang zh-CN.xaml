@@ -115,6 +115,8 @@
     <sys:String x:Key="Lang_DiscoverModels">发现模型</sys:String>
     <sys:String x:Key="Lang_TestConnection">测试连接</sys:String>
     <sys:String x:Key="Lang_Test">测试</sys:String>
+    <sys:String x:Key="Lang_ChatFontSize">聊天文字大小</sys:String>
+    <sys:String x:Key="Lang_ChatFontSizeHint">调整聊天界面中的文字大小</sys:String>
 
     <sys:String x:Key="Lang_ScheduleTitle">定时截图与日报</sys:String>
     <sys:String x:Key="Lang_ScheduleHint">配置自动截图和每日行为总结</sys:String>

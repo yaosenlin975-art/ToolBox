@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -23,13 +23,13 @@ public partial class TodoDetailWindow : Window
     {
         Title.Text = item.Title;
         IsCompleted.IsChecked = item.IsCompleted;
-        StatusText.Text = item.IsCompleted ? "\u5DF2\u5B8C\u6210" : (item.IsTrashed ? "\u5E9F\u5F03" : "\u5F85\u529E");
+        StatusText.Text = item.IsCompleted ? "已完成" : (item.IsTrashed ? "废弃" : "待办");
 
         PriorityText.Text = item.Priority switch
         {
-            1 => "\u91CD\u8981",
-            2 => "\u7D27\u6025",
-            _ => "\u666E\u901A"
+            1 => "重要",
+            2 => "紧急",
+            _ => "普通"
         };
 
         if (item.DueDate.HasValue)
@@ -42,19 +42,10 @@ public partial class TodoDetailWindow : Window
             DueDateRow.Visibility = Visibility.Collapsed;
         }
 
+        ProgressSlider.Value = item.Progress;
         ProgressText.Text = item.Progress + "%";
 
-        if (!string.IsNullOrWhiteSpace(item.Description))
-        {
-            Description.Text = item.Description;
-            Description.Visibility = Visibility.Visible;
-            DescLabel.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            Description.Visibility = Visibility.Collapsed;
-            DescLabel.Visibility = Visibility.Collapsed;
-        }
+        DescriptionBox.Text = item.Description;
 
         // Subtasks
         SubTasksList.Children.Clear();
@@ -65,8 +56,10 @@ public partial class TodoDetailWindow : Window
 
         // Trash/Restore
         TrashBtn.Visibility = item.IsTrashed ? Visibility.Collapsed : Visibility.Visible;
+        DeleteBtn.Visibility = item.IsTrashed ? Visibility.Visible : Visibility.Collapsed;
         RestoreBtn.Visibility = item.IsTrashed ? Visibility.Visible : Visibility.Collapsed;
         AddSubBtn.Visibility = item.IsTrashed ? Visibility.Collapsed : Visibility.Visible;
+        FooterBorder.Visibility = item.IsTrashed ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private Border CreateSubtaskRow(TodoItem child)
@@ -136,6 +129,13 @@ public partial class TodoDetailWindow : Window
             await TodoStore.Instance.UncompleteAsync(item.Id);
     }
 
+    private async void DeleteBtn_Click(object sender, RoutedEventArgs e)
+    {
+        await TodoStore.Instance.DeletePermanentlyAsync(item.Id);
+        onClosed?.Invoke();
+        Close();
+    }
+
     private async void TrashBtn_Click(object sender, RoutedEventArgs e)
     {
         await TodoStore.Instance.TrashAsync(item.Id);
@@ -152,7 +152,7 @@ public partial class TodoDetailWindow : Window
 
     private async void AddSub_Click(object sender, RoutedEventArgs e)
     {
-        var input = new InputWindow("\u6DFB\u52A0\u5B50\u4EFB\u52A1", "\u8BF7\u8F93\u5165\u5B50\u4EFB\u52A1\u6807\u9898:");
+        var input = new InputWindow("添加子任务", "请输入子任务标题:");
         input.Owner = this;
         input.ShowTodoFields();
         if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
@@ -161,6 +161,20 @@ public partial class TodoDetailWindow : Window
                 category: item.Category, dueDate: input.DueDate, parentId: item.Id);
             Populate();
         }
+    }
+
+    private void ProgressSlider_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        int val = (int)e.NewValue;
+        ProgressText.Text = val + "%";
+        if (val != item.Progress)
+            _ = TodoStore.Instance.UpdateAsync(item.Id, progress: val);
+    }
+
+    private async void Description_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (DescriptionBox.Text != item.Description)
+            await TodoStore.Instance.UpdateAsync(item.Id, description: DescriptionBox.Text);
     }
 
     private void CloseBtn_Click(object sender, RoutedEventArgs e) => Close();

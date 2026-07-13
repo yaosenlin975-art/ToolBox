@@ -115,6 +115,8 @@
     <sys:String x:Key="Lang_DiscoverModels">Discover models</sys:String>
     <sys:String x:Key="Lang_TestConnection">Test connection</sys:String>
     <sys:String x:Key="Lang_Test">Test</sys:String>
+    <sys:String x:Key="Lang_ChatFontSize">Chat Font Size</sys:String>
+    <sys:String x:Key="Lang_ChatFontSizeHint">Adjust the font size in chat</sys:String>
 
     <sys:String x:Key="Lang_ScheduleTitle">Scheduled Screenshot &amp; Daily Report</sys:String>
     <sys:String x:Key="Lang_ScheduleHint">Configure auto screenshot and daily summary</sys:String>

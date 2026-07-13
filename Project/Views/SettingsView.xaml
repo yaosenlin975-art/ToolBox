@@ -486,6 +486,22 @@
 
                                 <Grid Style="{StaticResource SettingRow}">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{DynamicResource Lang_ChatFontSize}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_ChatFontSizeHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Slider x:Name="sldChatFontSize" Width="120" Minimum="11" Maximum="20" Value="13" TickFrequency="1" IsSnapToTickEnabled="True" Style="{StaticResource ModernSlider}"/>
+                                        <TextBlock x:Name="txtChatFontSizeValue" Text="13" FontSize="13" FontFamily="{StaticResource FontMono}" Foreground="{DynamicResource TextPrimaryBrush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="120"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>

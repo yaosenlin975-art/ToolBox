@@ -1,27 +1,29 @@
-using System.IO;
+﻿﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using ToolBox.Core.Llm;
 using ToolBox.Core.Todo;
 using ToolBox.Models;
 using ToolBox.Services;
 using ToolBox.Views.Todo;
+using ToolBox.Core.Native;
 
 namespace ToolBox.Views;
 
 public partial class CompactToolboxWindow : Window
 {
-    private static readonly (double w, double h) TodoSize = (200, 350);
-    private static readonly (double w, double h) ChatSize = (400, 400);
-    private static readonly (double w, double h) ScreenshotSize = (200, 350);
+    private static readonly (double w, double h) TodoSize = (360, 480);
+    private static readonly (double w, double h) ChatSize = (360, 480);
+    private static readonly (double w, double h) ScreenshotSize = (360, 480);
     private const double TodoItemHeight = 26;
     private const double TodoCollapsedPad = 12;
-    private const double MaxFitWidth = 280;
-    private const double MaxFitHeight = 500;
+    private const double MaxFitWidth = 360;
+    private const double MaxFitHeight = 480;
 
     private readonly ToolBoxOption options;
     private string currentTab = "todo";
@@ -322,7 +324,6 @@ public partial class CompactToolboxWindow : Window
         }
     }
 
-
     private void ShowDetail(TodoItem item)
     {
         var dlg = new TodoDetailWindow(item);
@@ -489,6 +490,13 @@ public partial class CompactToolboxWindow : Window
                     SizeDisplay = image.PixelWidth + " \u00D7 " + image.PixelHeight
                 });
             }
+        }
+    }
+    private void ResizeGrip_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (PresentationSource.FromVisual(this) is HwndSource hwndSource)
+        {
+            NativeMethods.SendMessage(hwndSource.Handle, NativeMethods.WM_SYSCOMMAND, (IntPtr)0xF008, IntPtr.Zero);
         }
     }
 }

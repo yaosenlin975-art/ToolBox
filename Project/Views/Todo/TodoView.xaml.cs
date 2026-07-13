@@ -1,4 +1,4 @@
-using System.Windows;
+﻿﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Shapes;
 using System.Windows.Input;
@@ -34,7 +34,7 @@ public partial class TodoView : UserControl
 
         foreach (var (category, roots) in grouped)
         {
-            var display = category == "\u9ED8\u8BA4" ? "\u672A\u5206\u7C7B" : category;
+            var display = category == "默认" ? "未分类" : category;
             var drawer = CreateDrawer(display, roots, category);
             DrawerContainer.Children.Add(drawer);
         }
@@ -59,7 +59,7 @@ public partial class TodoView : UserControl
         var grouped = trashed.GroupBy(t => t.Category);
         foreach (var g in grouped)
         {
-            var display = g.Key == "\u9ED8\u8BA4" ? "\u672A\u5206\u7C7B" : g.Key;
+            var display = g.Key == "默认" ? "未分类" : g.Key;
             result[display] = g.ToList();
         }
         return result;
@@ -113,7 +113,7 @@ public partial class TodoView : UserControl
         if (e.Data.GetData(typeof(string)) is not string itemId) return;
         var item = TodoStore.Instance.Items.FirstOrDefault(t => t.Id == itemId);
         if (item == null) return;
-        var newCategory = exp.Tag as string ?? "\u9ED8\u8BA4";
+        var newCategory = exp.Tag as string ?? "默认";
         if (item.Category == newCategory && string.IsNullOrEmpty(item.ParentId)) return;
         item.ParentId = null;
         await TodoStore.Instance.UpdateAsync(itemId, category: newCategory);
@@ -181,7 +181,7 @@ public partial class TodoView : UserControl
         if (item.Priority > 0)
         {
             var priColor = item.Priority == 2 ? "#E74C3C" : "#F5A623";
-            var priText = item.Priority == 2 ? "\u7D27\u6025" : "\u91CD\u8981";
+            var priText = item.Priority == 2 ? "紧急" : "重要";
             var badge = new Border { CornerRadius = new CornerRadius(4), Padding = new Thickness(4, 1, 4, 1), Margin = new Thickness(0, 0, 4, 0), Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(priColor + "22")) };
             var badgeText = new TextBlock { Text = priText, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(priColor)) };
             badge.Child = badgeText;
@@ -265,9 +265,9 @@ public partial class TodoView : UserControl
 
         DetailTitle.Text = item.Title;
         DetailDesc.Text = item.Description;
-        DetailStatusText.Text = item.IsCompleted ? "\u5DF2\u5B8C\u6210" : (item.IsTrashed ? "\u5E9F\u5F03" : "\u5F85\u529E");
+        DetailStatusText.Text = item.IsCompleted ? "已完成" : (item.IsTrashed ? "废弃" : "待办");
         DetailCreated.Text = item.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
-        DetailCompleted.Text = item.CompletedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "\u2014";
+        DetailCompleted.Text = item.CompletedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—";
 
         PriLow.IsChecked = item.Priority == 0;
         PriMid.IsChecked = item.Priority == 1;
@@ -276,7 +276,7 @@ public partial class TodoView : UserControl
         DetailDueDate.SelectedDate = item.DueDate?.ToLocalTime();
         DetailProgress.Value = item.Progress;
         DetailProgressText.Text = item.Progress + "%";
-        DetailCategory.Text = item.Category == "\u9ED8\u8BA4" ? "" : item.Category;
+        DetailCategory.Text = item.Category == "默认" ? "" : item.Category;
 
         // Trash/Restore button visibility
         var isTrashed = item.IsTrashed;
@@ -351,7 +351,7 @@ public partial class TodoView : UserControl
         CategorySuggestions.Visibility = Visibility.Collapsed;
         if (selected == null) return;
         var cat = DetailCategory.Text.Trim();
-        cat = string.IsNullOrEmpty(cat) ? "\u9ED8\u8BA4" : cat;
+        cat = string.IsNullOrEmpty(cat) ? "默认" : cat;
         if (cat != selected.Category)
             await TodoStore.Instance.UpdateAsync(selected.Id, category: cat);
     }
@@ -372,7 +372,7 @@ public partial class TodoView : UserControl
     private void UpdateCategorySuggestions(string filter)
     {
         var cats = TodoStore.Instance.Categories
-            .Where(c => c != "\u9ED8\u8BA4" && (string.IsNullOrEmpty(filter) || c.Contains(filter, StringComparison.OrdinalIgnoreCase)))
+            .Where(c => c != "默认" && (string.IsNullOrEmpty(filter) || c.Contains(filter, StringComparison.OrdinalIgnoreCase)))
             .ToList();
         if (cats.Count == 0 || cats[0].Equals(filter, StringComparison.OrdinalIgnoreCase))
         {
@@ -386,7 +386,7 @@ public partial class TodoView : UserControl
     private async void AddSubTodo_Click(object sender, RoutedEventArgs e)
     {
         if (selected == null) return;
-        var input = new InputWindow("\u6DFB\u52A0\u5B50\u4EFB\u52A1", "\u8BF7\u8F93\u5165\u5B50\u4EFB\u52A1\u6807\u9898:");
+        var input = new InputWindow("添加子任务", "请输入子任务标题:");
         input.Owner = Window.GetWindow(this);
         input.ShowTodoFields();
         if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
@@ -399,7 +399,7 @@ public partial class TodoView : UserControl
 
     private void FloatingAddBtn_Click(object sender, RoutedEventArgs e)
     {
-        var input = new InputWindow("\u6DFB\u52A0\u5F85\u529E", "\u8BF7\u8F93\u5165\u5F85\u529E\u6807\u9898:");
+        var input = new InputWindow("添加待办", "请输入待办标题:");
         input.Owner = Window.GetWindow(this);
         input.ShowTodoFields();
         if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))

@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -11,7 +11,7 @@ public class TodoStore
 
     private readonly string filePath;
     private readonly List<TodoItem> items = [];
-    private readonly List<string> categories = ["\u9ED8\u8BA4"];
+    private readonly List<string> categories = ["默认"];
     private readonly SemaphoreSlim writeLock = new(1, 1);
 
     public IReadOnlyList<TodoItem> Items => items;
@@ -77,15 +77,15 @@ public class TodoStore
 
     public void RemoveCategory(string name)
     {
-        if (name == "\u9ED8\u8BA4") return;
+        if (name == "默认") return;
         categories.Remove(name);
         foreach (var item in items.Where(t => t.Category == name))
-            item.Category = "\u9ED8\u8BA4";
+            item.Category = "默认";
         _ = SaveAsync();
         NotifyChanged();
     }
 
-    public async Task<TodoItem> AddAsync(string title, string description = "", int priority = 0, string category = "\u9ED8\u8BA4", List<string>? tags = null, DateTime? dueDate = null, string? sessionId = null, string? parentId = null)
+    public async Task<TodoItem> AddAsync(string title, string description = "", int priority = 0, string category = "默认", List<string>? tags = null, DateTime? dueDate = null, string? sessionId = null, string? parentId = null)
     {
         if (!categories.Contains(category)) categories.Add(category);
         var item = new TodoItem
@@ -237,7 +237,7 @@ public class TodoStore
     public bool HasChildren(string id) => items.Any(t => t.ParentId == id && !t.IsTrashed);
 
     // Sync wrappers
-    public TodoItem Add(string title, string description = "", int priority = 0, string category = "\u9ED8\u8BA4", List<string>? tags = null, DateTime? dueDate = null, string? sessionId = null, string? parentId = null)
+    public TodoItem Add(string title, string description = "", int priority = 0, string category = "默认", List<string>? tags = null, DateTime? dueDate = null, string? sessionId = null, string? parentId = null)
         => Task.Run(() => AddAsync(title, description, priority, category, tags, dueDate, sessionId, parentId)).GetAwaiter().GetResult();
     public bool Complete(string id) => Task.Run(() => CompleteAsync(id)).GetAwaiter().GetResult();
     public bool Uncomplete(string id) => Task.Run(() => UncompleteAsync(id)).GetAwaiter().GetResult();
