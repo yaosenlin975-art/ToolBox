@@ -1,4 +1,4 @@
-﻿// ClipboardPopup.xaml.cs - 浮动剪贴板面板
+﻿﻿// ClipboardPopup.xaml.cs - 浮动剪贴板面板
 // 职责:Ctrl+Shift+V 唤起的 360x480 Topmost 浮窗,搜索/筛选/置顶/收藏/粘贴
 // 设计要点:
 //   - 实时搜索(无防抖,500 条 ≤50ms 满足规格)

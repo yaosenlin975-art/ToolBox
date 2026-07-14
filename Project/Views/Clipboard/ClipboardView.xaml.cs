@@ -1,4 +1,4 @@
-﻿// ClipboardView.xaml.cs - 工作台剪贴板历史页面
+﻿﻿// ClipboardView.xaml.cs - 工作台剪贴板历史页面
 // 职责:列表展示 + 类型/日期/搜索筛选 + 分页加载 + 详情面板 + 增删改操作
 // 设计要点:
 //   - 复用 ClipboardEntryViewModel(定义于 ClipboardPopup.xaml.cs,同命名空间)

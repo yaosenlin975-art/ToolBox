@@ -1,4 +1,4 @@
-﻿// ClipboardEntry.cs - 剪贴板条目数据模型
+﻿﻿// ClipboardEntry.cs - 剪贴板条目数据模型
 // 职责:承载单条剪贴板历史的元数据,JSON 序列化字段
 // 持久化路径:%AppData%/ToolBox/clipboard.json
 using System.Text.Json.Serialization;
