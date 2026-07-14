@@ -2,6 +2,7 @@
 using System.Windows.Controls;
 using System.Windows.Input;
 using ToolBox.Views.Chat;
+using ToolBox.Views.ClipboardHistory;
 using ToolBox.Views.Dashboard;
 using ToolBox.Views.Todo;
 
@@ -10,6 +11,7 @@ namespace ToolBox.Views;
 public partial class WorkbenchWindow : Window
 {
     private DashboardView? dashboardView;
+    private ClipboardView? clipboardView;
 
     public WorkbenchWindow()
     {
@@ -28,6 +30,7 @@ public partial class WorkbenchWindow : Window
             "assistant" => (FindResource("Lang_Page_Assistant") as string) ?? "AI 助手",
             "todos" => (FindResource("Lang_Page_Todos") as string) ?? "待办管理",
             "screenshots" => (FindResource("Lang_Page_Screenshots") as string) ?? "截图历史",
+            "clipboard" => (FindResource("Lang_Page_Clipboard") as string) ?? "剪贴板",
             "settings" => (FindResource("Lang_Page_Settings") as string) ?? "设置",
             _ => string.Empty
         };
@@ -40,9 +43,17 @@ public partial class WorkbenchWindow : Window
             "assistant" => new ChatView(),
             "todos" => new TodoView(),
             "screenshots" => new HistoryView(),
+            "clipboard" => GetClipboard(),
             "settings" => new SettingsView(),
             _ => null
         };
+    }
+
+    private ClipboardView GetClipboard()
+    {
+        // 复用同一实例,避免每次切换都重新订阅事件
+        clipboardView ??= new ClipboardView();
+        return clipboardView;
     }
 
     private DashboardView GetDashboard()

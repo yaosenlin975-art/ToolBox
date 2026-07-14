@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 
 using System.Windows.Controls;
 
@@ -9,7 +9,10 @@ using ToolBox.Core.Providers;
 using ToolBox.Core.Theming;
 
 using ToolBox.Core.Todo;
+
 using ToolBox.Models;
+
+using ToolBox.Services.Ocr;
 
 
 
@@ -132,6 +135,11 @@ public partial class SettingsView : UserControl
 
             : "永久保留";
 
+        // Clipboard settings
+        sldClipboardMaxEntries.Value = Math.Max(50, data.ClipboardMaxEntries);
+        txtClipboardMaxEntriesValue.Text = ((int)sldClipboardMaxEntries.Value).ToString();
+        txtClipboardIgnoredApps.Text = data.ClipboardIgnoredApps ?? string.Empty;
+
 
 
         // Scrap opacity
@@ -157,16 +165,17 @@ public partial class SettingsView : UserControl
 
 
         try
-
         {
-
             txtVersion.Text = System.Reflection.Assembly.GetExecutingAssembly()
-
                 .GetName().Version?.ToString() ?? "2.0.0";
-
         }
-
         catch { txtVersion.Text = "2.0.0"; }
+
+        // OCR 设置(AC5.2): 引擎选择 + 默认语言 + 已安装语言包列表
+        rdoOcrTesseract.IsChecked = data.OcrEngine != "WindowsOCR";
+        rdoOcrWindows.IsChecked = data.OcrEngine == "WindowsOCR";
+        txtOcrLanguage.Text = data.OcrLanguage ?? OcrService.DefaultLanguage;
+        RefreshOcrInstalledLangs();
 
 
 
@@ -213,6 +222,10 @@ public partial class SettingsView : UserControl
         SectionLlm.Visibility = NavLlm.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
         SectionSchedule.Visibility = NavSchedule.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+        SectionClipboard.Visibility = NavClipboard.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+        SectionOcr.Visibility = NavOcr.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
         SectionLanguage.Visibility = NavLanguage.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
@@ -372,6 +385,8 @@ public partial class SettingsView : UserControl
 
         result.Data.ScreenshotMaxAge = (int)sldScreenshotMaxAge.Value;
         result.Data.ChatFontSize = (int)sldChatFontSize.Value;
+        result.Data.ClipboardMaxEntries = (int)sldClipboardMaxEntries.Value;
+        result.Data.ClipboardIgnoredApps = txtClipboardIgnoredApps.Text?.Trim() ?? string.Empty;
 
         result.Scrap.InactiveAlphaChange = chkInactiveAlpha.IsChecked == true;
 
@@ -414,6 +429,10 @@ public partial class SettingsView : UserControl
                 ProviderManager.Instance.SetActiveModel(providerName, modelId);
 
         }
+
+        // OCR 设置(AC5.2)
+        result.Data.OcrEngine = rdoOcrWindows.IsChecked == true ? "WindowsOCR" : "Tesseract";
+        result.Data.OcrLanguage = string.IsNullOrWhiteSpace(txtOcrLanguage.Text) ? OcrService.DefaultLanguage : txtOcrLanguage.Text.Trim();
 
     }
 
@@ -847,6 +866,37 @@ public partial class SettingsView : UserControl
 
         LoadSettings();
 
+    }
+
+    /// <summary>剪贴板最大条目数 Slider 变更</summary>
+    private void SldClipboardMaxEntries_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (isLoading || result == null) return;
+        var v = (int)sldClipboardMaxEntries.Value;
+        txtClipboardMaxEntriesValue.Text = v.ToString();
+        result.Data.ClipboardMaxEntries = v;
+    }
+
+    // ===== OCR 设置(AC5.2) =====
+
+    /// <summary>刷新已安装语言包列表显示。</summary>
+    private void RefreshOcrInstalledLangs()
+    {
+        try
+        {
+            var langs = OcrService.Instance.ListInstalledLanguages();
+            txtOcrInstalledLangs.Text = langs.Count == 0 ? "(未安装)" : string.Join(", ", langs);
+        }
+        catch (Exception ex)
+        {
+            txtOcrInstalledLangs.Text = "读取失败: " + ex.Message;
+        }
+    }
+
+    /// <summary>手动刷新已安装语言包按钮。</summary>
+    private void BtnRefreshOcrLangs_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshOcrInstalledLangs();
     }
 
 }

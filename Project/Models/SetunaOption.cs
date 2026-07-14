@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows.Input;
@@ -165,7 +165,19 @@ public class ToolBoxOption
                 FullscreenCursorSolid = Data.FullscreenCursorSolid,
                 FullscreenCursorColorR = Data.FullscreenCursorColorR,
                 FullscreenCursorColorG = Data.FullscreenCursorColorG,
-                FullscreenCursorColorB = Data.FullscreenCursorColorB
+                FullscreenCursorColorB = Data.FullscreenCursorColorB,
+                CompactOpacity = Data.CompactOpacity,
+                AutoScreenshotEnabled = Data.AutoScreenshotEnabled,
+                AutoScreenshotCron = Data.AutoScreenshotCron,
+                DailyReportEnabled = Data.DailyReportEnabled,
+                DailyReportTime = Data.DailyReportTime,
+                Theme = Data.Theme,
+                ScreenshotMaxAge = Data.ScreenshotMaxAge,
+                ChatFontSize = Data.ChatFontSize,
+                ClipboardMaxEntries = Data.ClipboardMaxEntries,
+                ClipboardIgnoredApps = Data.ClipboardIgnoredApps,
+                OcrEngine = Data.OcrEngine,
+                OcrLanguage = Data.OcrLanguage
             },
             Scrap = new ScrapOption
             {
@@ -241,6 +253,14 @@ public class ToolBoxOptionData
     public string Theme { get; set; } = "System";
     public int ScreenshotMaxAge { get; set; } = 30;
     public int ChatFontSize { get; set; } = 13;
+    /// <summary>剪贴板历史最大条目数(默认 500)</summary>
+    public int ClipboardMaxEntries { get; set; } = 500;
+    /// <summary>剪贴板忽略的应用进程名(逗号分隔,如 "KeePass,1Password")</summary>
+    public string ClipboardIgnoredApps { get; set; } = string.Empty;
+    /// <summary>OCR 引擎选择: "Tesseract"(默认主引擎) 或 "WindowsOCR"。</summary>
+    public string OcrEngine { get; set; } = "Tesseract";
+    /// <summary>OCR 默认语言组合，如 "chi_sim+eng"。</summary>
+    public string OcrLanguage { get; set; } = "chi_sim+eng";
 }
 
 public class ScrapOption

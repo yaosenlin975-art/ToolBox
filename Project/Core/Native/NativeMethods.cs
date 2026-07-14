@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -8,6 +8,18 @@ internal static class NativeMethods
 {
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     public static extern int SendMessage(IntPtr h, int m, IntPtr w, IntPtr l);
+
+    // ── 剪贴板链(Clipboard Chain)API ──
+    // 加入系统剪贴板链,返回下一个链窗口句柄(需保存以便消息转发)
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr SetClipboardViewer(IntPtr hWndNewViewer);
+
+    // 从剪贴板链移除自身,需传入前一个链窗口
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool ChangeClipboardChain(IntPtr hWndRemove, IntPtr hWndNewNext);
+
+    public const int WM_DRAWCLIPBOARD = 0x0308;
+    public const int WM_CHANGECBCHAIN = 0x030D;
 
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     public static extern bool SetProcessDPIAware();
@@ -20,6 +32,9 @@ internal static class NativeMethods
 
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     public static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
@@ -67,6 +82,10 @@ internal static class NativeMethods
     [DllImport("Gdi32.dll")]
     public static extern bool DeleteDC(IntPtr handle);
 
+    // 取色器：读取桌面 DC 指定坐标像素颜色,返回 COLORREF(0x00BBGGRR)
+    [DllImport("gdi32.dll")]
+    public static extern uint GetPixel(IntPtr hdc, int x, int y);
+
     [DllImport("user32.dll")]
     static extern bool GetCursorInfo(out CURSORINFO pci);
 
@@ -75,6 +94,16 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+    // ── 模拟键盘输入(用于向当前前台窗口发送 Ctrl+V 粘贴) ──
+    [DllImport("user32.dll")]
+    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+    [DllImport("user32.dll")]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    public const uint KEYEVENTF_KEYUP = 0x0002;
+    public const byte VK_V = 0x56;
 
     [DllImport("user32.dll")]
     public static extern bool GetCursorPos(out POINT lpPoint);
@@ -110,7 +139,7 @@ internal static class NativeMethods
 
     public const uint SC_CLOSE = 0xF060;
 
-    public const uint VK_CONTROL = 0x11;
+    public const byte VK_CONTROL = 0x11;
 
     public const int CURSOR_SHOWING = 0x00000001;
 

@@ -1,4 +1,4 @@
-﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
     <sys:String x:Key="Lang_OptionsTitle">ToolBox 选项</sys:String>
@@ -181,5 +181,26 @@
         <sys:String x:Key="Lang_SaveAs">另存为</sys:String>
 
     <sys:String x:Key="Lang_RecordCount">{0} 条记录</sys:String>
+
+    <!-- Clipboard -->
+    <sys:String x:Key="Lang_Clipboard">剪贴板</sys:String>
+    <sys:String x:Key="Lang_Page_Clipboard">剪贴板历史</sys:String>
+    <sys:String x:Key="Lang_ClipTypeAll">全部</sys:String>
+    <sys:String x:Key="Lang_ClipTypeText">文本</sys:String>
+    <sys:String x:Key="Lang_ClipTypeImage">图片</sys:String>
+    <sys:String x:Key="Lang_ClipTypeFile">文件</sys:String>
+    <sys:String x:Key="Lang_ClipPause5min">暂停监听 5 分钟</sys:String>
+    <sys:String x:Key="Lang_ClipSelectEntry">选择左侧条目查看详情</sys:String>
+    <sys:String x:Key="Lang_ClipCopy">复制</sys:String>
+    <sys:String x:Key="Lang_ClipFavorite">收藏</sys:String>
+    <sys:String x:Key="Lang_ClipPin">置顶</sys:String>
+    <sys:String x:Key="Lang_ClipDelete">删除</sys:String>
+    <sys:String x:Key="Lang_ClipSendToAi">发送到 AI</sys:String>
+    <sys:String x:Key="Lang_ClipSettingsTitle">剪贴板历史设置</sys:String>
+    <sys:String x:Key="Lang_ClipSettingsHint">配置剪贴板历史记录的容量和忽略应用</sys:String>
+    <sys:String x:Key="Lang_ClipMaxEntries">最大历史条目数</sys:String>
+    <sys:String x:Key="Lang_ClipMaxEntriesHint">超出后自动清理最旧条目(含缩略图)</sys:String>
+    <sys:String x:Key="Lang_ClipIgnoredApps">忽略的应用进程名</sys:String>
+    <sys:String x:Key="Lang_ClipIgnoredAppsHint">逗号分隔,如 KeePass,1Password(隐私场景)</sys:String>
 
 </ResourceDictionary>

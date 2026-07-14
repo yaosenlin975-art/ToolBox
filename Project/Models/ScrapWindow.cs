@@ -1,10 +1,13 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Windows;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using ToolBox.Services.Ocr;
+using ToolBox.Views.Ocr;
 
 namespace ToolBox.Models;
 
@@ -35,6 +38,13 @@ public class ScrapWindow : Window
     private int styleApplyIndex;
     private bool isStyleApply;
     private bool initialized;
+
+    // OCR 选字模式状态(AC2.1): isOcrSelectMode 表示已进入选字模式,
+    // isOcrSelecting 表示正在拖拽选区,ocrSelectStart 记录起点
+    private bool isOcrSelectMode;
+    private bool isOcrSelecting;
+    private Point ocrSelectStart;
+    private OcrSelectAdorner? ocrSelectAdorner;
 
     public event ScrapEventHandler OnScrapClose;
     public event ScrapEventHandler OnScrapCreated;
@@ -86,6 +96,8 @@ public class ScrapWindow : Window
         MouseLeave += OnMouseLeaveHandler;
         KeyDown += OnKeyDownHandler;
         MouseLeftButtonDown += OnMouseLeftButtonDownHandler;
+        MouseLeftButtonUp += OnMouseLeftButtonUpHandler;
+        MouseMove += OnMouseMoveHandler;
         MouseDoubleClick += OnMouseDoubleClickHandler;
         MouseWheel += OnMouseWheelHandler;
         MouseRightButtonDown += OnMouseRightButtonDownHandler;
@@ -311,6 +323,13 @@ public class ScrapWindow : Window
 
         if (key == Key.Escape)
         {
+            // 选字模式下 ESC 先退出选字模式,不关闭贴图
+            if (isOcrSelectMode)
+            {
+                ExitOcrSelectMode();
+                e.Handled = true;
+                return;
+            }
             CloseScrap();
             e.Handled = true;
             return;
@@ -356,6 +375,22 @@ public class ScrapWindow : Window
 
     private void OnMouseLeftButtonDownHandler(object sender, MouseButtonEventArgs e)
     {
+        // 选字模式: 开始拖拽选区(不进入 DragMove)
+        if (isOcrSelectMode)
+        {
+            Manager?.SelectScrap(this);
+            isSelected = true;
+            Activate();
+            Focus();
+            Keyboard.Focus(imageView);
+            ocrSelectStart = e.GetPosition(imageView);
+            isOcrSelecting = true;
+            EnsureOcrAdorner();
+            ocrSelectAdorner?.Update(ocrSelectStart, ocrSelectStart);
+            e.Handled = true;
+            return;
+        }
+
         // Select this scrap, deselect others
         Manager?.SelectScrap(this);
         isSelected = true;
@@ -415,6 +450,118 @@ public class ScrapWindow : Window
             Height = 50;
             isThumbnailMode = true;
         }
+    }
+
+    // ===== OCR 选字模式(AC2.1 / AC2.2) =====
+
+    /// <summary>进入选字模式: 切换光标为十字,准备 Adorner。</summary>
+    public ScrapWindow EnterOcrSelectMode()
+    {
+        if (isOcrSelectMode) return this;
+        isOcrSelectMode = true;
+        Cursor = Cursors.Cross;
+        EnsureOcrAdorner();
+        return this;
+    }
+
+    /// <summary>退出选字模式: 还原光标,清除 Adorner。</summary>
+    public ScrapWindow ExitOcrSelectMode()
+    {
+        if (!isOcrSelectMode) return this;
+        isOcrSelectMode = false;
+        isOcrSelecting = false;
+        Cursor = null;
+        if (ocrSelectAdorner != null)
+        {
+            ocrSelectAdorner.Clear();
+            AdornerLayer.GetAdornerLayer(imageView)?.Remove(ocrSelectAdorner);
+            ocrSelectAdorner = null;
+        }
+        return this;
+    }
+
+    /// <summary>按需创建选区 Adorner 并挂到 Image 的 AdornerLayer。</summary>
+    private void EnsureOcrAdorner()
+    {
+        if (ocrSelectAdorner != null) return;
+        var layer = AdornerLayer.GetAdornerLayer(imageView);
+        if (layer == null) return;
+        ocrSelectAdorner = new OcrSelectAdorner(imageView);
+        layer.Add(ocrSelectAdorner);
+    }
+
+    private void OnMouseMoveHandler(object sender, MouseEventArgs e)
+    {
+        if (!isOcrSelecting || ocrSelectAdorner == null) return;
+        var pos = e.GetPosition(imageView);
+        ocrSelectAdorner.Update(ocrSelectStart, pos);
+    }
+
+    private void OnMouseLeftButtonUpHandler(object sender, MouseButtonEventArgs e)
+    {
+        if (!isOcrSelecting) return;
+        isOcrSelecting = false;
+        var end = e.GetPosition(imageView);
+        ocrSelectAdorner?.Clear();
+
+        // 选区像素映射到 sourceBitmap 像素空间,裁切后弹出 OcrTextPopup
+        var src = sourceBitmap;
+        if (src == null) return;
+        var rect = MapSelectionToPixels(ocrSelectStart, end, src.PixelWidth, src.PixelHeight);
+        if (rect.Width < 4 || rect.Height < 4)
+        {
+            // 选区过小,视为点击,退出选字模式
+            ExitOcrSelectMode();
+            return;
+        }
+
+        try
+        {
+            var crop = new CroppedBitmap(src, rect);
+            crop.Freeze();
+            var lang = ToolBox.Models.ToolBoxOption.Load().Data.OcrLanguage;
+            var popup = new OcrTextPopup(crop, lang) { Owner = null };
+            popup.Show();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[ToolBox] OCR 选区识别失败: " + ex.Message);
+        }
+        finally
+        {
+            ExitOcrSelectMode();
+        }
+    }
+
+    /// <summary>将控件本地坐标选区映射到位图像素坐标(Int32Rect)。</summary>
+    private Int32Rect MapSelectionToPixels(Point start, Point end, int pixelW, int pixelH)
+    {
+        if (imageView.ActualWidth <= 0 || imageView.ActualHeight <= 0)
+            return new Int32Rect(0, 0, 0, 0);
+        var x1 = Math.Min(start.X, end.X);
+        var y1 = Math.Min(start.Y, end.Y);
+        var x2 = Math.Max(start.X, end.X);
+        var y2 = Math.Max(start.Y, end.Y);
+        var px1 = (int)(x1 / imageView.ActualWidth * pixelW);
+        var py1 = (int)(y1 / imageView.ActualHeight * pixelH);
+        var px2 = (int)(x2 / imageView.ActualWidth * pixelW);
+        var py2 = (int)(y2 / imageView.ActualHeight * pixelH);
+        px1 = Math.Max(0, Math.Min(pixelW - 1, px1));
+        py1 = Math.Max(0, Math.Min(pixelH - 1, py1));
+        px2 = Math.Max(0, Math.Min(pixelW, px2));
+        py2 = Math.Max(0, Math.Min(pixelH, py2));
+        return new Int32Rect(px1, py1, Math.Max(0, px2 - px1), Math.Max(0, py2 - py1));
+    }
+
+    /// <summary>整图 OCR: 取原图弹出 OcrResultOverlay(AC1.1 / AC1.3)。</summary>
+    public ScrapWindow RunOcrWhole()
+    {
+        var bitmap = GetOriginalBitmap();
+        if (bitmap == null) return this;
+        var lang = ToolBox.Models.ToolBoxOption.Load().Data.OcrLanguage;
+        var overlay = new OcrResultOverlay(bitmap, lang) { Owner = null };
+        overlay.Show();
+        return this;
     }
 
 
@@ -612,6 +759,18 @@ public class ScrapWindow : Window
             }
         };
         menu.Items.Add(todoItem);
+
+        menu.Items.Add(new System.Windows.Controls.Separator());
+
+        // OCR 识别: 整图识别弹出 OcrResultOverlay(AC1.1)
+        var ocrWholeItem = new System.Windows.Controls.MenuItem { Header = "OCR 识别" };
+        ocrWholeItem.Click += (s, e) => RunOcrWhole();
+        menu.Items.Add(ocrWholeItem);
+
+        // 选字 OCR: 进入选字模式,拖拽选区后弹出 OcrTextPopup(AC2.1 / AC2.2)
+        var ocrSelectItem = new System.Windows.Controls.MenuItem { Header = "选字 OCR" };
+        ocrSelectItem.Click += (s, e) => EnterOcrSelectMode();
+        menu.Items.Add(ocrSelectItem);
 
         menu.Items.Add(new System.Windows.Controls.Separator());
 

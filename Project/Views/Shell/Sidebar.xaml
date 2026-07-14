@@ -60,6 +60,8 @@
                              Style="{StaticResource NavItemStyle}" Tag="&#xE9D5;" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavScreenshots" GroupName="Nav"
                              Style="{StaticResource NavItemStyle}" Tag="&#xE722;" Checked="OnNavChecked"/>
+                <RadioButton x:Name="NavClipboard" GroupName="Nav"
+                             Style="{StaticResource NavItemStyle}" Tag="&#xE77F;" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavSettings" GroupName="Nav"
                              Style="{StaticResource NavItemStyle}" Tag="&#xE713;" Checked="OnNavChecked"/>
             </StackPanel>

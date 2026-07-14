@@ -1,4 +1,4 @@
-# 剪贴板历史管理
+﻿# 剪贴板历史管理
 
 - **优先级**：P0
 - **实现难度**：中
@@ -75,7 +75,7 @@ Views/
 
 ```csharp
 // Core/Clipboard/ClipboardEntry.cs
-namespace ToolBox.Core.Clipboard;
+namespace ToolBox.Core.ClipboardHistory;
 
 public enum EClipboardEntryType { Text, Image, FileList }
 
@@ -93,7 +93,7 @@ public class ClipboardEntry
 }
 
 // Core/Clipboard/ClipboardMonitor.cs
-namespace ToolBox.Core.Clipboard;
+namespace ToolBox.Core.ClipboardHistory;
 
 public class ClipboardMonitor : IDisposable
 {
@@ -116,7 +116,7 @@ public class ClipboardMonitor : IDisposable
 }
 
 // Core/Clipboard/ClipboardStore.cs
-namespace ToolBox.Core.Clipboard;
+namespace ToolBox.Core.ClipboardHistory;
 
 public class ClipboardStore
 {

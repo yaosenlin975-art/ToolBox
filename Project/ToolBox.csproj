@@ -2,7 +2,8 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- net8.0-windows10.0.19041.0: .NET 8 调用 WinRT API(Windows.Media.Ocr)的标准方式,是 net8.0-windows 的超集,现有 WPF 代码无需改动 -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -16,6 +17,7 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.9" />
+    <PackageReference Include="TesseractOCR" Version="5.5.1" />
     <PackageReference Include="ZLinq" Version="1.5.6" />
     <PackageReference Include="ZString" Version="2.6.0" />
   </ItemGroup>

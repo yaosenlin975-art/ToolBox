@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading;
 using System.Windows;
@@ -84,9 +84,27 @@ public partial class App : Application
         compactToolbox.Show();
         workbench = new Views.WorkbenchWindow();
 
+        // 启动剪贴板监听(绑定到主窗口消息循环)
+        // 与 ToolBoxOption 中配置同步:最大条目数 + 忽略应用列表
+        var clipMonitor = Core.ClipboardHistory.ClipboardMonitor.Instance;
+        clipMonitor.Start(mainWindow);
+        var clipStore = Core.ClipboardHistory.ClipboardStore.Instance;
+        clipStore.SetMaxEntries(options.Data.ClipboardMaxEntries);
+        foreach (var app in (options.Data.ClipboardIgnoredApps ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            clipMonitor.IgnoredApps.Add(app);
+
         if (e.Args.Length > 0)
         {
             mainWindow.CommandRun(e.Args);
         }
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        // 退出时释放剪贴板链,避免破坏系统剪贴板链
+        try { Core.ClipboardHistory.ClipboardMonitor.Instance.Dispose(); }
+        catch { /* best-effort */ }
+        base.OnExit(e);
     }
 }

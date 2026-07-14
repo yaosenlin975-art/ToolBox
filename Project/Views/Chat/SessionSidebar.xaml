@@ -53,17 +53,33 @@
                                             </StackPanel>
                                             <TextBlock Text="{Binding UpdatedAtLocal, StringFormat='{}{0:MM-dd HH:mm}'}" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                         </StackPanel>
-                                        <Button x:Name="DeleteBtn" Grid.Column="1" Content="X" Width="22" Height="22"
-                                                FontSize="10" Padding="0" Opacity="0.7"
-                                                VerticalAlignment="Center" Cursor="Hand"
-                                                Visibility="Collapsed" Click="DeleteSessionBtn_Click"
-                                                Foreground="{StaticResource DangerBrush}"/>
+                                        <Button x:Name="DeleteBtn" Grid.Column="1" Width="22" Height="22"
+                                                Padding="0" VerticalAlignment="Center"
+                                                Style="{StaticResource IconButton}"
+                                                Visibility="Collapsed" Opacity="0"
+                                                Click="DeleteSessionBtn_Click">
+                                            <!-- 垃圾桶图标: 盖子 + 把手 + 桶身, 线条随 Foreground 变色 -->
+                                            <Path Data="M3,6 L19,6 M8,6 L8,3 L14,3 L14,6 M6,6 L7,19 L15,19 L16,6"
+                                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                  StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Button>
                                     </Grid>
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
                                         <Setter TargetName="ItemBd" Property="Background" Value="{StaticResource ChatSidebarHoverBrush}"/>
                                         <Setter TargetName="DeleteBtn" Property="Visibility" Value="Visible"/>
+                                        <Trigger.EnterActions>
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <!-- 悬停淡入: Opacity 0 → 0.85, 150ms -->
+                                                    <DoubleAnimation Storyboard.TargetName="DeleteBtn"
+                                                                     Storyboard.TargetProperty="Opacity"
+                                                                     To="0.85" Duration="0:0:0.15"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </Trigger.EnterActions>
                                     </Trigger>
                                     <Trigger Property="IsSelected" Value="True">
                                         <Setter TargetName="ItemBd" Property="Background" Value="{StaticResource ChatSidebarActiveBrush}"/>

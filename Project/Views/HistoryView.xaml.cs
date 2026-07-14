@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
@@ -7,6 +7,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ToolBox.Services;
+using ToolBox.Services.Ocr;
 
 namespace ToolBox.Views;
 
@@ -168,6 +169,11 @@ public partial class HistoryView : UserControl
         saveItem.Click += (_, _) => SaveBitmapToFile(vm.FullImage);
         contextMenu.Items.Add(saveItem);
 
+        // 识别文字: 弹出 OCR 结果窗口(AC3.1 / AC3.2)
+        var ocrItem = new System.Windows.Controls.MenuItem { Header = "识别文字" };
+        ocrItem.Click += (_, _) => RecognizeHistoryImage(vm.FullImage);
+        contextMenu.Items.Add(ocrItem);
+
         var deleteItem = new System.Windows.Controls.MenuItem { Header = (FindResource("Lang_Delete") as string) ?? "删除" };
         deleteItem.Click += (_, _) => DeleteHistoryItem(vm);
         contextMenu.Items.Add(new Separator());
@@ -213,6 +219,15 @@ public partial class HistoryView : UserControl
         }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] delete failed: {ex.Message}"); }
         lstHistory.Items.Remove(vm);
+    }
+
+    /// <summary>对历史截图执行 OCR 并弹出结果窗口(AC3.1 / AC3.2)。</summary>
+    private void RecognizeHistoryImage(BitmapSource image)
+    {
+        if (image == null) return;
+        var lang = Models.ToolBoxOption.Load().Data.OcrLanguage;
+        var overlay = new Views.Ocr.OcrResultOverlay(image, lang) { Owner = Window.GetWindow(this) };
+        overlay.Show();
     }
 }
 

@@ -41,6 +41,9 @@ public partial class ChatView : UserControl
         toolRegistry.Register(typeof(FileTools));
         toolRegistry.Register(typeof(TodoTools));
         toolRegistry.Register(typeof(WebSearchTools));
+        toolRegistry.Register(typeof(Core.ColorPicker.ColorTools));
+        toolRegistry.Register(typeof(Core.ClipboardHistory.ClipboardTools));
+        toolRegistry.Register(typeof(OcrTools));
         LoadSessions();
     }
 
@@ -51,6 +54,18 @@ public partial class ChatView : UserControl
         SessionList.ItemsSource = chatManager.Sessions.ToList();
         if (chatManager.Sessions.Count > 0)
             SessionList.SelectedIndex = 0;
+    }
+
+    /// <summary>外部填入输入框文本(用于"发送到 AI 助手"等场景)</summary>
+    public ChatView SetInput(string text)
+    {
+        if (!string.IsNullOrEmpty(text))
+        {
+            InputBox.Text = text;
+            InputBox.Focus();
+            InputBox.CaretIndex = InputBox.Text.Length;
+        }
+        return this;
     }
 
     public void SelectSession(string sessionId)

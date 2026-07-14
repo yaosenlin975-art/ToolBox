@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -116,6 +116,86 @@ public partial class MainWindow : Window
                 }
             });
         }
+
+        // Register color picker hotkey: Ctrl+Shift+C (固定, 不受 options 配置影响)
+        try
+        {
+            HotkeyManager.Instance.RegisterHotkey(
+                Key.C, ModifierKeys.Control | ModifierKeys.Shift,
+                () =>
+                {
+                    if (isStarted)
+                        StartColorPicker();
+                });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] Color picker hotkey registration failed: {ex.Message}");
+        }
+
+        // Register clipboard popup hotkey: Ctrl+Shift+V (固定, 弹出剪贴板浮窗)
+        try
+        {
+            HotkeyManager.Instance.RegisterHotkey(
+                Key.V, ModifierKeys.Control | ModifierKeys.Shift,
+                () =>
+                {
+                    if (isStarted)
+                        ShowClipboardPopup();
+                });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] Clipboard popup hotkey registration failed: {ex.Message}");
+        }
+
+        // Register OCR hotkey: Ctrl+Shift+O (固定, 取最近截图弹出 OCR 结果窗口, AC1.1)
+        try
+        {
+            HotkeyManager.Instance.RegisterHotkey(
+                Key.O, ModifierKeys.Control | ModifierKeys.Shift,
+                () =>
+                {
+                    if (isStarted)
+                        StartOcrFromLatestScreenshot();
+                });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] OCR hotkey registration failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>对最近一次截图执行 OCR 并弹出结果窗口(AC1.1)。</summary>
+    public MainWindow StartOcrFromLatestScreenshot()
+    {
+        var bitmap = Services.Ocr.OcrService.Instance.GetLatestScreenshot();
+        if (bitmap == null)
+        {
+            MessageBox.Show("没有可用的截图,请先截图后再使用 OCR。", "OCR",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return this;
+        }
+        var lang = ToolBoxOption.Load().Data.OcrLanguage;
+        var overlay = new Views.Ocr.OcrResultOverlay(bitmap, lang) { Owner = null };
+        overlay.Show();
+        return this;
+    }
+
+    /// <summary>显示剪贴板浮窗(避免重复打开)</summary>
+    public MainWindow ShowClipboardPopup()
+    {
+        foreach (Window w in Application.Current.Windows)
+        {
+            if (w is ToolBox.Views.ClipboardHistory.ClipboardPopup existing)
+            {
+                existing.Activate();
+                return this;
+            }
+        }
+        var popup = new ToolBox.Views.ClipboardHistory.ClipboardPopup();
+        popup.Show();
+        return this;
     }
 
     private void RegisterSingleHotkey(Key combinedKey, Action action)
@@ -271,6 +351,15 @@ public partial class MainWindow : Window
         todoItem.Click += (s, e) => ShowTodoWindow();
         menu.Items.Add(todoItem);
 
+        // 暂停剪贴板监听 5 分钟(隐私场景:密码输入等)
+        var pauseClipItem = new System.Windows.Controls.MenuItem
+        {
+            Header = (Application.Current.FindResource("Lang_ClipPause5min") as string) ?? "暂停监听 5 分钟"
+        };
+        pauseClipItem.Click += (s, e) =>
+            Core.ClipboardHistory.ClipboardMonitor.Instance.PauseFor(TimeSpan.FromMinutes(5));
+        menu.Items.Add(pauseClipItem);
+
         menu.Items.Add(new System.Windows.Controls.Separator());
 
         var optionItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_Settings") as string) ?? "设置" };
@@ -318,6 +407,17 @@ public partial class MainWindow : Window
         };
         captureWindow.CaptureCancelled += () => isCapturing = false;
         captureWindow.StartCapture();
+        return this;
+    }
+
+    /// <summary>启动屏幕取色器(避免重复打开)</summary>
+    public MainWindow StartColorPicker()
+    {
+        foreach (Window w in Application.Current.Windows)
+        {
+            if (w is ToolBox.Views.ColorPicker.ColorPickerOverlay) return this;
+        }
+        new ToolBox.Views.ColorPicker.ColorPickerOverlay().Start();
         return this;
     }
 

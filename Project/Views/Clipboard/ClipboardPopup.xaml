@@ -1,0 +1,156 @@
+﻿<Window x:Class="ToolBox.Views.ClipboardHistory.ClipboardPopup"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Clipboard" Height="480" Width="360"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        ShowActivated="True"
+        WindowStartupLocation="CenterScreen"
+        Background="Transparent"
+        Topmost="True"
+        PreviewKeyDown="OnPreviewKeyDown"
+        Deactivated="OnDeactivated">
+    <Border Background="{DynamicResource BgElevatedBrush}"
+            BorderBrush="{DynamicResource BorderDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="8">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="24" ShadowDepth="8" Opacity="0.18" Color="#000000"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 顶部:搜索框 + 关闭按钮 -->
+            <Grid Grid.Row="0" Margin="12,12,8,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Background="{DynamicResource BgSunkenBrush}"
+                        CornerRadius="6" BorderBrush="{DynamicResource BorderDefaultBrush}"
+                        BorderThickness="1" Padding="8,4">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="🔍" FontSize="13" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,6,0"/>
+                        <TextBox x:Name="SearchBox" Grid.Column="1"
+                                 Background="Transparent" BorderThickness="0"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 CaretBrush="{DynamicResource AccentBrush}"
+                                 FontSize="13" Padding="0"
+                                 TextChanged="OnSearchTextChanged"/>
+                    </Grid>
+                </Border>
+                <Button Grid.Column="1" Width="28" Height="28" Content="✕" FontSize="11"
+                        Style="{StaticResource IconButton}" Click="OnCloseClick"
+                        VerticalAlignment="Center" Margin="4,0,0,0"/>
+            </Grid>
+
+            <!-- 筛选 Tab:文本/图片/文件/全部 -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="12,0,12,8">
+                <RadioButton x:Name="TabAll" GroupName="Filter" Style="{StaticResource FilterTabStyle}"
+                             Content="全部" IsChecked="True" Click="OnFilterChanged" Margin="0,0,4,0"/>
+                <RadioButton x:Name="TabText" GroupName="Filter" Style="{StaticResource FilterTabStyle}"
+                             Content="文本" Click="OnFilterChanged" Margin="0,0,4,0"/>
+                <RadioButton x:Name="TabImage" GroupName="Filter" Style="{StaticResource FilterTabStyle}"
+                             Content="图片" Click="OnFilterChanged" Margin="0,0,4,0"/>
+                <RadioButton x:Name="TabFile" GroupName="Filter" Style="{StaticResource FilterTabStyle}"
+                             Content="文件" Click="OnFilterChanged"/>
+            </StackPanel>
+
+            <!-- 列表 -->
+            <ListBox x:Name="EntryList" Grid.Row="2" Margin="8,0,8,8"
+                     Background="Transparent" BorderThickness="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     SelectionChanged="OnEntrySelectionChanged"
+                     MouseLeftButtonUp="OnEntryClicked">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource ModernListBoxItem}">
+                        <Setter Property="Padding" Value="8,6"/>
+                        <Setter Property="Margin" Value="0,0,0,2"/>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <!-- 左侧:图片缩略图 或 类型图标 -->
+                            <Border Grid.Column="0" Width="48" Height="48"
+                                    Background="{DynamicResource BgSunkenBrush}"
+                                    CornerRadius="4" VerticalAlignment="Center">
+                                <Grid>
+                                    <Image Source="{Binding ThumbnailPath}" Stretch="UniformToFill"
+                                           Visibility="{Binding HasThumbnail, Converter={StaticResource BoolToVis}}"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                    <TextBlock Text="T" FontSize="14" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               Visibility="{Binding IsTextType, Converter={StaticResource BoolToVis}}"/>
+                                    <TextBlock Text="F" FontSize="14" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               Visibility="{Binding IsFileListType, Converter={StaticResource BoolToVis}}"/>
+                                </Grid>
+                            </Border>
+                            <!-- 中间:内容 + 时间戳 -->
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding DisplayTitle}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextTrimming="CharacterEllipsis" ToolTip="{Binding FullTooltip}"/>
+                                <TextBlock Text="{Binding TimeDisplay}" FontSize="11" Margin="0,2,0,0"
+                                           Foreground="{DynamicResource TextTertiaryBrush}"/>
+                            </StackPanel>
+                            <!-- 右侧:操作按钮 -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="★" FontSize="14" Width="22" Height="22"
+                                        Style="{StaticResource IconButton}" Tag="favorite"
+                                        Click="OnActionClick" Cursor="Hand"
+                                        Foreground="{Binding FavoriteColor}"/>
+                                <Button Content="📌" FontSize="12" Width="22" Height="22"
+                                        Style="{StaticResource IconButton}" Tag="pin"
+                                        Click="OnActionClick" Cursor="Hand"
+                                        Foreground="{Binding PinColor}"/>
+                                <Button Content="🗑" FontSize="12" Width="22" Height="22"
+                                        Style="{StaticResource IconButton}" Tag="delete"
+                                        Click="OnActionClick" Cursor="Hand"/>
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- 底部状态栏 -->
+            <Border Grid.Row="3" Padding="12,8"
+                    BorderBrush="{DynamicResource BorderDefaultBrush}"
+                    BorderThickness="0,1,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="StatusBar" Grid.Column="0" FontSize="11"
+                               Foreground="{DynamicResource TextTertiaryBrush}"
+                               VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Content="发送到 AI" FontSize="11"
+                            Style="{StaticResource OutlineButton}" Padding="10,3"
+                            Click="OnSendToAiClick"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

@@ -20,6 +20,7 @@ public partial class Sidebar : UserControl
             "assistant" => NavAssistant,
             "todos" => NavTodos,
             "screenshots" => NavScreenshots,
+            "clipboard" => NavClipboard,
             "settings" => NavSettings,
             _ => NavDashboard
         };
@@ -33,6 +34,7 @@ public partial class Sidebar : UserControl
         else if (sender == NavAssistant) NavigationRequested?.Invoke("assistant");
         else if (sender == NavTodos) NavigationRequested?.Invoke("todos");
         else if (sender == NavScreenshots) NavigationRequested?.Invoke("screenshots");
+        else if (sender == NavClipboard) NavigationRequested?.Invoke("clipboard");
         else if (sender == NavSettings) NavigationRequested?.Invoke("settings");
     }
 }

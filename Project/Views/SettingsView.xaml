@@ -162,6 +162,10 @@
                                      Style="{StaticResource SettingsNavItem}" Tag="&#xE8BD;" Content="LLM" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavSchedule" GroupName="SettingsNav"
                                      Style="{StaticResource SettingsNavItem}" Tag="&#xE823;" Content="{DynamicResource Lang_Schedule}" Checked="OnNavChecked"/>
+                        <RadioButton x:Name="NavClipboard" GroupName="SettingsNav"
+                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE77F;" Content="{DynamicResource Lang_Clipboard}" Checked="OnNavChecked"/>
+                        <RadioButton x:Name="NavOcr" GroupName="SettingsNav"
+                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE7BC;" Content="OCR" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavLanguage" GroupName="SettingsNav"
                                      Style="{StaticResource SettingsNavItem}" Tag="&#xE774;" Content="{DynamicResource Lang_Language}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavAbout" GroupName="SettingsNav"
@@ -613,6 +617,117 @@
                                         <TextBlock Text="{DynamicResource Lang_SummaryTimeHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <TextBox x:Name="txtDailyReportTime" Grid.Column="1" Width="120" HorizontalAlignment="Right" Style="{StaticResource InputField}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ── Section: 剪贴板 ── -->
+                    <StackPanel x:Name="SectionClipboard" Visibility="Collapsed" Margin="0,0,0,8">
+                        <TextBlock Text="{DynamicResource Lang_ClipSettingsTitle}" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{DynamicResource Lang_ClipSettingsHint}" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
+
+                        <Border Style="{StaticResource SettingsSection}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
+                                               Text="&#xE77F;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="{DynamicResource Lang_Clipboard}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </StackPanel>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{DynamicResource Lang_ClipMaxEntries}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_ClipMaxEntriesHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Width="280">
+                                        <Slider x:Name="sldClipboardMaxEntries" Style="{StaticResource ModernSlider}" Width="220"
+                                                Minimum="50" Maximum="2000" VerticalAlignment="Center"
+                                                ValueChanged="SldClipboardMaxEntries_ValueChanged"/>
+                                        <TextBlock x:Name="txtClipboardMaxEntriesValue" Text="500" FontSize="11" FontFamily="{StaticResource FontMono}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" MinWidth="50" TextAlignment="Right" Margin="12,0,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{DynamicResource Lang_ClipIgnoredApps}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_ClipIgnoredAppsHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="txtClipboardIgnoredApps" Grid.Column="1" Width="280" HorizontalAlignment="Right" Style="{StaticResource InputField}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ── Section: OCR ── -->
+                    <StackPanel x:Name="SectionOcr" Visibility="Collapsed" Margin="0,0,0,8">
+                        <TextBlock Text="OCR 文字识别" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="配置离线 OCR 引擎与默认识别语言" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
+
+                        <Border Style="{StaticResource SettingsSection}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
+                                               Text="&#xE7BC;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="OCR 引擎" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </StackPanel>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="识别引擎" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="Tesseract 精度较高,Windows OCR 系统内置无需语言包" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <RadioButton x:Name="rdoOcrTesseract" GroupName="OcrEngine" Style="{StaticResource RadioCard}" Margin="0,0,12,0">
+                                            <TextBlock Text="Tesseract" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        </RadioButton>
+                                        <RadioButton x:Name="rdoOcrWindows" GroupName="OcrEngine" Style="{StaticResource RadioCard}">
+                                            <TextBlock Text="Windows OCR" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        </RadioButton>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="默认语言" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="Tesseract 用 + 分隔多语言,如 chi_sim+eng;Windows OCR 取首个" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="txtOcrLanguage" Grid.Column="1" Width="200" HorizontalAlignment="Right" Style="{StaticResource InputField}"/>
+                                </Grid>
+
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="已安装语言包" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock x:Name="txtOcrInstalledLangs" Text="(未安装)" FontSize="11" FontFamily="{StaticResource FontMono}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <Button x:Name="btnRefreshOcrLangs" Grid.Column="1" Content="刷新" Style="{StaticResource OutlineButton}" Click="BtnRefreshOcrLangs_Click" Padding="16,6" FontSize="12"/>
                                 </Grid>
                             </StackPanel>
                         </Border>

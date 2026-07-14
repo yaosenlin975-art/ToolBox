@@ -1,0 +1,67 @@
+<Window x:Class="ToolBox.Views.ColorPicker.ColorPickerOverlay"
+                    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    Title="ColorPicker"
+                    WindowStyle="None"
+                    AllowsTransparency="True"
+                    ResizeMode="NoResize"
+                    ShowInTaskbar="False"
+                    Background="Transparent"
+                    Topmost="True"
+                    Cursor="Cross"
+                    WindowState="Normal">
+    <Canvas x:Name="RootCanvas">
+        <!-- 放大镜: 120x120, 白底圆角带阴影,跟随鼠标右上偏移 -->
+        <Border x:Name="MagnifierBorder"
+                Width="120" Height="148"
+                Background="{DynamicResource BgElevatedBrush}"
+                BorderBrush="{DynamicResource BorderDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="12" ShadowDepth="4" Opacity="0.20" Color="#000000"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="120"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <!-- 放大镜图像 + 中心十字线 -->
+                <Grid Grid.Row="0" Width="120" Height="120">
+                    <Image x:Name="ZoomImage" Stretch="Fill" Width="120" Height="120"/>
+                    <!-- 中心十字:2px 粗(规格非功能可访问性要求),覆盖于中心像素 -->
+                    <Line X1="60" Y1="0" X2="60" Y2="120" Stroke="{DynamicResource AccentBrush}" StrokeThickness="2"/>
+                    <Line X1="0" Y1="60" X2="120" Y2="60" Stroke="{DynamicResource AccentBrush}" StrokeThickness="2"/>
+                    <!-- 中心像素高亮框:6x6,标识当前取色像素 -->
+                    <Rectangle Width="6" Height="6"
+                               Stroke="White" StrokeThickness="1"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+                <!-- 色值显示区 -->
+                <Grid Grid.Row="1" Margin="6,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="14"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Ellipse x:Name="ColorPreview" Width="10" Height="10"
+                             VerticalAlignment="Center"
+                             Stroke="{DynamicResource BorderDefaultBrush}" StrokeThickness="1"/>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock x:Name="HexText" FontSize="11" FontWeight="Bold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock x:Name="RgbText" FontSize="11"
+                                   Foreground="{DynamicResource TextTertiaryBrush}"/>
+                        <TextBlock x:Name="HslText" FontSize="11"
+                                   Foreground="{DynamicResource TextTertiaryBrush}"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- 取色成功闪烁:60px 圆形,从鼠标位置缩小消失 -->
+        <Ellipse x:Name="FlashEllipse"
+                 Width="60" Height="60"
+                 Opacity="0"
+                 IsHitTestVisible="False"/>
+    </Canvas>
+</Window>
