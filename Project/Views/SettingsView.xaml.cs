@@ -4,6 +4,8 @@ using System.Windows.Controls;
 
 using System.Windows.Input;
 
+using ToolBox.Core.ActionChain;
+
 using ToolBox.Core.Providers;
 
 using ToolBox.Core.Theming;
@@ -180,6 +182,7 @@ public partial class SettingsView : UserControl
 
 
         LoadCategories();
+        LoadActionChains();
 
         isLoading = false;
 
@@ -230,6 +233,8 @@ public partial class SettingsView : UserControl
         SectionLanguage.Visibility = NavLanguage.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
         SectionAbout.Visibility = NavAbout.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+        SectionActionChains.Visibility = NavActionChains.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
     }
 
@@ -897,6 +902,210 @@ public partial class SettingsView : UserControl
     private void BtnRefreshOcrLangs_Click(object sender, RoutedEventArgs e)
     {
         RefreshOcrInstalledLangs();
+    }
+
+    // ===== Action Chain =====
+
+    private void LoadActionChains()
+    {
+        var store = ActionChainStore.Instance;
+        cmbDefaultChain.Items.Clear();
+        foreach (var chain in store.Chains)
+            cmbDefaultChain.Items.Add(new ComboBoxItem { Content = chain.Name, Tag = chain.Id });
+
+        var defaultChain = store.GetDefaultChain();
+        if (defaultChain != null)
+        {
+            for (int i = 0; i < cmbDefaultChain.Items.Count; i++)
+            {
+                if (cmbDefaultChain.Items[i] is ComboBoxItem item && item.Tag is string id && id == defaultChain.Id)
+                    cmbDefaultChain.SelectedIndex = i;
+            }
+        }
+
+        chkContinueOnError.IsChecked = defaultChain != null ? !defaultChain.StopOnError : false;
+        RenderActionChainCards();
+    }
+
+    private void RenderActionChainCards()
+    {
+        ActionChainCards.Children.Clear();
+        var store = ActionChainStore.Instance;
+        txtChainCount.Text = store.Chains.Count + " 条链";
+
+        foreach (var chain in store.Chains)
+        {
+            var isDefault = chain.Id == store.DefaultChainId;
+            var card = new Border
+            {
+                Background = (Brush)FindResource(isDefault ? "AccentSoftBrush" : "BgSunkenBrush"),
+                BorderBrush = (Brush)FindResource(isDefault ? "AccentBrush" : "BorderBrush"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(12),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+
+            var cardStack = new StackPanel();
+
+            var titleRow = new Grid();
+            titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var titleStack = new StackPanel { Orientation = Orientation.Horizontal };
+            titleStack.Children.Add(new TextBlock { Text = "⚡ ", FontSize = 14, VerticalAlignment = VerticalAlignment.Center });
+            titleStack.Children.Add(new TextBlock
+            {
+                Text = chain.Name,
+                FontSize = 14, FontWeight = FontWeights.SemiBold,
+                Foreground = (Brush)FindResource("TextPrimaryBrush"),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            if (isDefault)
+                titleStack.Children.Add(new Border
+                {
+                    Background = (Brush)FindResource("AccentBrush"), CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(8, 0, 0, 0),
+                    Child = new TextBlock { Text = "默认", FontSize = 10, Foreground = Brushes.White }
+                });
+            if (chain.IsBuiltIn)
+                titleStack.Children.Add(new Border
+                {
+                    Background = (Brush)FindResource("BgSunkenBrush"), BorderBrush = (Brush)FindResource("BorderBrush"),
+                    BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(8, 0, 0, 0),
+                    Child = new TextBlock { Text = "内置", FontSize = 10, Foreground = (Brush)FindResource("TextSecondaryBrush") }
+                });
+            Grid.SetColumn(titleStack, 0);
+            titleRow.Children.Add(titleStack);
+
+            var btnStack = new StackPanel { Orientation = Orientation.Horizontal };
+            if (!isDefault)
+            {
+                var setBtn = new Button
+                {
+                    Content = "设为默认", Style = (Style)FindResource("OutlineButton"),
+                    Padding = new Thickness(8, 2, 8, 2), FontSize = 11, Tag = chain
+                };
+                setBtn.Click += (s, e2) =>
+                {
+                    if (s is Button b && b.Tag is ActionChainDefinition c)
+                    {
+                        ActionChainStore.Instance.SetDefault(c.Id);
+                        LoadActionChains();
+                    }
+                };
+                btnStack.Children.Add(setBtn);
+            }
+            if (!chain.IsBuiltIn)
+            {
+                var delBtn = new Button
+                {
+                    Content = "✕", Style = (Style)FindResource("IconButton"),
+                    Width = 28, Height = 28, Margin = new Thickness(4, 0, 0, 0), Tag = chain
+                };
+                delBtn.Click += (s, e2) =>
+                {
+                    if (s is Button b && b.Tag is ActionChainDefinition c)
+                    {
+                        ActionChainStore.Instance.Delete(c.Id);
+                        LoadActionChains();
+                    }
+                };
+                btnStack.Children.Add(delBtn);
+            }
+            Grid.SetColumn(btnStack, 1);
+            titleRow.Children.Add(btnStack);
+            cardStack.Children.Add(titleRow);
+
+            var nodesText = string.Join(" → ", chain.Nodes.Select(n => GetNodeEmoji(n.NodeType) + GetNodeDisplayName(n.NodeType)));
+            cardStack.Children.Add(new TextBlock
+            {
+                Text = string.IsNullOrEmpty(nodesText) ? "(空链)" : nodesText,
+                FontSize = 11, Foreground = (Brush)FindResource("TextSecondaryBrush"), Margin = new Thickness(0, 6, 0, 0)
+            });
+
+            if (!string.IsNullOrEmpty(chain.Description))
+                cardStack.Children.Add(new TextBlock
+                {
+                    Text = chain.Description, FontSize = 11,
+                    Foreground = (Brush)FindResource("TextTertiaryBrush"), Margin = new Thickness(0, 2, 0, 0)
+                });
+
+            card.Child = cardStack;
+            ActionChainCards.Children.Add(card);
+        }
+    }
+
+    private string GetNodeEmoji(string nodeType) => nodeType switch
+    {
+        "ocr" => "🔤 ",
+        "translate" => "🌐 ",
+        "copy" => "📋 ",
+        "save" => "💾 ",
+        "send_to_ai" => "🤖 ",
+        "open_editor" => "✏️ ",
+        _ => "• "
+    };
+
+    private string GetNodeDisplayName(string nodeType) => nodeType switch
+    {
+        "ocr" => "OCR 提取",
+        "translate" => "翻译文本",
+        "copy" => "复制到剪贴板",
+        "save" => "保存文件",
+        "send_to_ai" => "发送到 AI",
+        "open_editor" => "打开编辑器",
+        _ => nodeType
+    };
+
+    private void BtnAddChain_Click(object sender, RoutedEventArgs e)
+    {
+        var nameDialog = new InputWindow("新建动作链", "输入名称");
+        if (nameDialog.ShowDialog() == true)
+        {
+            var name = nameDialog.Value?.Trim();
+            if (string.IsNullOrEmpty(name)) return;
+
+            var nodeDialog = new InputWindow("选择节点", "输入节点类型 (逗号分隔)\\n可选: ocr, translate, copy, save, send_to_ai, open_editor");
+            if (nodeDialog.ShowDialog() == true)
+            {
+                var nodeTypes = nodeDialog.Value?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim().ToLowerInvariant())
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .Take(20).ToList() ?? new List<string>();
+
+                var chain = new ActionChainDefinition
+                {
+                    Name = name,
+                    Nodes = nodeTypes.Select(t => new ActionNodeConfig { NodeType = t }).ToList()
+                };
+                ActionChainStore.Instance.Add(chain);
+                LoadActionChains();
+            }
+        }
+    }
+
+    private void CmbDefaultChain_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (isLoading) return;
+        if (cmbDefaultChain.SelectedItem is ComboBoxItem item && item.Tag is string id)
+        {
+            ActionChainStore.Instance.SetDefault(id);
+            RenderActionChainCards();
+        }
+    }
+
+    private void ChkContinueOnError_CheckedChanged(object sender, RoutedEventArgs e)
+    {
+        if (isLoading) return;
+        var store = ActionChainStore.Instance;
+        var defaultChain = store.GetDefaultChain();
+        if (defaultChain != null)
+        {
+            defaultChain.StopOnError = chkContinueOnError.IsChecked != true;
+            store.Update(defaultChain);
+        }
     }
 
 }

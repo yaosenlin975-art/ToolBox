@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using ToolBox.Core.Tags;
 using ToolBox.Services;
 using ToolBox.Services.Ocr;
 
@@ -19,6 +21,8 @@ public partial class HistoryView : UserControl
     private int loadedCount;
     private string currentFilter = "month";
     private string currentViewMode = "grid";
+    private string currentTagFilter = ""; // empty = no tag filter
+    private string searchText = "";
 
     public HistoryView()
     {
@@ -26,9 +30,23 @@ public partial class HistoryView : UserControl
         Loaded += (s, e) =>
         {
             CacheManager.Instance.OnScrapCached += OnScrapCached;
+            ScreenshotTagStore.Instance.EntriesChanged += OnTagsChanged;
             LoadHistory();
         };
-        Unloaded += (s, e) => CacheManager.Instance.OnScrapCached -= OnScrapCached;
+        Unloaded += (s, e) =>
+        {
+            CacheManager.Instance.OnScrapCached -= OnScrapCached;
+            ScreenshotTagStore.Instance.EntriesChanged -= OnTagsChanged;
+        };
+    }
+
+    private void OnTagsChanged()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            BuildTagCloud();
+            ApplyFilter();
+        });
     }
 
     private void OnScrapCached(object? sender, EventArgs e)
@@ -43,10 +61,11 @@ public partial class HistoryView : UserControl
 
         if (!Directory.Exists(cachePath))
         {
-            lblSubtitle.Text = string.Format((FindResource("Lang_RecordCount") as string) ?? "{0} 条记录", 0);
+            lblSubtitle.Text = "0 条记录";
             lblEmpty.Visibility = Visibility.Visible;
             btnLoadMore.Visibility = Visibility.Collapsed;
             lstHistory.Items.Clear();
+            BuildTagCloud();
             return;
         }
 
@@ -59,6 +78,7 @@ public partial class HistoryView : UserControl
         }
 
         allItems.Sort((a, b) => b.CreateTime.CompareTo(a.CreateTime));
+        BuildTagCloud();
         ApplyFilter();
     }
 
@@ -73,12 +93,41 @@ public partial class HistoryView : UserControl
             _ => allItems
         };
 
+        // Tag filter
+        if (!string.IsNullOrEmpty(currentTagFilter))
+        {
+            var store = ScreenshotTagStore.Instance;
+            filteredItems = filteredItems.FindAll(item =>
+            {
+                var entry = store.Get(item.FolderPath);
+                return entry != null && entry.Tags.Contains(currentTagFilter);
+            });
+        }
+
+        // Search text filter
+        if (!string.IsNullOrEmpty(searchText))
+        {
+            var lower = searchText.ToLowerInvariant();
+            var store = ScreenshotTagStore.Instance;
+            filteredItems = filteredItems.FindAll(item =>
+            {
+                var entry = store.Get(item.FolderPath);
+                if (entry != null)
+                {
+                    if (entry.Notes.IndexOf(lower, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                    if (entry.Tags.Any(t => t.IndexOf(lower, StringComparison.OrdinalIgnoreCase) >= 0)) return true;
+                }
+                return false;
+            });
+        }
+
         lstHistory.Items.Clear();
         loadedCount = 0;
         LoadNextPage();
 
-        lblSubtitle.Text = string.Format((FindResource("Lang_RecordCount") as string) ?? "{0} 条记录", filteredItems.Count);
+        lblSubtitle.Text = string.Format("{} 条记录", filteredItems.Count);
         lblEmpty.Visibility = filteredItems.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        BuildTagCloud();
     }
 
     private void LoadNextPage()
@@ -143,6 +192,67 @@ public partial class HistoryView : UserControl
         }
     }
 
+    private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        searchText = txtSearch.Text?.Trim() ?? "";
+        ApplyFilter();
+    }
+
+    /// <summary>构建标签云（所有标签及其出现次数，点击筛选）</summary>
+    private void BuildTagCloud()
+    {
+        TagCloudPanel.Children.Clear();
+
+        // 清除筛选按钮
+        var clearBtn = new Button
+        {
+            Content = "✕ 全部",
+            Style = (Style)FindResource("BtnDefault"),
+            Margin = new Thickness(0, 2, 6, 2),
+            Tag = ""
+        };
+        clearBtn.Click += (s, e) => { currentTagFilter = ""; ApplyFilter(); };
+        TagCloudPanel.Children.Add(clearBtn);
+
+        var store = ScreenshotTagStore.Instance;
+        var tagCounts = store.GetAllTagCounts()
+            .OrderByDescending(kv => kv.Value)
+            .Take(30)
+            .ToList();
+
+        foreach (var kv in tagCounts)
+        {
+            var btn = new Button
+            {
+                Content = "🏷 " + kv.Key + " (" + kv.Value + ")",
+                Style = (Style)FindResource("BtnDefault"),
+                Margin = new Thickness(0, 2, 6, 2),
+                Tag = kv.Key
+            };
+            btn.Click += (s, e) =>
+            {
+                if (s is Button b && b.Tag is string tag)
+                    currentTagFilter = currentTagFilter == tag ? "" : tag;
+                ApplyFilter();
+            };
+            TagCloudPanel.Children.Add(btn);
+        }
+
+        // 如果没有标签，显示提示
+        if (tagCounts.Count == 0)
+        {
+            var hint = new TextBlock
+            {
+                Text = "右键截图 → 管理标签 可添加标签",
+                FontSize = 11,
+                Foreground = (Brush)FindResource("TextTertiaryBrush"),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+            TagCloudPanel.Children.Add(hint);
+        }
+    }
+
     private void BtnLoadMore_Click(object sender, RoutedEventArgs e) => LoadNextPage();
 
     private void HistoryItem_Click(object sender, MouseButtonEventArgs e)
@@ -152,6 +262,148 @@ public partial class HistoryView : UserControl
             var preview = new ImagePreviewWindow(vm.FullImage);
             preview.ShowDialog();
         }
+    }
+
+    /// <summary>为选中的截图打开标签编辑器弹窗</summary>
+    private void OpenTagEditor(HistoryItemViewModel vm)
+    {
+        var cacheKey = vm.CacheItem.FolderPath;
+        var store = ScreenshotTagStore.Instance;
+        var entry = store.GetOrCreate(cacheKey);
+
+        var window = new Window
+        {
+            Title = "管理标签",
+            Width = 400,
+            Height = 500,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = Window.GetWindow(this),
+            Background = (Brush)FindResource("BgBrush")
+        };
+
+        var panel = new StackPanel { Margin = new Thickness(20) };
+
+        // 标题
+        panel.Children.Add(new TextBlock
+        {
+            Text = "🏷 标签管理",
+            FontSize = 18,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = (Brush)FindResource("TextPrimaryBrush"),
+            Margin = new Thickness(0, 0, 0, 12)
+        });
+
+        // 当前标签展示
+        var tagsPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+        panel.Children.Add(tagsPanel);
+
+        void RefreshTags()
+        {
+            tagsPanel.Children.Clear();
+            foreach (var tag in entry.Tags)
+            {
+                var chip = new Border
+                {
+                    Background = (Brush)FindResource("AccentSoftBrush"),
+                    CornerRadius = new CornerRadius(12),
+                    Padding = new Thickness(8, 4, 12, 4),
+                    Margin = new Thickness(0, 0, 6, 6)
+                };
+                var chipStack = new StackPanel { Orientation = Orientation.Horizontal };
+                chipStack.Children.Add(new TextBlock
+                {
+                    Text = "🏷 " + tag,
+                    FontSize = 12,
+                    Foreground = (Brush)FindResource("TextPrimaryBrush")
+                });
+                var removeBtn = new Button
+                {
+                    Content = "✕",
+                    FontSize = 10,
+                    Margin = new Thickness(6, 0, 0, 0),
+                    Style = (Style)FindResource("IconButton"),
+                    Tag = tag
+                };
+                removeBtn.Click += (_, _) =>
+                {
+                    store.RemoveTag(cacheKey, tag);
+                    entry = store.GetOrCreate(cacheKey);
+                    RefreshTags();
+                };
+                chipStack.Children.Add(removeBtn);
+                chip.Child = chipStack;
+                tagsPanel.Children.Add(chip);
+            }
+        }
+        RefreshTags();
+
+        // 添加标签输入
+        var addPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+        var txtNewTag = new TextBox
+        {
+            Width = 260,
+            Margin = new Thickness(0, 0, 8, 0),
+            Background = (Brush)FindResource("BgSunkenBrush"),
+            Foreground = (Brush)FindResource("TextPrimaryBrush"),
+            BorderBrush = (Brush)FindResource("BorderBrush")
+        };
+        var addBtn = new Button
+        {
+            Content = "添加",
+            Style = (Style)FindResource("BtnPrimary")
+        };
+        addBtn.Click += (_, _) =>
+        {
+            var tag = txtNewTag.Text.Trim();
+            if (!string.IsNullOrEmpty(tag))
+            {
+                store.AddTag(cacheKey, tag);
+                entry = store.GetOrCreate(cacheKey);
+                txtNewTag.Text = "";
+                RefreshTags();
+            }
+        };
+        addPanel.Children.Add(txtNewTag);
+        addPanel.Children.Add(addBtn);
+        panel.Children.Add(addPanel);
+
+        // 备注
+        panel.Children.Add(new TextBlock
+        {
+            Text = "备注",
+            FontSize = 13,
+            FontWeight = FontWeights.Medium,
+            Foreground = (Brush)FindResource("TextPrimaryBrush"),
+            Margin = new Thickness(0, 0, 0, 4)
+        });
+        var txtNotes = new TextBox
+        {
+            Text = entry.Notes,
+            AcceptsReturn = true,
+            Height = 80,
+            Background = (Brush)FindResource("BgSunkenBrush"),
+            Foreground = (Brush)FindResource("TextPrimaryBrush"),
+            BorderBrush = (Brush)FindResource("BorderBrush")
+        };
+        panel.Children.Add(txtNotes);
+
+        // 保存按钮
+        var saveBtn = new Button
+        {
+            Content = "保存",
+            Style = (Style)FindResource("BtnPrimary"),
+            Margin = new Thickness(0, 12, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        saveBtn.Click += (_, _) =>
+        {
+            store.SetNotes(cacheKey, txtNotes.Text);
+            window.Close();
+        };
+        panel.Children.Add(saveBtn);
+
+        window.Content = new ScrollViewer { Content = panel };
+        window.ShowDialog();
     }
 
     private void HistoryItem_RightClick(object sender, MouseButtonEventArgs e)
@@ -173,6 +425,11 @@ public partial class HistoryView : UserControl
         var ocrItem = new System.Windows.Controls.MenuItem { Header = "识别文字" };
         ocrItem.Click += (_, _) => RecognizeHistoryImage(vm.FullImage);
         contextMenu.Items.Add(ocrItem);
+
+        // 管理标签: 打开标签编辑器
+        var tagItem = new System.Windows.Controls.MenuItem { Header = "🏷 管理标签" };
+        tagItem.Click += (_, _) => OpenTagEditor(vm);
+        contextMenu.Items.Add(tagItem);
 
         var deleteItem = new System.Windows.Controls.MenuItem { Header = (FindResource("Lang_Delete") as string) ?? "删除" };
         deleteItem.Click += (_, _) => DeleteHistoryItem(vm);

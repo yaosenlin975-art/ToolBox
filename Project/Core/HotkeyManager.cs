@@ -14,7 +14,7 @@ public class HotkeyManager
     private readonly Dictionary<int, Action> hotkeyActions = new();
     private int nextId = 9000;
 
-    public HotkeyManager Initialize(Window window)
+    public HotkeyManager Initialize(System.Windows.Window window)
     {
         var helper = new WindowInteropHelper(window);
         hwndSource = HwndSource.FromHwnd(helper.Handle);

@@ -261,6 +261,13 @@ public class ToolBoxOptionData
     public string OcrEngine { get; set; } = "Tesseract";
     /// <summary>OCR 默认语言组合，如 "chi_sim+eng"。</summary>
     public string OcrLanguage { get; set; } = "chi_sim+eng";
+
+    /// <summary>截图后显示悬浮预览卡（默认开启）</summary>
+    public bool ShowPreviewCard { get; set; } = true;
+    /// <summary>预览卡显示时长（毫秒，默认 5000）</summary>
+    public double PreviewCardDurationMs { get; set; } = 5000;
+    /// <summary>贴图模式下跳过预览卡</summary>
+    public bool PreviewCardSkipInPinMode { get; set; }
 }
 
 public class ScrapOption

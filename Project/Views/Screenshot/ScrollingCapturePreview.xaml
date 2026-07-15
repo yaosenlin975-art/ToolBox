@@ -1,0 +1,46 @@
+<Window x:Class="ToolBox.Views.Screenshot.ScrollingCapturePreview"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="长截图预览"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="ToolWindow"
+        Width="900" Height="600"
+        Background="{DynamicResource BgBrush}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Padding="12,8"
+                Background="{DynamicResource BgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="BtnSave" Content="💾 保存 PNG" Click="BtnSave_Click"
+                        Style="{StaticResource BtnPrimary}" Padding="12,6" Margin="0,0,8,0"/>
+                <Button x:Name="BtnCopy" Content="📋 复制" Click="BtnCopy_Click"
+                        Style="{StaticResource OutlineButton}" Padding="12,6" Margin="0,0,8,0"/>
+                <Button x:Name="BtnPin" Content="📌 贴图置顶" Click="BtnPin_Click"
+                        Style="{StaticResource OutlineButton}" Padding="12,6" Margin="0,0,8,0"/>
+                <Button x:Name="BtnClose" Content="✕ 关闭" Click="BtnClose_Click"
+                        Style="{StaticResource OutlineButton}" Padding="12,6"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Preview -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                      Background="{DynamicResource BgSunkenBrush}">
+            <Image x:Name="PreviewImage" Stretch="None" Margin="16"/>
+        </ScrollViewer>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2" Padding="12,6"
+                Background="{DynamicResource BgBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+            <TextBlock x:Name="StatusText" Text="Ctrl+滚轮缩放"
+                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+        </Border>
+    </Grid>
+</Window>

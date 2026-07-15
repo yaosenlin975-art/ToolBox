@@ -27,7 +27,7 @@ public class WpfTrayIcon : IDisposable
     private Action onRightClick;
     private bool disposed;
 
-    public WpfTrayIcon(Window ownerWindow, string tooltip, Icon icon, Action onDoubleClick, Action onRightClick = null)
+    public WpfTrayIcon(System.Windows.Window ownerWindow, string tooltip, Icon icon, Action onDoubleClick, Action onRightClick = null)
     {
         this.onDoubleClick = onDoubleClick;
         this.onRightClick = onRightClick;

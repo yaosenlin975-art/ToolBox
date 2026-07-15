@@ -1,4 +1,4 @@
-﻿﻿// ClipboardMonitor.cs - Win32 剪贴板链监听器
+﻿﻿﻿﻿﻿﻿﻿﻿// ClipboardMonitor.cs - Win32 剪贴板链监听器
 // 职责:监听系统剪贴板变化,异步解析内容并产生 ClipboardEntry
 // 设计要点:
 //   - 单例模式,与 *Manager.Instance 风格一致
@@ -52,7 +52,7 @@ public class ClipboardMonitor : IDisposable
     public HashSet<string> IgnoredApps { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>启动监听,绑定到指定窗口的消息循环</summary>
-    public ClipboardMonitor Start(Window window)
+    public ClipboardMonitor Start(System.Windows.Window window)
     {
         if (hwndSource != null) return this;
 

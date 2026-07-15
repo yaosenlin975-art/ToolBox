@@ -158,6 +158,8 @@
                                      Style="{StaticResource SettingsNavItem}" Tag="&#xE765;" Content="{DynamicResource Lang_Hotkey}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavCapture" GroupName="SettingsNav"
                                      Style="{StaticResource SettingsNavItem}" Tag="&#xE722;" Content="{DynamicResource Lang_Capture}" Checked="OnNavChecked"/>
+                        <RadioButton x:Name="NavActionChains" GroupName="SettingsNav"
+                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE9C5;" Content="截图动作链" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavLlm" GroupName="SettingsNav"
                                      Style="{StaticResource SettingsNavItem}" Tag="&#xE8BD;" Content="LLM" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavSchedule" GroupName="SettingsNav"
@@ -271,6 +273,68 @@
                                         <TextBlock x:Name="txtCompactOpacityValue" Text="50" FontSize="11" FontFamily="{StaticResource FontMono}"
                                                    Foreground="{DynamicResource TextSecondaryBrush}" MinWidth="36" TextAlignment="Right" Margin="12,0,0,0"/>
                                     </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ── Section: 截图动作链 ── -->
+                    <StackPanel x:Name="SectionActionChains" Visibility="Collapsed" Margin="0,0,0,8">
+                        <TextBlock Text="截图动作链" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="配置截图完成后自动执行的动作序列，例如&quot;OCR → 复制&quot;直接提字到剪贴板" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
+
+                        <Border Style="{StaticResource SettingsSection}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
+                                               Text="&#xE9C5;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="动作链管理" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </StackPanel>
+
+                                <!-- 当前默认链 -->
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="当前默认动作链" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="截图后自动执行此链" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <ComboBox x:Name="cmbDefaultChain" Grid.Column="1" Width="240" HorizontalAlignment="Left" SelectionChanged="CmbDefaultChain_SelectionChanged"/>
+                                </Grid>
+
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <!-- 链列表 -->
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock Text="已有动作链" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock x:Name="txtChainCount" Text="0 条链" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                                    </StackPanel>
+                                    <Button x:Name="btnAddChain" Content="+ 新建链" Style="{StaticResource BtnPrimary}" Padding="12,4" FontSize="12" Click="BtnAddChain_Click"/>
+                                </Grid>
+
+                                <!-- 动作链卡片列表 -->
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+                                <StackPanel x:Name="ActionChainCards" Margin="0,12,0,0"/>
+
+                                <!-- 配置 -->
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0" Margin="0,16,0,0"/>
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="遇错继续执行" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="节点出错时不停止，继续执行下一个节点" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <CheckBox x:Name="chkContinueOnError" Grid.Column="1" Style="{StaticResource ToggleSwitch}" VerticalAlignment="Center" Checked="ChkContinueOnError_CheckedChanged" Unchecked="ChkContinueOnError_CheckedChanged"/>
                                 </Grid>
                             </StackPanel>
                         </Border>

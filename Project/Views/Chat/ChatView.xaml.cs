@@ -44,6 +44,9 @@ public partial class ChatView : UserControl
         toolRegistry.Register(typeof(Core.ColorPicker.ColorTools));
         toolRegistry.Register(typeof(Core.ClipboardHistory.ClipboardTools));
         toolRegistry.Register(typeof(OcrTools));
+        toolRegistry.Register(typeof(ActionChainTools));
+        toolRegistry.Register(typeof(ScreenshotTools));
+        toolRegistry.Register(typeof(SnippetTools));
         LoadSessions();
     }
 

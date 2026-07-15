@@ -94,6 +94,17 @@ public partial class App : Application
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             clipMonitor.IgnoredApps.Add(app);
 
+        // 启动代码片段关键字展开(低层键盘钩子)
+        try
+        {
+            var expander = Core.Snippets.SnippetExpander.Instance;
+            expander.Start();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] SnippetExpander start failed: {ex.Message}");
+        }
+
         if (e.Args.Length > 0)
         {
             mainWindow.CommandRun(e.Args);

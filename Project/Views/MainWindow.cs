@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -7,7 +7,9 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using ToolBox.Core.ActionChain;
 using ToolBox.Core.Native;
+using ToolBox.Core.PreviewCard;
 using ToolBox.Core.Windows;
 using ToolBox.Models;
 using ToolBox.Services;
@@ -24,6 +26,7 @@ public partial class MainWindow : Window
     private System.Windows.Threading.DispatcherTimer windowTimer;
     private bool isStarted;
     private bool isCapturing;
+    private bool isScrollingCapturing;
     private List<ScrapWindow> hiddenScraps = new();
     private bool allScrapsActive = true;
     private WpfTrayIcon trayIcon;
@@ -64,6 +67,9 @@ public partial class MainWindow : Window
 
         RegisterHotkeys();
         SetupTrayIcon();
+
+        // 预览卡操作事件处理
+        PreviewCardManager.Instance.ActionTriggered += OnPreviewCardAction;
     }
 
     private void MainWindow_StateChanged(object sender, EventArgs e)
@@ -164,6 +170,109 @@ public partial class MainWindow : Window
         {
             System.Diagnostics.Debug.WriteLine($"[ToolBox] OCR hotkey registration failed: {ex.Message}");
         }
+
+        // Register snippet popup hotkey: Ctrl+Shift+S (固定, 弹出代码片段浮窗)
+        try
+        {
+            HotkeyManager.Instance.RegisterHotkey(
+                Key.S, ModifierKeys.Control | ModifierKeys.Shift,
+                () =>
+                {
+                    if (isStarted)
+                        ShowSnippetPopup();
+                });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] Snippet popup hotkey registration failed: {ex.Message}");
+        }
+
+        // Register scrolling capture hotkey: Ctrl+Shift+L (P1 - AC1.1)
+        try
+        {
+            HotkeyManager.Instance.RegisterHotkey(
+                Key.L, ModifierKeys.Control | ModifierKeys.Shift,
+                () =>
+                {
+                    if (isStarted && !isCapturing)
+                        StartScrollingCapture();
+                });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] Scrolling capture hotkey registration failed: {ex.Message}");
+        }
+
+        // Register window pin hotkey: Ctrl+Shift+T (P3-03)
+        try
+        {
+            HotkeyManager.Instance.RegisterHotkey(
+                Key.T, ModifierKeys.Control | ModifierKeys.Shift,
+                () =>
+                {
+                    if (isStarted)
+                    {
+                        bool nowPinned = ToolBox.Core.Window.WindowPinner.ToggleForegroundWindow();
+                        System.Diagnostics.Debug.WriteLine($"[ToolBox] Window pin: {nowPinned}");
+                    }
+                });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] Window pin hotkey registration failed: {ex.Message}");
+        }
+
+        // Register screen freeze hotkey: Ctrl+Shift+F (P3-02)
+        try
+        {
+            HotkeyManager.Instance.RegisterHotkey(
+                Key.F, ModifierKeys.Control | ModifierKeys.Shift,
+                () =>
+                {
+                    if (isStarted)
+                    {
+                        if (_screenFreezeWindow != null)
+                        {
+                            _screenFreezeWindow.Close();
+                            _screenFreezeWindow = null;
+                        }
+                        else
+                        {
+                            var width = (int)System.Windows.SystemParameters.PrimaryScreenWidth;
+                            var height = (int)System.Windows.SystemParameters.PrimaryScreenHeight;
+                            var capture = CaptureScreen(0, 0, width, height);
+                            _screenFreezeWindow = new ToolBox.Views.ScreenFreeze.ScreenFreezeWindow(capture);
+                            _screenFreezeWindow.Closed += (s, e2) => _screenFreezeWindow = null;
+                            _screenFreezeWindow.Show();
+                        }
+                    }
+                });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] Screen freeze hotkey registration failed: {ex.Message}");
+        }
+    }
+
+    private ToolBox.Views.ScreenFreeze.ScreenFreezeWindow? _screenFreezeWindow;
+
+    private static System.Windows.Media.Imaging.BitmapSource CaptureScreen(int left, int top, int width, int height)
+    {
+        using var bitmap = new System.Drawing.Bitmap(width, height);
+        using var graphics = System.Drawing.Graphics.FromImage(bitmap);
+        graphics.CopyFromScreen(left, top, 0, 0, new System.Drawing.Size(width, height));
+        var bitmapData = bitmap.LockBits(
+            new System.Drawing.Rectangle(0, 0, width, height),
+            System.Drawing.Imaging.ImageLockMode.ReadOnly,
+            System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        var bitmapSource = System.Windows.Media.Imaging.BitmapSource.Create(
+            width, height,
+            bitmap.HorizontalResolution, bitmap.VerticalResolution,
+            System.Windows.Media.PixelFormats.Bgra32, null,
+            bitmapData.Scan0, bitmapData.Stride * height, bitmapData.Stride);
+        bitmap.UnlockBits(bitmapData);
+        bitmapSource.Freeze();
+        return bitmapSource;
     }
 
     /// <summary>对最近一次截图执行 OCR 并弹出结果窗口(AC1.1)。</summary>
@@ -194,6 +303,22 @@ public partial class MainWindow : Window
             }
         }
         var popup = new ToolBox.Views.ClipboardHistory.ClipboardPopup();
+        popup.Show();
+        return this;
+    }
+
+    /// <summary>显示代码片段浮窗(避免重复打开)</summary>
+    public MainWindow ShowSnippetPopup()
+    {
+        foreach (Window w in Application.Current.Windows)
+        {
+            if (w is ToolBox.Views.Snippets.SnippetPopup existing)
+            {
+                existing.Activate();
+                return this;
+            }
+        }
+        var popup = new ToolBox.Views.Snippets.SnippetPopup();
         popup.Show();
         return this;
     }
@@ -396,13 +521,24 @@ public partial class MainWindow : Window
         isCapturing = true;
 
         var captureWindow = new Capture.CaptureWindow();
-        captureWindow.CaptureCompleted += (bitmap, point, size) =>
+        captureWindow.CaptureCompleted += async (bitmap, point, size) =>
         {
             var bmpSource = ConvertToBitmapSource(bitmap);
             if (bmpSource != null)
+            {
                 scrapBook.AddScrap(bmpSource,
                     (int)point.X, (int)point.Y,
                     (int)size.Width, (int)size.Height);
+                // 执行默认动作链
+                var defaultChain = ActionChainStore.Instance.GetDefaultChain();
+                if (defaultChain != null)
+                {
+                    _ = ActionChainEngine.Instance.ExecuteAsync(defaultChain, bmpSource);
+                }
+
+                // 显示悬浮预览卡
+                PreviewCardManager.Instance.Show(bmpSource);
+            }
             isCapturing = false;
         };
         captureWindow.CaptureCancelled += () => isCapturing = false;
@@ -418,6 +554,91 @@ public partial class MainWindow : Window
             if (w is ToolBox.Views.ColorPicker.ColorPickerOverlay) return this;
         }
         new ToolBox.Views.ColorPicker.ColorPickerOverlay().Start();
+        return this;
+    }
+
+    /// <summary>启动长截图模式: 取当前前台窗口进行滚动截取 (AC1.1, AC1.2)</summary>
+    public MainWindow StartScrollingCapture()
+    {
+        // 防止并发启动多个长截图任务
+        if (isScrollingCapturing)
+        {
+            System.Diagnostics.Debug.WriteLine("[ToolBox] Scrolling capture already running");
+            return this;
+        }
+
+        // Get foreground window handle
+        IntPtr hwnd = NativeMethods.GetForegroundWindow();
+        if (hwnd == IntPtr.Zero)
+        {
+            System.Windows.MessageBox.Show("没有可用的前台窗口", "长截图",
+                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            return this;
+        }
+
+        // Ensure window is visible
+        if (NativeMethods.IsIconic(hwnd))
+        {
+            System.Windows.MessageBox.Show("请先显示目标窗口", "长截图",
+                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            return this;
+        }
+
+        var engine = ToolBox.Core.Screenshot.ScrollingCaptureEngine.Instance;
+        var config = new ToolBox.Core.Screenshot.ScrollingCaptureConfig
+        {
+            TargetWindow = hwnd,
+            Direction = ToolBox.Core.Screenshot.EScrollDirection.Vertical,
+            MaxFrames = 50,
+            ScrollStepPixels = 120,
+            ScrollDelayMs = 300
+        };
+
+        var cts = new System.Threading.CancellationTokenSource();
+        isScrollingCapturing = true;
+
+        var progress = new System.Progress<ToolBox.Core.Screenshot.ScrollingCaptureProgress>(p =>
+        {
+            System.Diagnostics.Debug.WriteLine("[ScrollingCapture] " + p.StatusText);
+        });
+
+        System.Threading.Tasks.Task.Run(async () =>
+        {
+            try
+            {
+                var result = await engine.CaptureAsync(config, progress, cts.Token);
+                if (result != null)
+                {
+                    System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+                    {
+                        try
+                        {
+                            var preview = new ToolBox.Views.Screenshot.ScrollingCapturePreview();
+                            preview.SetImage(result);
+                            preview.Show();
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine("[ScrollingCapture] UI error: " + ex.Message);
+                        }
+                    });
+                }
+            }
+            catch (System.Threading.Tasks.TaskCanceledException)
+            {
+                // User canceled, no action needed
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[ScrollingCapture] " + ex.Message);
+            }
+            finally
+            {
+                isScrollingCapturing = false;
+                cts.Dispose();
+            }
+        }, cts.Token);
+
         return this;
     }
 
@@ -662,6 +883,62 @@ public partial class MainWindow : Window
 
     [System.Runtime.InteropServices.DllImport("gdi32.dll")]
     private static extern bool DeleteObject(IntPtr hObject);
+
+    /// <summary>处理预览卡操作事件</summary>
+    private void OnPreviewCardAction(EPreviewCardAction action, BitmapSource screenshot)
+    {
+        switch (action)
+        {
+            case EPreviewCardAction.Edit:
+                // 先创建贴图窗口，再打开标注编辑器
+                var editScrap = new ScrapWindow();
+                editScrap.SetImage(screenshot);
+                editScrap.Left = SystemParameters.PrimaryScreenWidth / 2 - screenshot.PixelWidth / 2;
+                editScrap.Top = SystemParameters.PrimaryScreenHeight / 2 - screenshot.PixelHeight / 2;
+                editScrap.Show();
+                var paintWindow = new PaintWindow(editScrap);
+                paintWindow.Show();
+                break;
+
+            case EPreviewCardAction.PinToDesktop:
+                // 贴图置顶
+                scrapBook.AddScrap(screenshot,
+                    (int)(SystemParameters.PrimaryScreenWidth / 2 - screenshot.PixelWidth / 2),
+                    (int)(SystemParameters.PrimaryScreenHeight / 2 - screenshot.PixelHeight / 2),
+                    screenshot.PixelWidth, screenshot.PixelHeight);
+                break;
+
+            case EPreviewCardAction.Copy:
+                // 已在 PreviewCardWindow 中处理
+                break;
+
+            case EPreviewCardAction.Save:
+                // 保存为文件
+                var dialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "PNG 图片|*.png|JPEG 图片|*.jpg|所有文件|*.*",
+                    DefaultExt = ".png",
+                    FileName = $"screenshot_{DateTime.Now:yyyyMMdd_HHmmss}"
+                };
+                if (dialog.ShowDialog() == true)
+                {
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(screenshot));
+                    using var fs = new FileStream(dialog.FileName, FileMode.Create);
+                    encoder.Save(fs);
+                }
+                break;
+
+            case EPreviewCardAction.SendToAi:
+                // 发送到 AI 助手
+                OpenWorkbench("assistant");
+                break;
+
+            case EPreviewCardAction.Discard:
+                // 丢弃，不做任何操作
+                break;
+        }
+    }
 }
 
 

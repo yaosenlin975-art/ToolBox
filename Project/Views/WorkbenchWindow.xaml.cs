@@ -1,10 +1,11 @@
-﻿﻿using System.Windows;
+﻿﻿﻿﻿﻿﻿﻿﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ToolBox.Views.Chat;
 using ToolBox.Views.ClipboardHistory;
 using ToolBox.Views.Dashboard;
 using ToolBox.Views.Todo;
+using ToolBox.Views.Snippets;
 
 namespace ToolBox.Views;
 
@@ -12,6 +13,7 @@ public partial class WorkbenchWindow : Window
 {
     private DashboardView? dashboardView;
     private ClipboardView? clipboardView;
+    private SnippetView? snippetView;
 
     public WorkbenchWindow()
     {
@@ -31,6 +33,7 @@ public partial class WorkbenchWindow : Window
             "todos" => (FindResource("Lang_Page_Todos") as string) ?? "待办管理",
             "screenshots" => (FindResource("Lang_Page_Screenshots") as string) ?? "截图历史",
             "clipboard" => (FindResource("Lang_Page_Clipboard") as string) ?? "剪贴板",
+            "snippets" => "代码片段",
             "settings" => (FindResource("Lang_Page_Settings") as string) ?? "设置",
             _ => string.Empty
         };
@@ -44,6 +47,7 @@ public partial class WorkbenchWindow : Window
             "todos" => new TodoView(),
             "screenshots" => new HistoryView(),
             "clipboard" => GetClipboard(),
+            "snippets" => GetSnippets(),
             "settings" => new SettingsView(),
             _ => null
         };
@@ -54,6 +58,12 @@ public partial class WorkbenchWindow : Window
         // 复用同一实例,避免每次切换都重新订阅事件
         clipboardView ??= new ClipboardView();
         return clipboardView;
+    }
+
+    private SnippetView GetSnippets()
+    {
+        snippetView ??= new SnippetView();
+        return snippetView;
     }
 
     private DashboardView GetDashboard()

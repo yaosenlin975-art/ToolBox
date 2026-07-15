@@ -36,6 +36,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" x:Name="Prompt" FontSize="12"
                            Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -44,9 +45,22 @@
                          Foreground="{DynamicResource TextPrimaryBrush}"
                          BorderBrush="{DynamicResource BorderDefaultBrush}"
                          CaretBrush="{DynamicResource TextPrimaryBrush}"
-                         KeyDown="Input_KeyDown"/>
+                         KeyDown="Input_KeyDown" TextChanged="Input_TextChanged"/>
+                <!-- Date suggestion popup -->
+                <Border x:Name="DateSuggestionPanel" Grid.Row="2" Visibility="Collapsed"
+                        Background="{DynamicResource BgSecondaryBrush}" CornerRadius="6"
+                        Padding="8,4" Margin="0,4,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="📅 " VerticalAlignment="Center"/>
+                        <TextBlock x:Name="txtDateSuggestion" FontSize="11"
+                                   Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                        <Button x:Name="BtnClearDate" Content="✕" Width="20" Height="20" Margin="8,0,0,0"
+                                Style="{StaticResource IconButton}" FontSize="10"
+                                Click="BtnClearDate_Click"/>
+                    </StackPanel>
+                </Border>
                 <!-- 分类 + 优先级 + 截止日期 -->
-                <StackPanel x:Name="TodoExtraPanel" Grid.Row="2" Visibility="Collapsed" Margin="0,10,0,0">
+                <StackPanel x:Name="TodoExtraPanel" Grid.Row="3" Visibility="Collapsed" Margin="0,10,0,0">
                     <TextBlock Text="分类" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
                     <Grid Margin="0,0,0,12">
                         <Grid.RowDefinitions>
@@ -75,7 +89,7 @@
                     <DatePicker x:Name="DueDatePicker" FontSize="12"
                                 Foreground="{DynamicResource TextPrimaryBrush}"/>
                 </StackPanel>
-                <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
                     <Button Content="取消" Width="72" Margin="0,0,8,0"
                             Style="{StaticResource OutlineButton}" Click="Cancel_Click"/>
                     <Button Content="确定" Width="72"
