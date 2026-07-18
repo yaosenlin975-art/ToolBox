@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿// ClipboardStore.cs - 剪贴板历史持久化服务
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// ClipboardStore.cs - 剪贴板历史持久化服务
 // 职责:JSON 持久化 + SHA256 去重 + CRUD + 上限管理 + 缩略图文件管理
 // 路径约定:%AppData%/ToolBox/clipboard.json(与 color_history.json 同目录)
 //          缩略图:%LocalAppData%/ToolBox/clipboard_thumbnails/{id}.jpg

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿// ClipboardTools.cs - 剪贴板历史 LLM Tool 暴露
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿// ClipboardTools.cs - 剪贴板历史 LLM Tool 暴露
 // 职责:让 AI 助手能调用 search_clipboard / get_clipboard 查询剪贴板历史
 // 注册位置:ChatView.xaml.cs 构造函数 toolRegistry.Register(typeof(ClipboardTools))
 using System.Linq;
