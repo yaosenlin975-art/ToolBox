@@ -16,5 +16,12 @@ public class TodoItem
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAt { get; set; }
     public bool IsTrashed { get; set; }
+
+    // --- 重复待办字段 ---
+    public RepeatConfig? RepeatConfig { get; set; }
+    public DateTime? LastResetAt { get; set; }
+
+    public bool IsRepeating => RepeatConfig != null;
+
     public string StatusText => IsCompleted ? "✅ 已完成" : "○ 待办";
 }

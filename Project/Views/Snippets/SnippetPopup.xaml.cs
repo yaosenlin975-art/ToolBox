@@ -31,7 +31,8 @@ public partial class SnippetPopup : Window
 
     private void OnDeactivated(object sender, EventArgs e)
     {
-        Close();
+        if (IsLoaded && IsVisible)
+            Close();
     }
 
     private void OnItemsChanged() => Dispatcher.Invoke(Refresh);

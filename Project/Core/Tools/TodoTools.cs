@@ -11,7 +11,8 @@ public static class TodoTools
         [ToolParam("任务描述")] string description = "",
         [ToolParam("优先级 0=普通 1=重要 2=紧急")] int priority = 0,
         [ToolParam("标签（逗号分隔）")] string tags = "",
-        [ToolParam("截止日期（yyyy-MM-dd 或自然语言如'明天下午3点'）")] string dueDate = "")
+        [ToolParam("截止日期（yyyy-MM-dd 或自然语言如'明天下午3点'）")] string dueDate = "",
+        [ToolParam("重复频率: daily/weekly/monthly/yearly，空=不重复")] string repeat = "")
     {
         var tagList = string.IsNullOrWhiteSpace(tags) ? new List<string>() : tags.Split(',').Select(t => t.Trim()).ToList();
 
@@ -30,27 +31,35 @@ public static class TodoTools
             if (parsed.HasDate) due = parsed.ParsedDate;
         }
 
-        var item = TodoStore.Instance.Add(title, description, priority, tags: tagList, dueDate: due);
+        if (!string.IsNullOrWhiteSpace(repeat)
+            && Enum.TryParse<ERepeatFrequency>(repeat, true, out var freq))
+        {
+            var item = TodoStore.Instance.AddRepeating(title, freq, description, priority, tags: tagList, dueDate: due);
+            return $"已添加重复 Todo [{item.Id}]: {item.Title} ({freq})";
+        }
+
+        var normal = TodoStore.Instance.Add(title, description, priority, tags: tagList, dueDate: due);
         var dueInfo = due.HasValue ? $", 截止 {due:yyyy-MM-dd HH:mm}" : "";
-        return $"已添加 Todo [{item.Id}]: {item.Title}{dueInfo}";
+        return $"已添加 Todo [{normal.Id}]: {normal.Title}{dueInfo}";
     }
 
     [Tool("list_todos", "查询 Todo 列表")]
     public static string ListTodos(
-        [ToolParam("筛选: all/pending/completed")] string filter = "all",
+        [ToolParam("筛选: all/pending/completed/repeating")] string filter = "all",
         [ToolParam("按标签筛选")] string tag = "")
     {
         List<TodoItem> items = filter switch
         {
             "pending" => TodoStore.Instance.GetPending(),
             "completed" => TodoStore.Instance.GetCompleted(),
+            "repeating" => TodoStore.Instance.GetRepeating(),
             _ => TodoStore.Instance.GetAll()
         };
         if (!string.IsNullOrWhiteSpace(tag))
             items = items.Where(t => t.Tags.Contains(tag)).ToList();
         if (items.Count == 0) return "没有找到 Todo";
         return string.Join("\n", items.Select(t =>
-            "[" + (t.IsCompleted ? "完成" : "待办") + "] " + t.Id + " | " + t.Title + " | P" + t.Priority));
+            "[" + (t.IsCompleted ? "完成" : "待办") + "] " + t.Id + " | " + (t.IsRepeating ? "\U0001F504 " : "") + t.Title + " | P" + t.Priority));
     }
 
     [Tool("complete_todo", "标记 Todo 为已完成")]

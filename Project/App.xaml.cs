@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Windows;
+using ToolBox.Core.Todo;
 
 namespace ToolBox;
 
@@ -93,6 +94,39 @@ public partial class App : Application
         foreach (var app in (options.Data.ClipboardIgnoredApps ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             clipMonitor.IgnoredApps.Add(app);
+
+        // 可重复待办：补齐 + 通知 + 注册提醒
+        TodoStore.Instance.RepeatReminderTriggered += (item, wasReset) =>
+        {
+            var tray = MainWindow?.TrayIcon;
+            if (tray == null) return;
+            try
+            {
+                if (wasReset)
+                    tray.ShowBalloon("🔄 " + item.Title, $"{item.Title} 已重置，记得完成哦");
+                else
+                    tray.ShowBalloon(item.Title, $"{item.Title} 今天还没有完成哦");
+            }
+            catch { /* best-effort */ }
+        };
+
+        // CatchUp + RegisterReminders run async after startup
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var missed = await TodoStore.Instance.CatchUpRepeatingAsync();
+                if (missed > 0)
+                    System.Diagnostics.Debug.WriteLine($"[ToolBox] 重置了 {missed} 个重复待办");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ToolBox] 重复待办补齐失败: {ex.Message}");
+            }
+            // 即使补齐失败也要注册提醒
+            try { TodoStore.Instance.RegisterRepeatReminders(); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] 注册提醒失败: {ex.Message}"); }
+        });
 
         // 启动代码片段关键字展开(低层键盘钩子)
         try

@@ -1,4 +1,4 @@
-﻿﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Shapes;
 using System.Windows.Input;
@@ -29,6 +29,7 @@ public partial class TodoView : UserControl
             "pending" => TodoStore.Instance.GetGroupedTree(pendingOnly: true),
             "completed" => GetGroupedCompleted(),
             "trashed" => GetGroupedTrashed(),
+            "repeating" => GetGroupedRepeating(),
             _ => TodoStore.Instance.GetGroupedTree()
         };
 
@@ -61,6 +62,29 @@ public partial class TodoView : UserControl
         {
             var display = g.Key == "默认" ? "未分类" : g.Key;
             result[display] = g.ToList();
+        }
+        return result;
+    }
+
+    private Dictionary<string, List<TodoItem>> GetGroupedRepeating()
+    {
+        var result = new Dictionary<string, List<TodoItem>>();
+        var repeating = TodoStore.Instance.GetRepeating();
+        foreach (var cat in TodoStore.Instance.Categories)
+        {
+            var catItems = repeating.Where(t => t.Category == cat).ToList();
+            if (catItems.Count > 0)
+            {
+                var display = cat == "默认" ? "未分类" : cat;
+                result[display] = catItems;
+            }
+        }
+        // Uncategorized repeating items
+        var uncategorized = repeating.Where(t => !TodoStore.Instance.Categories.Contains(t.Category)).ToList();
+        if (uncategorized.Count > 0)
+        {
+            var display = uncategorized[0].Category == "默认" ? "未分类" : uncategorized[0].Category;
+            result[display] = uncategorized;
         }
         return result;
     }
@@ -158,9 +182,10 @@ public partial class TodoView : UserControl
             grid.Children.Add(dot);
         }
 
+        var titleText = item.IsRepeating ? "\U0001F504 " + item.Title : item.Title;
         var title = new TextBlock
         {
-            Text = item.Title, FontSize = 13,
+            Text = titleText, FontSize = 13,
             Foreground = item.IsCompleted ? (Brush)FindResource("TextTertiaryBrush") : (Brush)FindResource("TextPrimaryBrush"),
             TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center
         };
@@ -186,6 +211,17 @@ public partial class TodoView : UserControl
             var badgeText = new TextBlock { Text = priText, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(priColor)) };
             badge.Child = badgeText;
             rightStack.Children.Add(badge);
+        }
+        if (item.IsRepeating && item.RepeatConfig != null)
+        {
+            rightStack.Children.Add(new TextBlock
+            {
+                Text = $"\U0001F504 {item.RepeatConfig.ReminderHour:D2}:{item.RepeatConfig.ReminderMinute:D2}",
+                FontSize = 11,
+                Foreground = (Brush)FindResource("TextTertiaryBrush"),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 4, 0)
+            });
         }
         if (item.DueDate.HasValue)
         {
@@ -243,19 +279,24 @@ public partial class TodoView : UserControl
         if (FilterAll?.IsChecked == true) currentFilter = "all";
         else if (FilterPending?.IsChecked == true) currentFilter = "pending";
         else if (FilterCompleted?.IsChecked == true) currentFilter = "completed";
+        else if (FilterRepeating?.IsChecked == true) currentFilter = "repeating";
         else if (FilterTrashed?.IsChecked == true) currentFilter = "trashed";
         LoadTodos();
     }
 
     private async void DoneCheck_Changed(object sender, RoutedEventArgs e)
     {
-        if (sender is CheckBox cb && cb.DataContext is TodoItem item)
+        try
         {
-            if (cb.IsChecked == true)
-                await TodoStore.Instance.CompleteAsync(item.Id);
-            else
-                await TodoStore.Instance.UncompleteAsync(item.Id);
+            if (sender is CheckBox cb && cb.DataContext is TodoItem item)
+            {
+                if (cb.IsChecked == true)
+                    await TodoStore.Instance.CompleteAsync(item.Id);
+                else
+                    await TodoStore.Instance.UncompleteAsync(item.Id);
+            }
         }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }
 
     private void ShowDetail(TodoItem item)
@@ -282,6 +323,22 @@ public partial class TodoView : UserControl
         var isTrashed = item.IsTrashed;
         DetailTrashBtn.Visibility = isTrashed ? Visibility.Collapsed : Visibility.Visible;
         DetailRestoreBtn.Visibility = isTrashed ? Visibility.Visible : Visibility.Collapsed;
+
+        // Repeat config section
+        if (item.RepeatConfig != null)
+        {
+            DetailRepeatSection.Visibility = Visibility.Visible;
+            DetailRepeatFreq.SelectedIndex = (int)item.RepeatConfig.Frequency + 1;
+            DetailRepeatTime.Text = $"{item.RepeatConfig.ReminderHour:D2}:{item.RepeatConfig.ReminderMinute:D2}";
+            DetailRepeatEndDate.SelectedDate = item.RepeatConfig.EndDate?.Date;
+        }
+        else
+        {
+            DetailRepeatSection.Visibility = Visibility.Visible; // 仍然显示，用于首次设置
+            DetailRepeatFreq.SelectedIndex = 0;
+            DetailRepeatTime.Text = "09:00";
+            DetailRepeatEndDate.SelectedDate = null;
+        }
     }
 
     private void HideDetail()
@@ -328,6 +385,49 @@ public partial class TodoView : UserControl
         DetailProgressText.Text = val + "%";
         if (val != selected.Progress)
             await TodoStore.Instance.UpdateAsync(selected.Id, progress: val);
+    }
+
+    private async void DetailRepeatSave_Click(object sender, RoutedEventArgs e)
+    {
+        if (selected == null) return;
+
+        var freqIndex = DetailRepeatFreq.SelectedIndex;
+
+        // "不重复" → 取消重复
+        if (freqIndex == 0)
+        {
+            await TodoStore.Instance.SetRepeatConfigAsync(selected.Id, null);
+        }
+        else
+        {
+            var frequency = (ERepeatFrequency)(freqIndex - 1);
+
+            // Parse reminder time with validation
+            var timeStr = DetailRepeatTime.Text.Trim();
+            int hour = 9, minute = 0;
+            if (TimeSpan.TryParse(timeStr, out var ts))
+            {
+                hour = ts.Hours;
+                minute = ts.Minutes;
+            }
+
+            DateTime? endDate = DetailRepeatEndDate.SelectedDate;
+            if (endDate.HasValue)
+                endDate = endDate.Value.ToUniversalTime();
+
+            var config = new RepeatConfig
+            {
+                Frequency = frequency,
+                StartDate = DateTime.UtcNow.Date,
+                EndDate = endDate,
+                ReminderHour = Math.Clamp(hour, 0, 23),
+                ReminderMinute = Math.Clamp(minute, 0, 59),
+            };
+
+            await TodoStore.Instance.SetRepeatConfigAsync(selected.Id, config);
+        }
+
+        ShowDetail(selected); // Refresh display
     }
 
     private async void DetailTrash_Click(object sender, RoutedEventArgs e)
@@ -399,13 +499,31 @@ public partial class TodoView : UserControl
 
     private void FloatingAddBtn_Click(object sender, RoutedEventArgs e)
     {
-        var input = new InputWindow("添加待办", "请输入待办标题:");
-        input.Owner = Window.GetWindow(this);
-        input.ShowTodoFields();
-        if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
+        try
         {
-            _ = TodoStore.Instance.AddAsync(input.Value.Trim(),
-                priority: input.Priority, category: input.Category, dueDate: input.DueDate);
+            var input = new InputWindow("添加待办", "请输入待办标题:");
+            input.Owner = Window.GetWindow(this);
+            input.ShowTodoFields();
+            if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
+            {
+                if (input.RepeatFrequency.HasValue)
+                {
+                    _ = TodoStore.Instance.AddRepeatingAsync(
+                        input.Value.Trim(),
+                        input.RepeatFrequency.Value,
+                        priority: input.Priority,
+                        category: input.Category,
+                        dueDate: input.DueDate,
+                        reminderHour: input.ReminderHour,
+                        reminderMinute: input.ReminderMinute);
+                }
+                else
+                {
+                    _ = TodoStore.Instance.AddAsync(input.Value.Trim(),
+                        priority: input.Priority, category: input.Category, dueDate: input.DueDate);
+                }
+            }
         }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }
 }

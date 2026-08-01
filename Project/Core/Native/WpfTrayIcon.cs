@@ -16,6 +16,8 @@ public class WpfTrayIcon : IDisposable
     private const int NIF_ICON = 0x02;
     private const int NIF_TIP = 0x04;
     private const int NIF_DOUBLECLICK = 0x08;
+    private const int NIF_INFO = 0x10;
+    private const int NIIF_INFO = 0x01;
     private const int WM_LBUTTONDBLCLK = 0x0203;
     private const int WM_RBUTTONUP = 0x0205;
     private const int WM_LBUTTONUP = 0x0202;
@@ -63,6 +65,17 @@ public class WpfTrayIcon : IDisposable
     {
         iconData.hIcon = icon.Handle;
         iconData.uFlags = NIF_ICON;
+        Shell_NotifyIcon(NIM_MODIFY, ref iconData);
+        return this;
+    }
+
+    public WpfTrayIcon ShowBalloon(string title, string message, int timeoutMs = 3000)
+    {
+        iconData.uFlags |= NIF_INFO;
+        iconData.szInfo = message;
+        iconData.szInfoTitle = title;
+        iconData.dwInfoFlags = NIIF_INFO;
+        iconData.uTimeoutOrVersion = timeoutMs;
         Shell_NotifyIcon(NIM_MODIFY, ref iconData);
         return this;
     }

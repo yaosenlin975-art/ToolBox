@@ -125,7 +125,7 @@ public partial class HistoryView : UserControl
         loadedCount = 0;
         LoadNextPage();
 
-        lblSubtitle.Text = string.Format("{} 条记录", filteredItems.Count);
+        lblSubtitle.Text = $"{filteredItems.Count} 条记录";
         lblEmpty.Visibility = filteredItems.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         BuildTagCloud();
     }

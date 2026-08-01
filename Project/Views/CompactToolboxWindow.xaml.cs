@@ -1,4 +1,4 @@
-﻿﻿using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -180,7 +180,31 @@ public partial class CompactToolboxWindow : Window
         if (TodoItemsPanel == null) return;
         TodoItemsPanel.Children.Clear();
 
+        // ── 今日重复分组（排在最前） ──
+        var dueRepeating = TodoStore.Instance.GetDueRepeating();
+        if (dueRepeating.Count > 0)
+        {
+            var header = new TextBlock
+            {
+                Text = (FindResource("Lang_TodayRepeating") as string) ?? "今日重复",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = (Brush)FindResource("TextTertiaryBrush"),
+                Margin = new Thickness(8, 4, 0, 2)
+            };
+            TodoItemsPanel.Children.Add(header);
+
+            foreach (var item in dueRepeating)
+            {
+                var row = CreateCompactItemRow(item, 0);
+                TodoItemsPanel.Children.Add(row);
+            }
+        }
+
+        // ── 分类分组（排除重复项，避免重复显示） ──
         var grouped = TodoStore.Instance.GetGroupedTree(pendingOnly: true);
+        // Filter out repeating items from category drawers
+        var repeatingIds = new HashSet<string>(dueRepeating.Select(i => i.Id));
         foreach (var (category, roots) in grouped)
         {
             var display = category == "\u9ED8\u8BA4" ? "\u672A\u5206\u7C7B" : category;
@@ -210,7 +234,10 @@ public partial class CompactToolboxWindow : Window
 
             var panel = new StackPanel { Margin = new Thickness(0, 2, 0, 0) };
             foreach (var item in roots)
+            {
+                if (repeatingIds.Contains(item.Id)) continue;
                 AddCompactItemAndChildren(panel, item, 0);
+            }
             drawer.Content = panel;
             TodoItemsPanel.Children.Add(drawer);
         }
@@ -222,7 +249,10 @@ public partial class CompactToolboxWindow : Window
     {
         panel.Children.Add(CreateCompactItemRow(item, depth));
         foreach (var child in TodoStore.Instance.GetChildren(item.Id))
+        {
+            if (child.IsCompleted) continue;
             AddCompactItemAndChildren(panel, child, depth + 1);
+        }
     }
 
     private Border CreateCompactItemRow(TodoItem item, int depth)
@@ -255,9 +285,10 @@ public partial class CompactToolboxWindow : Window
             grid.Children.Add(dot);
         }
 
+        var titleText = item.IsRepeating ? "\U0001F504 " + item.Title : item.Title;
         var title = new TextBlock
         {
-            Text = item.Title, FontSize = 12,
+            Text = titleText, FontSize = 12,
             Foreground = item.IsCompleted ? (Brush)FindResource("TextTertiaryBrush") : (Brush)FindResource("TextPrimaryBrush"),
             TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center
         };
@@ -325,13 +356,17 @@ public partial class CompactToolboxWindow : Window
 
     private async void CompactTodoCheck_Changed(object sender, RoutedEventArgs e)
     {
-        if (sender is CheckBox cb && cb.DataContext is TodoItem item)
+        try
         {
-            if (cb.IsChecked == true)
-                await TodoStore.Instance.CompleteAsync(item.Id);
-            else
-                await TodoStore.Instance.UncompleteAsync(item.Id);
+            if (sender is CheckBox cb && cb.DataContext is TodoItem item)
+            {
+                if (cb.IsChecked == true)
+                    await TodoStore.Instance.CompleteAsync(item.Id);
+                else
+                    await TodoStore.Instance.UncompleteAsync(item.Id);
+            }
         }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }
 
     private void ShowDetail(TodoItem item)
@@ -436,13 +471,34 @@ public partial class CompactToolboxWindow : Window
 
     private async void QuickAddTodo_Click(object sender, RoutedEventArgs e)
     {
-        var input = new InputWindow(
-            (FindResource("Lang_QuickAddTitle") as string) ?? "\u5FEB\u901F\u6DFB\u52A0\u5F85\u529E",
-            (FindResource("Lang_QuickAddPrompt") as string) ?? "\u8BF7\u8F93\u5165\u6807\u9898:");
-        input.Owner = this;
-        input.ShowTodoFields();
-        if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
-            await TodoStore.Instance.AddAsync(input.Value.Trim(), priority: input.Priority, category: input.Category, dueDate: input.DueDate);
+        try
+        {
+            var input = new InputWindow(
+                (FindResource("Lang_QuickAddTitle") as string) ?? "\u5FEB\u901F\u6DFB\u52A0\u5F85\u529E",
+                (FindResource("Lang_QuickAddPrompt") as string) ?? "\u8BF7\u8F93\u5165\u6807\u9898:");
+            input.Owner = this;
+            input.Topmost = true; // stay visible over compact window
+            input.ShowTodoFields();
+            if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
+            {
+                if (input.RepeatFrequency.HasValue)
+                {
+                    await TodoStore.Instance.AddRepeatingAsync(
+                        input.Value.Trim(),
+                        input.RepeatFrequency.Value,
+                        priority: input.Priority,
+                        category: input.Category,
+                        dueDate: input.DueDate,
+                        reminderHour: input.ReminderHour,
+                        reminderMinute: input.ReminderMinute);
+                }
+                else
+                {
+                    await TodoStore.Instance.AddAsync(input.Value.Trim(), priority: input.Priority, category: input.Category, dueDate: input.DueDate);
+                }
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }
 
     private void SessionSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)

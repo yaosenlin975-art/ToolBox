@@ -20,10 +20,8 @@ public class LanguagePackManager
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Setuna", "ocr", "tessdata");
 
-    /// <summary>Engine 构造所需的 dataPath(tessdata 的父目录)。</summary>
-    public static readonly string EngineDataPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Setuna", "ocr");
+    /// <summary>Engine 构造所需的 dataPath(tessdata 目录本身，包含 *.traineddata)。</summary>
+    public static readonly string EngineDataPath = TessDataPath;
 
     public static LanguagePackManager Instance { get; } = new();
 

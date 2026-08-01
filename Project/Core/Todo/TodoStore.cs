@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ToolBox.Core.Scheduling;
 
 namespace ToolBox.Core.Todo;
 
@@ -127,8 +128,165 @@ public class TodoStore
         return true;
     }
 
+    // ─── 重复待办 ────────────────────────────────────────────────
+
+    public event Action<TodoItem, bool>? RepeatReminderTriggered; // (item, wasReset)
+
+    public async Task<TodoItem> AddRepeatingAsync(
+        string title,
+        ERepeatFrequency frequency,
+        string description = "",
+        int priority = 0,
+        string category = "默认",
+        List<string>? tags = null,
+        DateTime? dueDate = null,
+        DateTime? endDate = null,
+        int reminderHour = 9,
+        int reminderMinute = 0)
+    {
+        if (!categories.Contains(category)) categories.Add(category);
+        DateTime? endDateUtc = endDate?.ToUniversalTime();
+        var item = new TodoItem
+        {
+            Title = title,
+            Description = description,
+            Priority = priority,
+            Category = category,
+            Tags = tags ?? [],
+            DueDate = dueDate?.ToUniversalTime(),
+            RepeatConfig = new RepeatConfig
+            {
+                Frequency = frequency,
+                StartDate = DateTime.UtcNow.Date,
+                EndDate = endDateUtc,
+                ReminderHour = reminderHour,
+                ReminderMinute = reminderMinute,
+            },
+            LastResetAt = DateTime.UtcNow,
+        };
+        items.Add(item);
+        await SaveAsync();
+        NotifyChanged();
+        return item;
+    }
+
+    public List<TodoItem> GetRepeating()
+        => items.Where(t => t.RepeatConfig != null && !t.IsTrashed).ToList();
+
+    /// <summary>获取今日应显示的重复待办（仅未完成项）</summary>
+    public List<TodoItem> GetDueRepeating()
+    {
+        var now = DateTime.UtcNow.Date;
+        return items.Where(t =>
+                t.RepeatConfig != null
+                && !t.IsTrashed
+                && !t.IsCompleted
+                && (t.RepeatConfig.EndDate == null || now <= t.RepeatConfig.EndDate.Value.Date))
+            .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
+            .ToList();
+    }
+
+    public async Task<bool> ResetRepeatingAsync(string id)
+    {
+        var item = items.FirstOrDefault(t => t.Id == id && t.RepeatConfig != null);
+        if (item == null) return false;
+        item.IsCompleted = false;
+        item.CompletedAt = null;
+        item.LastResetAt = DateTime.UtcNow;
+        await SaveAsync();
+        NotifyChanged();
+        return true;
+    }
+
+    public async Task<int> CatchUpRepeatingAsync()
+    {
+        var repeating = items.Where(t => t.RepeatConfig != null && !t.IsTrashed).ToList();
+        int resetCount = 0;
+
+        foreach (var item in repeating)
+        {
+            if (!item.IsCompleted) continue;
+            var config = item.RepeatConfig;
+            if (config == null) continue;
+            var lastReset = item.LastResetAt ?? config.StartDate;
+            var nextReset = RepeatCalculator.CalculateNextResetTime(
+                lastReset, config.Frequency, config.ReminderHour, config.ReminderMinute);
+            if (DateTime.UtcNow >= nextReset)
+            {
+                item.IsCompleted = false;
+                item.CompletedAt = null;
+                item.LastResetAt = DateTime.UtcNow;
+                resetCount++;
+            }
+        }
+
+        if (resetCount > 0) { await SaveAsync(); NotifyChanged(); }
+        return resetCount;
+    }
+
+    /// <summary>注册所有活跃重复项的 Cron 提醒</summary>
+    public void RegisterRepeatReminders()
+    {
+        var repeating = items.Where(t => t.RepeatConfig != null && !t.IsTrashed).ToList();
+        foreach (var item in repeating)
+            RegisterSingleRepeatReminder(item);
+    }
+
+    /// <summary>注册单个重复项的 Cron 提醒</summary>
+    public void RegisterSingleRepeatReminder(TodoItem item)
+    {
+        var config = item.RepeatConfig;
+        if (config == null) return;
+        var cron = config.Frequency.ToCron(config.ReminderHour, config.ReminderMinute);
+        var cronId = "repeat_" + item.Id;
+        CronExpressionr.Instance.Unregister(cronId);
+        var capturedId = item.Id;
+        CronExpressionr.Instance.Register(cronId, cron, () =>
+        {
+            try
+            {
+                var current = items.FirstOrDefault(t => t.Id == capturedId);
+                if (current?.RepeatConfig == null || current.IsTrashed) return;
+                if (current.IsCompleted)
+                {
+                    _ = ResetRepeatingAsync(capturedId);
+                    RepeatReminderTriggered?.Invoke(current, true);
+                }
+                else
+                {
+                    RepeatReminderTriggered?.Invoke(current, false);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ToolBox] 重复提醒回调异常: {ex.Message}");
+            }
+        });
+    }
+
+    public void UnregisterRepeatReminder(string itemId)
+        => CronExpressionr.Instance.Unregister("repeat_" + itemId);
+
+    /// <summary>设置或取消重复配置（替代直接修改 RepeatConfig 字段）</summary>
+    public async Task SetRepeatConfigAsync(string id, RepeatConfig? config)
+    {
+        var item = items.FirstOrDefault(t => t.Id == id);
+        if (item == null) return;
+        UnregisterRepeatReminder(id);
+        item.RepeatConfig = config;
+        item.LastResetAt = config != null ? DateTime.UtcNow : null;
+        if (config != null)
+            RegisterSingleRepeatReminder(item);
+        await SaveAsync();
+        NotifyChanged();
+    }
+
     public async Task<bool> DeleteAsync(string id)
     {
+        var item = items.FirstOrDefault(t => t.Id == id);
+        if (item == null) return false;
+        if (item.RepeatConfig != null)
+            UnregisterRepeatReminder(id);
         var removed = items.RemoveAll(t => t.Id == id);
         if (removed > 0) { await SaveAsync(); NotifyChanged(); }
         return removed > 0;
@@ -160,8 +318,14 @@ public class TodoStore
         var item = items.FirstOrDefault(t => t.Id == id);
         if (item == null) return false;
         item.IsTrashed = true;
+        if (item.RepeatConfig != null)
+            UnregisterRepeatReminder(id);
         foreach (var child in items.Where(t => t.ParentId == id).ToList())
+        {
+            if (child.RepeatConfig != null)
+                UnregisterRepeatReminder(child.Id);
             await TrashAsync(child.Id);
+        }
         await SaveAsync();
         NotifyChanged();
         return true;
@@ -172,6 +336,8 @@ public class TodoStore
         var item = items.FirstOrDefault(t => t.Id == id);
         if (item == null) return false;
         item.IsTrashed = false;
+        if (item.RepeatConfig != null)
+            RegisterSingleRepeatReminder(item);
         foreach (var child in items.Where(t => t.ParentId == id).ToList())
             await RestoreAsync(child.Id);
         await SaveAsync();
@@ -197,6 +363,8 @@ public class TodoStore
     public bool Trash(string id) => Task.Run(() => TrashAsync(id)).GetAwaiter().GetResult();
     public bool Restore(string id) => Task.Run(() => RestoreAsync(id)).GetAwaiter().GetResult();
     public bool DeletePermanently(string id) => Task.Run(() => DeletePermanentlyAsync(id)).GetAwaiter().GetResult();
+    public TodoItem AddRepeating(string title, ERepeatFrequency frequency, string description = "", int priority = 0, string category = "默认", List<string>? tags = null, DateTime? dueDate = null, DateTime? endDate = null, int reminderHour = 9, int reminderMinute = 0)
+        => Task.Run(() => AddRepeatingAsync(title, frequency, description, priority, category, tags, dueDate, endDate, reminderHour, reminderMinute)).GetAwaiter().GetResult();
 
     // --- Tree structure ---
     public List<TodoItem> GetChildren(string parentId)

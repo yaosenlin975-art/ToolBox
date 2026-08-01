@@ -51,7 +51,8 @@ public static class ScheduleManager
             || !int.TryParse(timeParts[1], out var minute))
             return;
 
-        var cron = $"0 {minute} {hour} * *";
+        var utc = DateTime.Today.AddHours(hour).AddMinutes(minute).ToUniversalTime();
+        var cron = $"{utc.Minute} {utc.Hour} * * *";
         CronExpressionr.Instance.Register(DailyReportId, cron, () =>
         {
             try

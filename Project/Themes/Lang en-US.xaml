@@ -155,6 +155,7 @@
     <sys:String x:Key="Lang_QuickAdd">Quick add</sys:String>
     <sys:String x:Key="Lang_QuickAddTitle">Quick add to-do</sys:String>
     <sys:String x:Key="Lang_QuickAddPrompt">Enter a title:</sys:String>
+    <sys:String x:Key="Lang_TodayRepeating">Today's Repeating</sys:String>
 
     <sys:String x:Key="Lang_Workbench_Title">ToolBox</sys:String>
     <sys:String x:Key="Lang_Workbench_ToCompact">Switch to compact mode</sys:String>

@@ -240,6 +240,8 @@ Agent 在对话循环中最多执行 10 轮工具调用，每轮最多 3 次重�
   - `StartDate`（DateTime?, 可空, 默认创建当天）
   - `DueDate`（DateTime?, 可空, 即截止日期）
   - `Children`（List<TodoItem>, 子任务列表, 支持多层递归嵌套；父任务进度可由子任务聚合：`Parent.Progress = Σ(子 Progress * 子权重) / Σ(子权重)`，权重按子任务是否已完成归一化）
+  - `RepeatConfig`（RepeatConfig?, 可空, 有值则代表该待办为重复待办；配置频率/提醒时间/结束日期等；空 = 普通待办）
+  - `LastResetAt`（DateTime?, 可空, 重复待办最近一次重置时间，用于补齐判断；普通待办为 null）
 - **迷你窗口** — 仅显示未完成项（`IsDone=false`），按 `DueDate` 升序，无 `DueDate` 排末尾；checkbox 切换状态 + 快速添加；不显示子任务层级（仅顶层项）
 - **工作台 todos 页** — 65/35 双栏布局：左侧筛选（全部/待办/已完成 胶囊样式）+ 快速添加 + 列表（checkbox + 优先级点 + 标题 + 标签 + 截止日期）；右侧详情面板（标题/状态/优先级/描述/创建完成时间/删除按钮）
 - **LLM 集成** — `TodoTools` 允许 LLM 增删改查（add/list/complete/delete/update）
@@ -247,7 +249,7 @@ Agent 在对话循环中最多执行 10 轮工具调用，每轮最多 3 次重�
 > **注意**: 上述 `Progress`、`StartDate`、`Children` 字段在当前代码中均未实现（`TodoItem.cs` 仅有基础字段）。这些是设计目标，待后续迭代补齐。
 
 
-- **可重复待办** — 模板+实例模型：`TodoItem.RepeatConfig` 定义重复规则（Daily/Weekly/Monthly/Yearly），完成后自动生成下一个实例；启动时 `CatchUpRepeating` 自动补齐错过的天数；`CronScheduler` 为每个活跃模板注册提醒；迷你窗口按「今日重复 / 普通待办」分组显示；详见 `Docs/recurring-todo-design.md`
+- **可重复待办（重置模型）** — 同一 TodoItem 按周期重置状态：`TodoItem.RepeatConfig` 定义重复规则（Daily/Weekly/Monthly/Yearly），到提醒时间（Cron 触发）自动将 `IsCompleted` 改回 `false` 并弹通知；完成重复项时行为与普通项一致（只标记完成）；启动时 `CatchUpRepeatingAsync` 遍历已完成且已过重置时间的项，重置为未完成（一次）；迷你窗口按「今日重复 / 普通待办」分组显示；详见 `Docs/recurring-todo-design.md`
 ### 设置
 
 - 通过迷你窗口 `☰` 按钮或托盘菜单打开 WorkbenchWindow，导航至 `settings` 页

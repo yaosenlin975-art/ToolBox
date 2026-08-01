@@ -85,6 +85,8 @@
                                  Style="{StaticResource FilterTabStyle}" Click="Filter_Changed"/>
                     <RadioButton x:Name="FilterCompleted" Content="已完成" Margin="0,0,4,0"
                                  Style="{StaticResource FilterTabStyle}" Click="Filter_Changed"/>
+                    <RadioButton x:Name="FilterRepeating" Content="重复" Margin="0,0,4,0"
+                                 Style="{StaticResource FilterTabStyle}" Click="Filter_Changed"/>
                     <RadioButton x:Name="FilterTrashed" Content="废弃" Margin="0,0,4,0"
                                  Style="{StaticResource FilterTabStyle}" Click="Filter_Changed"/>
                 </StackPanel>
@@ -193,6 +195,52 @@
                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                        VerticalAlignment="Center"/>
                         </Grid>
+
+                        <!-- Repeat config -->
+                        <Border x:Name="DetailRepeatSection" Margin="0,0,0,16" Padding="0" BorderThickness="0"
+                                Visibility="Collapsed">
+                            <StackPanel>
+                                <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="6" Padding="10">
+                                    <StackPanel>
+                                        <TextBlock Text="重复设置" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,8"/>
+
+                                        <TextBlock Text="频率" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                        <ComboBox x:Name="DetailRepeatFreq" FontSize="12" SelectedIndex="0" Margin="0,0,0,8"
+                                                  Background="{DynamicResource BgElevatedBrush}"
+                                                  Foreground="{DynamicResource TextPrimaryBrush}">
+                                            <ComboBoxItem Content="不重复"/>
+                                            <ComboBoxItem Content="每天"/>
+                                            <ComboBoxItem Content="每周"/>
+                                            <ComboBoxItem Content="每月"/>
+                                            <ComboBoxItem Content="每年"/>
+                                        </ComboBox>
+
+                                        <TextBlock Text="提醒时间" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="DetailRepeatTime" Grid.Column="0" FontSize="12" Padding="6,4"
+                                                     Text="09:00"
+                                                     Background="{DynamicResource BgSunkenBrush}"
+                                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                                     BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"/>
+                                        </Grid>
+
+                                        <TextBlock Text="结束日期" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                        <DatePicker x:Name="DetailRepeatEndDate" FontSize="12" Margin="0,0,0,8"
+                                                    Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                                        <Button x:Name="DetailRepeatSaveBtn" Content="设为重复"
+                                                Padding="14,6" FontSize="12"
+                                                Style="{StaticResource BtnPrimary}"
+                                                Click="DetailRepeatSave_Click"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
 
                         <!-- Description -->
                         <TextBlock Text="描述" FontSize="11" FontWeight="SemiBold"

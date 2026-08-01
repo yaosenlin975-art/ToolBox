@@ -88,6 +88,32 @@
                     <TextBlock Text="截止日期" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
                     <DatePicker x:Name="DueDatePicker" FontSize="12"
                                 Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="重复频率" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,12,0,6"/>
+                    <ComboBox x:Name="RepeatCombo" FontSize="12" SelectedIndex="0"
+                              Background="{DynamicResource BgSunkenBrush}"
+                              Foreground="{DynamicResource TextPrimaryBrush}">
+                              SelectionChanged="RepeatCombo_SelectionChanged">
+                        <ComboBoxItem Content="不重复"/>
+                        <ComboBoxItem Content="每天"/>
+                        <ComboBoxItem Content="每周"/>
+                        <ComboBoxItem Content="每月"/>
+                        <ComboBoxItem Content="每年"/>
+                    </ComboBox>
+                    <StackPanel x:Name="RepeatTimePanel" Visibility="Collapsed" Margin="0,8,0,0">
+                        <TextBlock Text="提醒时间" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox x:Name="ReminderHourInput" Width="40" FontSize="12" Padding="4,2" Text="09"
+                                     Background="{DynamicResource BgSunkenBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                     BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
+                                     HorizontalContentAlignment="Center" MaxLength="2"/>
+                            <TextBlock Text=":" FontSize="13" VerticalAlignment="Center" Margin="4,0"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBox x:Name="ReminderMinuteInput" Width="40" FontSize="12" Padding="4,2" Text="00"
+                                     Background="{DynamicResource BgSunkenBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                     BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
+                                     HorizontalContentAlignment="Center" MaxLength="2"/>
+                        </StackPanel>
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
                     <Button Content="取消" Width="72" Margin="0,0,8,0"

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -30,6 +30,7 @@ public partial class MainWindow : Window
     private List<ScrapWindow> hiddenScraps = new();
     private bool allScrapsActive = true;
     private WpfTrayIcon trayIcon;
+    public WpfTrayIcon TrayIcon => trayIcon!;
 
     public MainWindow()
     {

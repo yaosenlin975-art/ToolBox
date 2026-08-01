@@ -12,6 +12,9 @@ public partial class InputWindow : Window
     public int Priority { get; private set; }
     public string Category { get; private set; } = "默认";
     public DateTime? DueDate { get; private set; }
+    public ERepeatFrequency? RepeatFrequency { get; private set; }
+    public int ReminderHour { get; private set; } = 9;
+    public int ReminderMinute { get; private set; } = 0;
     private DispatcherTimer? dateParseDebounce;
     private DateTime? parsedDate;
 
@@ -120,6 +123,25 @@ public partial class InputWindow : Window
 
         // Use DatePicker value if set, otherwise use parsed date from input text
         DueDate = DueDatePicker.SelectedDate ?? parsedDate;
+
+        // Read repeat frequency
+        RepeatFrequency = RepeatCombo.SelectedIndex switch
+        {
+            1 => ERepeatFrequency.Daily,
+            2 => ERepeatFrequency.Weekly,
+            3 => ERepeatFrequency.Monthly,
+            4 => ERepeatFrequency.Yearly,
+            _ => null
+        };
+
+        // Read reminder time (only when repeating)
+        if (RepeatFrequency.HasValue)
+        {
+            int.TryParse(ReminderHourInput.Text.Trim(), out var h);
+            int.TryParse(ReminderMinuteInput.Text.Trim(), out var m);
+            ReminderHour = Math.Clamp(h, 0, 23);
+            ReminderMinute = Math.Clamp(m, 0, 59);
+        }
     }
 
     private void Input_KeyDown(object sender, KeyEventArgs e)
@@ -143,4 +165,10 @@ public partial class InputWindow : Window
 
     private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
     private void OnClose(object sender, RoutedEventArgs e) => DialogResult = false;
+
+    private void RepeatCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (RepeatTimePanel != null)
+            RepeatTimePanel.Visibility = RepeatCombo.SelectedIndex > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
 }
