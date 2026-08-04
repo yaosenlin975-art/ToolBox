@@ -5,7 +5,7 @@
         WindowStartupLocation="CenterScreen" WindowStyle="None"
         AllowsTransparency="True" Background="Transparent"
         ResizeMode="CanResizeWithGrip">
-    <Border Background="{DynamicResource BgElevatedBrush}" CornerRadius="8"
+    <Border Background="{DynamicResource BgElevatedBrush}" CornerRadius="{StaticResource RadiusMd}"
             BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
@@ -29,7 +29,7 @@
                               Checked="Completed_Changed" Unchecked="Completed_Changed"/>
                     <TextBlock x:Name="Title" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,10"/>
-                    <Border x:Name="StatusBadge" CornerRadius="10" Padding="8,2"
+                    <Border x:Name="StatusBadge" CornerRadius="{StaticResource RadiusMd}" Padding="8,2"
                             Background="{DynamicResource AccentSoftBrush}" HorizontalAlignment="Left" Margin="0,0,0,10">
                         <TextBlock x:Name="StatusText" FontSize="10" FontWeight="SemiBold"
                                    Foreground="{DynamicResource AccentBrush}"/>

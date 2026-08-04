@@ -47,25 +47,36 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <Border Grid.Row="0" Width="36" Height="36" Margin="0,16,0,24"
-                    CornerRadius="8" Background="{DynamicResource AccentBrush}">
+                    CornerRadius="{StaticResource RadiusMd}" Background="{DynamicResource AccentBrush}">
                 <TextBlock Text="T" Foreground="White" FontWeight="Bold" FontSize="18"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <StackPanel Grid.Row="1" Margin="0,0,0,16">
                 <RadioButton x:Name="NavDashboard" GroupName="Nav" IsChecked="True"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE80F;" Checked="OnNavChecked"/>
+                             Style="{StaticResource NavItemStyle}" Tag="&#xE80F;"
+                             AutomationProperties.Name="{DynamicResource Lang_Page_Dashboard}" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavAssistant" GroupName="Nav"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE8BD;" Checked="OnNavChecked"/>
+                             Style="{StaticResource NavItemStyle}" Tag="&#xE8BD;"
+                             AutomationProperties.Name="{DynamicResource Lang_Page_Assistant}" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavTodos" GroupName="Nav"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE9D5;" Checked="OnNavChecked"/>
+                             Style="{StaticResource NavItemStyle}" Tag="&#xE9D5;"
+                             AutomationProperties.Name="{DynamicResource Lang_Page_Todos}" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavScreenshots" GroupName="Nav"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE722;" Checked="OnNavChecked"/>
+                             Style="{StaticResource NavItemStyle}" Tag="&#xE722;"
+                             AutomationProperties.Name="{DynamicResource Lang_Page_Screenshots}" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavClipboard" GroupName="Nav"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE77F;" Checked="OnNavChecked"/>
+                             Style="{StaticResource NavItemStyle}" Tag="&#xE77F;"
+                             AutomationProperties.Name="{DynamicResource Lang_Page_Clipboard}" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavSnippets" GroupName="Nav"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE9CE;" Checked="OnNavChecked"/>
+                             Style="{StaticResource NavItemStyle}" Tag="&#xE9CE;"
+                             AutomationProperties.Name="代码片段" Checked="OnNavChecked"/>
+                <RadioButton x:Name="NavNetwork" GroupName="Nav"
+                             Style="{StaticResource NavItemStyle}" Tag="&#xE968;"
+                             AutomationProperties.Name="{DynamicResource Lang_NetworkDiagnosis}"
+                             ToolTip="{DynamicResource Lang_NetworkDiagnosis}" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavSettings" GroupName="Nav"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE713;" Checked="OnNavChecked"/>
+                             Style="{StaticResource NavItemStyle}" Tag="&#xE713;"
+                             AutomationProperties.Name="{DynamicResource Lang_Settings}" Checked="OnNavChecked"/>
             </StackPanel>
             <TextBlock Grid.Row="2" Text="v2.0" FontSize="10"
                        Foreground="{DynamicResource SidebarTextBrush}"

@@ -57,11 +57,20 @@
             <!-- 快捷入口 -->
             <TextBlock Text="快捷入口" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"
                        Foreground="{DynamicResource TextSecondaryBrush}"/>
-            <UniformGrid Columns="2" Rows="2">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
                 <Border Style="{StaticResource CardStyle}" Margin="0,0,12,12" Cursor="Hand"
                         MouseLeftButtonUp="QuickAction_Click" Tag="assistant">
                     <StackPanel Orientation="Horizontal">
-                        <Border Width="36" Height="36" CornerRadius="8"
+                        <Border Width="36" Height="36" CornerRadius="{StaticResource RadiusMd}"
                                 Background="{DynamicResource AccentBrush}" Opacity="0.12">
                             <TextBlock Text="✦" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Foreground="{DynamicResource AccentBrush}"/>
@@ -74,10 +83,10 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource CardStyle}" Margin="6,0,0,12" Cursor="Hand"
+                <Border Style="{StaticResource CardStyle}" Grid.Column="1" Margin="6,0,0,12" Cursor="Hand"
                         MouseLeftButtonUp="QuickAction_Click" Tag="todos">
                     <StackPanel Orientation="Horizontal">
-                        <Border Width="36" Height="36" CornerRadius="8"
+                        <Border Width="36" Height="36" CornerRadius="{StaticResource RadiusMd}"
                                 Background="{DynamicResource AccentBrush}" Opacity="0.12">
                             <TextBlock Text="✓" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Foreground="{DynamicResource AccentBrush}"/>
@@ -90,10 +99,10 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource CardStyle}" Margin="0,0,12,0" Cursor="Hand"
+                <Border Style="{StaticResource CardStyle}" Grid.Row="1" Margin="0,0,12,12" Cursor="Hand"
                         MouseLeftButtonUp="QuickAction_Click" Tag="screenshots">
                     <StackPanel Orientation="Horizontal">
-                        <Border Width="36" Height="36" CornerRadius="8"
+                        <Border Width="36" Height="36" CornerRadius="{StaticResource RadiusMd}"
                                 Background="{DynamicResource AccentBrush}" Opacity="0.12">
                             <TextBlock Text="▣" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Foreground="{DynamicResource AccentBrush}"/>
@@ -106,10 +115,10 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
-                <Border Style="{StaticResource CardStyle}" Margin="6,0,0,0" Cursor="Hand"
+                <Border Style="{StaticResource CardStyle}" Grid.Row="1" Grid.Column="1" Margin="6,0,0,12" Cursor="Hand"
                         MouseLeftButtonUp="QuickAction_Click" Tag="settings">
                     <StackPanel Orientation="Horizontal">
-                        <Border Width="36" Height="36" CornerRadius="8"
+                        <Border Width="36" Height="36" CornerRadius="{StaticResource RadiusMd}"
                                 Background="{DynamicResource AccentBrush}" Opacity="0.12">
                             <TextBlock Text="⚙" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Foreground="{DynamicResource AccentBrush}"/>
@@ -122,7 +131,24 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
-            </UniformGrid>
+                <Border Style="{StaticResource CardStyle}" Grid.Row="2" Grid.ColumnSpan="2" Margin="0,0,0,0" Cursor="Hand"
+                        MouseLeftButtonUp="QuickAction_Click" Tag="network">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="36" Height="36" CornerRadius="{StaticResource RadiusMd}"
+                                Background="{DynamicResource AccentBrush}" Opacity="0.12">
+                            <TextBlock Text="&#xE968;" FontFamily="Segoe MDL2 Assets" FontSize="18"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentBrush}"/>
+                        </Border>
+                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="{DynamicResource Lang_DashNetworkTitle}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{DynamicResource Lang_DashNetworkHint}" FontSize="11" Margin="0,2,0,0"
+                                       Foreground="{DynamicResource TextTertiaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

@@ -48,7 +48,7 @@
                          KeyDown="Input_KeyDown" TextChanged="Input_TextChanged"/>
                 <!-- Date suggestion popup -->
                 <Border x:Name="DateSuggestionPanel" Grid.Row="2" Visibility="Collapsed"
-                        Background="{DynamicResource BgSecondaryBrush}" CornerRadius="6"
+                        Background="{DynamicResource BgSecondaryBrush}" CornerRadius="{StaticResource RadiusSm}"
                         Padding="8,4" Margin="0,4,0,0">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="📅 " VerticalAlignment="Center"/>

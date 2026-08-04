@@ -12,7 +12,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Expander">
                         <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Margin="0,0,0,4">
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{StaticResource RadiusMd}" Margin="0,0,0,4">
                             <DockPanel>
                                 <ToggleButton x:Name="Toggle" DockPanel.Dock="Top" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
                                               Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="12,10">
@@ -131,7 +131,7 @@
                                  LostFocus="DetailTitle_LostFocus"/>
 
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                            <Border x:Name="DetailStatusBadge" CornerRadius="10" Padding="10,2"
+                            <Border x:Name="DetailStatusBadge" CornerRadius="{StaticResource RadiusMd}" Padding="10,2"
                                     Background="{DynamicResource AccentSoftBrush}">
                                 <TextBlock x:Name="DetailStatusText" FontSize="11" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AccentBrush}"/>
@@ -200,7 +200,7 @@
                         <Border x:Name="DetailRepeatSection" Margin="0,0,0,16" Padding="0" BorderThickness="0"
                                 Visibility="Collapsed">
                             <StackPanel>
-                                <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="6" Padding="10">
+                                <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="{StaticResource RadiusSm}" Padding="10">
                                     <StackPanel>
                                         <TextBlock Text="重复设置" FontSize="11" FontWeight="SemiBold"
                                                    Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,8"/>
@@ -254,7 +254,7 @@
                                  LostFocus="DetailDesc_LostFocus"/>
 
                         <!-- Timestamps -->
-                        <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="6" Padding="10">
+                        <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="{StaticResource RadiusSm}" Padding="10">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                     <TextBlock Text="创建时间" FontSize="11"

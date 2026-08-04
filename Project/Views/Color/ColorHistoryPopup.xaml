@@ -11,7 +11,7 @@
     <Border Background="{DynamicResource BgElevatedBrush}"
             BorderBrush="{DynamicResource BorderDefaultBrush}"
             BorderThickness="1"
-            CornerRadius="8"
+            CornerRadius="{StaticResource RadiusMd}"
             Padding="12,10">
         <Border.Effect>
             <DropShadowEffect BlurRadius="12" ShadowDepth="4" Opacity="0.16" Color="#000000"/>

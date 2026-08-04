@@ -15,7 +15,7 @@
         KeyDown="OnKeyDown">
     <Border Background="{DynamicResource BgSecondaryBrush}"
             BorderBrush="{DynamicResource BorderDefaultBrush}"
-            BorderThickness="1" CornerRadius="8">
+            BorderThickness="1" CornerRadius="{StaticResource RadiusMd}">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -52,7 +52,7 @@
                                Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,8"
                                Text="识别文本(点击行可在右侧高亮对应区域)"/>
                     <Border Background="{DynamicResource BgTertiaryBrush}"
-                            BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1" CornerRadius="4">
+                            BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1" CornerRadius="{StaticResource RadiusXs}">
                         <ListBox x:Name="LineList" Background="Transparent" BorderThickness="0"
                                  ItemContainerStyle="{StaticResource ModernListBoxItem}"
                                  SelectionChanged="LineSelected"/>
@@ -65,7 +65,7 @@
                                Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,8"
                                Text="缩略图(黄色框为当前行)"/>
                     <Border Background="{DynamicResource BgTertiaryBrush}"
-                            BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1" CornerRadius="4"
+                            BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1" CornerRadius="{StaticResource RadiusXs}"
                             Width="340" Height="320">
                         <Grid x:Name="ThumbHost" ClipToBounds="True">
                             <Image x:Name="ThumbImage" Stretch="Uniform"

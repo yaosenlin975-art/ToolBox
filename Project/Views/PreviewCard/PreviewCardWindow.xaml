@@ -52,7 +52,7 @@
     </Window.Resources>
 
     <Border x:Name="CardBorder" Width="200" Height="150"
-            CornerRadius="14"
+            CornerRadius="{StaticResource RadiusLg}"
             Background="{DynamicResource BgElevatedBrush}"
             BorderBrush="{DynamicResource BorderDefaultBrush}"
             BorderThickness="1"
@@ -82,7 +82,7 @@
 
             <!-- 缩略图区域 -->
             <Border Grid.Row="0" Margin="8,8,8,4"
-                    CornerRadius="8"
+                    CornerRadius="{StaticResource RadiusMd}"
                     ClipToBounds="True">
                 <!-- 棋盘格背景表示透明区域 -->
                 <Border.Background>

@@ -9,7 +9,7 @@
         Deactivated="OnDeactivated" Loaded="OnLoaded">
     <Border Background="{DynamicResource BgElevatedBrush}"
             BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
-            CornerRadius="8">
+            CornerRadius="{StaticResource RadiusMd}">
         <Border.Effect>
             <DropShadowEffect BlurRadius="24" ShadowDepth="8" Opacity="0.2" Color="#000000"/>
         </Border.Effect>
@@ -28,7 +28,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Background="{DynamicResource BgSunkenBrush}" CornerRadius="6"
+                    <Border Grid.Column="0" Background="{DynamicResource BgSunkenBrush}" CornerRadius="{StaticResource RadiusSm}"
                             Padding="8,4">
                         <TextBox x:Name="txtSearch" BorderThickness="0" Background="Transparent"
                                  Foreground="{DynamicResource TextPrimaryBrush}"
@@ -58,7 +58,7 @@
                      PreviewKeyDown="LstSnippets_PreviewKeyDown">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <Border Padding="10,6" CornerRadius="4" Margin="0,0,0,2">
+                        <Border Padding="10,6" CornerRadius="{StaticResource RadiusXs}" Margin="0,0,0,2">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>

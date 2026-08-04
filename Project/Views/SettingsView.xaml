@@ -410,6 +410,29 @@
                                              LostFocus="HotKey_LostFocus"
                                              ToolTip="{DynamicResource Lang_HotkeyInputHint}"/>
                                 </Grid>
+
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{DynamicResource Lang_NetworkHotkey}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_NetworkHotkeyHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="txtHotKey3" Grid.Column="1" Width="160" IsReadOnly="True"
+                                             Text="Ctrl+Alt+N" FontSize="13" FontFamily="{StaticResource FontMono}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             Background="{DynamicResource BgSunkenBrush}"
+                                             BorderBrush="{DynamicResource BorderDefaultBrush}"
+                                             CaretBrush="{DynamicResource TextPrimaryBrush}"
+                                             PreviewKeyDown="HotKey_PreviewKeyDown"
+                                             GotFocus="HotKey_GotFocus"
+                                             LostFocus="HotKey_LostFocus"
+                                             ToolTip="{DynamicResource Lang_HotkeyInputHint}"/>
+                                </Grid>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -826,7 +849,7 @@
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="ListBoxItem">
-                                                        <Border Background="Transparent" CornerRadius="6" Padding="10,8">
+                                                        <Border Background="Transparent" CornerRadius="{StaticResource RadiusSm}" Padding="10,8">
                                                             <ContentPresenter/>
                                                         </Border>
                                                     </ControlTemplate>

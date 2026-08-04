@@ -8,7 +8,7 @@
         Background="Transparent"
         ShowInTaskbar="False"
         Topmost="True">
-    <Border Background="{DynamicResource BgElevatedBrush}" CornerRadius="20"
+    <Border Background="{DynamicResource BgElevatedBrush}" CornerRadius="{StaticResource RadiusXl}"
             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
         <Border.Effect>
             <DropShadowEffect BlurRadius="24" Opacity="0.08" ShadowDepth="8" Color="Black"/>
@@ -25,7 +25,7 @@
             <!-- 内容 -->
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <!-- Logo -->
-                <Border Width="56" Height="56" CornerRadius="12"
+                <Border Width="56" Height="56" CornerRadius="{StaticResource RadiusMd}"
                         Background="{DynamicResource AccentBrush}" Margin="0,0,0,16">
                     <TextBlock Text="T" Foreground="{DynamicResource TextInvertedBrush}"
                                FontSize="32" FontWeight="Bold"

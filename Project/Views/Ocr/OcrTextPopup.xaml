@@ -12,7 +12,7 @@
         Width="280" Height="200"
         KeyDown="OnKeyDown">
     <Border Background="{DynamicResource BgSecondaryBrush}"
-            BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="6"
+            BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}"
             MouseLeftButtonDown="HeaderDrag">
         <Grid>
             <Grid.RowDefinitions>
@@ -27,7 +27,7 @@
                      CaretBrush="{DynamicResource AccentBrush}"/>
 
             <Border Grid.Row="1" Grid.RowSpan="2" x:Name="LoadingLayer" Background="{DynamicResource BgSecondaryBrush}"
-                    Visibility="Collapsed" CornerRadius="6">
+                    Visibility="Collapsed" CornerRadius="{StaticResource RadiusSm}">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                     <TextBlock Text="识别中..." FontSize="12" HorizontalAlignment="Center"
                                Foreground="{DynamicResource TextPrimaryBrush}"/>

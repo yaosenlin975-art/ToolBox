@@ -15,7 +15,7 @@
     <Border Background="{DynamicResource BgElevatedBrush}"
             BorderBrush="{DynamicResource BorderDefaultBrush}"
             BorderThickness="1"
-            CornerRadius="8">
+            CornerRadius="{StaticResource RadiusMd}">
         <Border.Effect>
             <DropShadowEffect BlurRadius="24" ShadowDepth="8" Opacity="0.18" Color="#000000"/>
         </Border.Effect>
@@ -34,7 +34,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Border Grid.Column="0" Background="{DynamicResource BgSunkenBrush}"
-                        CornerRadius="6" BorderBrush="{DynamicResource BorderDefaultBrush}"
+                        CornerRadius="{StaticResource RadiusSm}" BorderBrush="{DynamicResource BorderDefaultBrush}"
                         BorderThickness="1" Padding="8,4">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -92,7 +92,7 @@
                             <!-- 左侧:图片缩略图 或 类型图标 -->
                             <Border Grid.Column="0" Width="48" Height="48"
                                     Background="{DynamicResource BgSunkenBrush}"
-                                    CornerRadius="4" VerticalAlignment="Center">
+                                    CornerRadius="{StaticResource RadiusXs}" VerticalAlignment="Center">
                                 <Grid>
                                     <Image Source="{Binding ThumbnailPath}" Stretch="UniformToFill"
                                            Visibility="{Binding HasThumbnail, Converter={StaticResource BoolToVis}}"

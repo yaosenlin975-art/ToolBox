@@ -28,7 +28,7 @@
                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal">
                 <!-- Type Filter -->
-                <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="6" Padding="2"
+                <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="{StaticResource RadiusSm}" Padding="2"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                     <StackPanel Orientation="Horizontal">
                         <RadioButton x:Name="TypeAll" Content="{DynamicResource Lang_ClipTypeAll}" Style="{StaticResource DateFilterStyle}"
@@ -45,7 +45,7 @@
                 <Border Width="1" Margin="10,4" Background="{DynamicResource BorderBrush}"/>
 
                 <!-- Date Filter -->
-                <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="6" Padding="2"
+                <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="{StaticResource RadiusSm}" Padding="2"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                     <StackPanel Orientation="Horizontal">
                         <RadioButton x:Name="DateToday" Content="{DynamicResource Lang_DateToday}" Style="{StaticResource DateFilterStyle}"
@@ -62,7 +62,7 @@
                 <Border Width="1" Margin="10,4" Background="{DynamicResource BorderBrush}"/>
 
                 <!-- Search -->
-                <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="6"
+                <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="{StaticResource RadiusSm}"
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" Padding="8,4">
                     <TextBox x:Name="SearchBox" Background="Transparent" BorderThickness="0"
                              Foreground="{DynamicResource TextPrimaryBrush}"
@@ -110,7 +110,7 @@
                                 </Grid.ColumnDefinitions>
                                 <Border Grid.Column="0" Width="40" Height="40"
                                         Background="{DynamicResource BgSunkenBrush}"
-                                        CornerRadius="4" VerticalAlignment="Center">
+                                        CornerRadius="{StaticResource RadiusXs}" VerticalAlignment="Center">
                                     <Grid>
                                         <Image Source="{Binding ThumbnailPath}" Stretch="UniformToFill"
                                                Visibility="{Binding HasThumbnail, Converter={StaticResource BoolToVis}}"
@@ -151,7 +151,7 @@
             <!-- 右侧详情面板 -->
             <Border Grid.Column="1" Background="{DynamicResource BgElevatedBrush}"
                     BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
-                    CornerRadius="8" Padding="16">
+                    CornerRadius="{StaticResource RadiusMd}" Padding="16">
                 <Grid x:Name="DetailPanel">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -172,7 +172,7 @@
                     </StackPanel>
                     <Border x:Name="DetailImage" Grid.Row="1" Margin="0,12"
                             Background="{DynamicResource BgSunkenBrush}"
-                            CornerRadius="4" Visibility="Collapsed">
+                            CornerRadius="{StaticResource RadiusXs}" Visibility="Collapsed">
                         <Image x:Name="imgDetail" Stretch="Uniform" Margin="4"/>
                     </Border>
                     <ScrollViewer Grid.Row="2" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">

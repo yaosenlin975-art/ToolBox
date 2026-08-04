@@ -37,7 +37,7 @@
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="Bd" Background="Transparent" CornerRadius="6"
+                                        <Border x:Name="Bd" Background="Transparent" CornerRadius="{StaticResource RadiusSm}"
                                                 Padding="10,8" Cursor="Hand">
                                             <ContentPresenter/>
                                         </Border>
@@ -96,7 +96,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <Border Grid.Row="0" CornerRadius="10"
+                    <Border Grid.Row="0" CornerRadius="{StaticResource RadiusMd}"
                             Background="{DynamicResource BgSunkenBrush}"
                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                         <TextBox x:Name="InputBox" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="120"
