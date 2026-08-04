@@ -53,11 +53,11 @@ public static class ScheduleManager
 
         var utc = DateTime.Today.AddHours(hour).AddMinutes(minute).ToUniversalTime();
         var cron = $"{utc.Minute} {utc.Hour} * * *";
-        CronExpressionr.Instance.Register(DailyReportId, cron, () =>
+        CronExpressionr.Instance.Register(DailyReportId, cron, async () =>
         {
             try
             {
-                var report = ReportGenerator.Instance.GenerateDailyReport();
+                var report = await ReportGenerator.Instance.GenerateDailyReportAsync();
                 ReportGenerator.Instance.SaveReport(report, "daily");
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] DailyReport: {ex.Message}"); }
