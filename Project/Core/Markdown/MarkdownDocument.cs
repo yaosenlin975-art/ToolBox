@@ -7,11 +7,15 @@ namespace ToolBox.Core.Markdown;
 
 public static class MarkdownDocument
 {
-    private static readonly SolidColorBrush TextPrimary = new((Color)ColorConverter.ConvertFromString("#0F1117"));
-    private static readonly SolidColorBrush Secondary = new((Color)ColorConverter.ConvertFromString("#5C6370"));
-    private static readonly SolidColorBrush Tertiary = new((Color)ColorConverter.ConvertFromString("#9CA3AF"));
-    private static readonly SolidColorBrush Code = new((Color)ColorConverter.ConvertFromString("#6A1B9A"));
-    private static readonly SolidColorBrush CodeBg = new((Color)ColorConverter.ConvertFromString("#F0F1F4"));
+    private static SolidColorBrush ResolveBrush(string key, string fallback)
+        => Application.Current.TryFindResource(key) as SolidColorBrush
+           ?? new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallback));
+
+    private static SolidColorBrush GetTextPrimary() => ResolveBrush("TextPrimaryBrush", "#0F1117");
+    private static SolidColorBrush GetSecondary() => ResolveBrush("TextSecondaryBrush", "#5C6370");
+    private static SolidColorBrush GetTertiary() => ResolveBrush("TextTertiaryBrush", "#9CA3AF");
+    private static SolidColorBrush GetCode() => ResolveBrush("CodeKwBrush", "#6A1B9A");
+    private static SolidColorBrush GetCodeBg() => ResolveBrush("CodeBgBrush", "#F0F1F4");
 
     public static FlowDocument Parse(string markdown)
     {
@@ -35,14 +39,14 @@ public static class MarkdownDocument
                     i++;
                 }
                 if (i < lines.Length) i++;
-                doc.Blocks.Add(BuildParagraph(string.Join("\n", code), Code, CodeBg, true));
+                doc.Blocks.Add(BuildParagraph(string.Join("\n", code), GetCode(), GetCodeBg(), true));
                 continue;
             }
 
             // HR
             if (Regex.IsMatch(line.Trim(), "^[-*_]{3,}$"))
             {
-                doc.Blocks.Add(new Paragraph(new Run("--------") { Foreground = Tertiary }) { Margin = new Thickness(0, 6, 0, 6) });
+                doc.Blocks.Add(new Paragraph(new Run("--------") { Foreground = GetTertiary() }) { Margin = new Thickness(0, 6, 0, 6) });
                 i++;
                 continue;
             }
@@ -106,10 +110,10 @@ public static class MarkdownDocument
                 var qp = new Paragraph {
                     Margin = new Thickness(8, 2, 0, 2),
                     Padding = new Thickness(8, 0, 0, 0),
-                    BorderBrush = Tertiary,
+                    BorderBrush = GetTertiary(),
                     BorderThickness = new Thickness(2, 0, 0, 0),
                 };
-                qp.Inlines.Add(new Run(string.Join(" ", qLines)) { Foreground = Tertiary });
+                qp.Inlines.Add(new Run(string.Join(" ", qLines)) { Foreground = GetTertiary() });
                 doc.Blocks.Add(qp);
                 continue;
             }
@@ -163,14 +167,14 @@ public static class MarkdownDocument
             // inline code
             if (text[i] == '`')
             {
-                if (sb.Length > 0) { p.Inlines.Add(new Run(sb.ToString()) { Foreground = TextPrimary }); sb.Clear(); }
+                if (sb.Length > 0) { p.Inlines.Add(new Run(sb.ToString()) { Foreground = GetTextPrimary() }); sb.Clear(); }
                 var end = text.IndexOf('`', i + 1);
                 if (end > i)
                 {
                     p.Inlines.Add(new Run(text.Substring(i + 1, end - i - 1))
                     {
-                        Foreground = Code,
-                        Background = CodeBg,
+                        Foreground = GetCode(),
+                        Background = GetCodeBg(),
                         FontFamily = new FontFamily("Consolas, Global Monospace"),
                     });
                     i = end + 1;
@@ -180,21 +184,21 @@ public static class MarkdownDocument
             // bold
             if (i + 1 < text.Length && text[i] == '*' && text[i + 1] == '*')
             {
-                if (sb.Length > 0) { p.Inlines.Add(new Run(sb.ToString()) { Foreground = TextPrimary }); sb.Clear(); }
+                if (sb.Length > 0) { p.Inlines.Add(new Run(sb.ToString()) { Foreground = GetTextPrimary() }); sb.Clear(); }
                 var end = text.IndexOf("**", i + 2);
-                if (end > i) { p.Inlines.Add(new Run(text.Substring(i + 2, end - i - 2)) { FontWeight = FontWeights.Bold, Foreground = TextPrimary }); i = end + 2; continue; }
+                if (end > i) { p.Inlines.Add(new Run(text.Substring(i + 2, end - i - 2)) { FontWeight = FontWeights.Bold, Foreground = GetTextPrimary() }); i = end + 2; continue; }
             }
             // italic
             if (text[i] == '*' && (i + 1 >= text.Length || text[i + 1] != '*'))
             {
-                if (sb.Length > 0) { p.Inlines.Add(new Run(sb.ToString()) { Foreground = TextPrimary }); sb.Clear(); }
+                if (sb.Length > 0) { p.Inlines.Add(new Run(sb.ToString()) { Foreground = GetTextPrimary() }); sb.Clear(); }
                 var end = text.IndexOf('*', i + 1);
-                if (end > i) { p.Inlines.Add(new Run(text.Substring(i + 1, end - i - 1)) { FontStyle = FontStyles.Italic, Foreground = TextPrimary }); i = end + 1; continue; }
+                if (end > i) { p.Inlines.Add(new Run(text.Substring(i + 1, end - i - 1)) { FontStyle = FontStyles.Italic, Foreground = GetTextPrimary() }); i = end + 1; continue; }
             }
             sb.Append(text[i]);
             i++;
         }
-        if (sb.Length > 0) p.Inlines.Add(new Run(sb.ToString()) { Foreground = TextPrimary });
+        if (sb.Length > 0) p.Inlines.Add(new Run(sb.ToString()) { Foreground = GetTextPrimary() });
         return p;
     }
 }

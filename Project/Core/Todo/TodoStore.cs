@@ -14,6 +14,8 @@ public class TodoStore
     private readonly List<TodoItem> items = [];
     private readonly List<string> categories = ["默认"];
     private readonly SemaphoreSlim writeLock = new(1, 1);
+    // 保护 items/categories 的所有读改写操作；Cron 在后台线程触发，须与 UI 线程串行
+    private readonly SemaphoreSlim stateLock = new(1, 1);
 
     public IReadOnlyList<TodoItem> Items => items;
     public IReadOnlyList<string> Categories => categories;
@@ -66,66 +68,91 @@ public class TodoStore
 
     public void AddCategory(string name)
     {
-        if (string.IsNullOrWhiteSpace(name)) return;
-        var trimmed = name.Trim();
-        if (!categories.Contains(trimmed))
+        stateLock.Wait();
+        try
         {
-            categories.Add(trimmed);
-            _ = SaveAsync();
-            NotifyChanged();
+            if (string.IsNullOrWhiteSpace(name)) return;
+            var trimmed = name.Trim();
+            if (!categories.Contains(trimmed))
+            {
+                categories.Add(trimmed);
+                _ = SaveAsync();
+                NotifyChanged();
+            }
         }
+        finally { stateLock.Release(); }
     }
 
     public void RemoveCategory(string name)
     {
         if (name == "默认") return;
-        categories.Remove(name);
-        foreach (var item in items.Where(t => t.Category == name))
-            item.Category = "默认";
-        _ = SaveAsync();
-        NotifyChanged();
+        stateLock.Wait();
+        try
+        {
+            categories.Remove(name);
+            foreach (var item in items.Where(t => t.Category == name))
+                item.Category = "默认";
+            _ = SaveAsync();
+            NotifyChanged();
+        }
+        finally { stateLock.Release(); }
     }
 
     public async Task<TodoItem> AddAsync(string title, string description = "", int priority = 0, string category = "默认", List<string>? tags = null, DateTime? dueDate = null, string? sessionId = null, string? parentId = null)
     {
-        if (!categories.Contains(category)) categories.Add(category);
-        var item = new TodoItem
+        await stateLock.WaitAsync();
+        try
         {
-            ParentId = parentId,
-            Title = title,
-            Description = description,
-            Priority = priority,
-            Category = category,
-            Tags = tags ?? [],
-            DueDate = dueDate,
-            SessionId = sessionId
-        };
-        items.Add(item);
-        await SaveAsync();
-        NotifyChanged();
-        return item;
+            if (!categories.Contains(category)) categories.Add(category);
+            var item = new TodoItem
+            {
+                ParentId = parentId,
+                Title = title,
+                Description = description,
+                Priority = priority,
+                Category = category,
+                Tags = tags ?? [],
+                DueDate = dueDate,
+                SessionId = sessionId
+            };
+            items.Add(item);
+            await SaveAsync();
+            NotifyChanged();
+            return item;
+        }
+        finally { stateLock.Release(); }
     }
 
     public async Task<bool> CompleteAsync(string id)
     {
-        var item = items.FirstOrDefault(t => t.Id == id);
-        if (item == null) return false;
-        item.IsCompleted = true;
-        item.CompletedAt = DateTime.UtcNow;
-        await SaveAsync();
-        NotifyChanged();
-        return true;
+        await stateLock.WaitAsync();
+        try
+        {
+            var item = items.FirstOrDefault(t => t.Id == id);
+            if (item == null) return false;
+            item.IsCompleted = true;
+            item.CompletedAt = DateTime.UtcNow;
+            await SaveAsync();
+            NotifyChanged();
+            return true;
+        }
+        finally { stateLock.Release(); }
     }
 
     public async Task<bool> UncompleteAsync(string id)
     {
-        var item = items.FirstOrDefault(t => t.Id == id);
-        if (item == null) return false;
-        item.IsCompleted = false;
-        item.CompletedAt = null;
-        await SaveAsync();
-        NotifyChanged();
-        return true;
+        await stateLock.WaitAsync();
+        try
+        {
+            var item = items.FirstOrDefault(t => t.Id == id);
+            if (item == null) return false;
+            item.IsCompleted = false;
+            item.CompletedAt = null;
+            await SaveAsync();
+            NotifyChanged();
+            return true;
+        }
+        finally { stateLock.Release(); }
     }
 
     // ─── 重复待办 ────────────────────────────────────────────────
@@ -144,30 +171,37 @@ public class TodoStore
         int reminderHour = 9,
         int reminderMinute = 0)
     {
-        if (!categories.Contains(category)) categories.Add(category);
-        DateTime? endDateUtc = endDate?.ToUniversalTime();
-        var item = new TodoItem
+        await stateLock.WaitAsync();
+        try
         {
-            Title = title,
-            Description = description,
-            Priority = priority,
-            Category = category,
-            Tags = tags ?? [],
-            DueDate = dueDate?.ToUniversalTime(),
-            RepeatConfig = new RepeatConfig
+            if (!categories.Contains(category)) categories.Add(category);
+            DateTime? endDateUtc = endDate?.ToUniversalTime();
+            var item = new TodoItem
             {
-                Frequency = frequency,
-                StartDate = DateTime.UtcNow.Date,
-                EndDate = endDateUtc,
-                ReminderHour = reminderHour,
-                ReminderMinute = reminderMinute,
-            },
-            LastResetAt = DateTime.UtcNow,
-        };
-        items.Add(item);
-        await SaveAsync();
-        NotifyChanged();
-        return item;
+                Title = title,
+                Description = description,
+                Priority = priority,
+                Category = category,
+                Tags = tags ?? [],
+                DueDate = dueDate?.ToUniversalTime(),
+                RepeatConfig = new RepeatConfig
+                {
+                    Frequency = frequency,
+                    StartDate = DateTime.UtcNow.Date,
+                    EndDate = endDateUtc,
+                    ReminderHour = reminderHour,
+                    ReminderMinute = reminderMinute,
+                },
+                LastResetAt = DateTime.UtcNow,
+            };
+            items.Add(item);
+            await SaveAsync();
+            NotifyChanged();
+            // 创建成功后注册提醒，保证运行期新建的重复待办到点能重置/刷新
+            RegisterSingleRepeatReminder(item);
+            return item;
+        }
+        finally { stateLock.Release(); }
     }
 
     public List<TodoItem> GetRepeating()
@@ -188,65 +222,106 @@ public class TodoStore
 
     public async Task<bool> ResetRepeatingAsync(string id)
     {
-        var item = items.FirstOrDefault(t => t.Id == id && t.RepeatConfig != null);
-        if (item == null) return false;
-        item.IsCompleted = false;
-        item.CompletedAt = null;
-        item.LastResetAt = DateTime.UtcNow;
-        await SaveAsync();
-        NotifyChanged();
-        return true;
+        await stateLock.WaitAsync();
+        try
+        {
+            var item = items.FirstOrDefault(t => t.Id == id && t.RepeatConfig != null);
+            if (item == null) return false;
+            // 已过结束日期：不再重置
+            if (item.RepeatConfig!.EndDate != null && DateTime.UtcNow > item.RepeatConfig.EndDate.Value)
+                return false;
+            item.IsCompleted = false;
+            item.CompletedAt = null;
+            item.LastResetAt = DateTime.UtcNow;
+            await SaveAsync();
+            NotifyChanged();
+            return true;
+        }
+        finally { stateLock.Release(); }
     }
 
     public async Task<int> CatchUpRepeatingAsync()
     {
-        var repeating = items.Where(t => t.RepeatConfig != null && !t.IsTrashed).ToList();
-        int resetCount = 0;
-
-        foreach (var item in repeating)
+        await stateLock.WaitAsync();
+        try
         {
-            if (!item.IsCompleted) continue;
-            var config = item.RepeatConfig;
-            if (config == null) continue;
-            var lastReset = item.LastResetAt ?? config.StartDate;
-            var nextReset = RepeatCalculator.CalculateNextResetTime(
-                lastReset, config.Frequency, config.ReminderHour, config.ReminderMinute);
-            if (DateTime.UtcNow >= nextReset)
-            {
-                item.IsCompleted = false;
-                item.CompletedAt = null;
-                item.LastResetAt = DateTime.UtcNow;
-                resetCount++;
-            }
-        }
+            var repeating = items.Where(t => t.RepeatConfig != null && !t.IsTrashed).ToList();
+            int resetCount = 0;
 
-        if (resetCount > 0) { await SaveAsync(); NotifyChanged(); }
-        return resetCount;
+            foreach (var item in repeating)
+            {
+                var config = item.RepeatConfig;
+                if (config == null) continue;
+                // 已过结束日期：不再重置
+                if (config.EndDate != null && DateTime.UtcNow > config.EndDate.Value) continue;
+                if (!item.IsCompleted) continue;
+                var lastReset = item.LastResetAt ?? config.StartDate;
+                var nextReset = RepeatCalculator.CalculateNextResetTime(
+                    lastReset, config.Frequency, config.ReminderHour, config.ReminderMinute);
+                if (DateTime.UtcNow >= nextReset)
+                {
+                    item.IsCompleted = false;
+                    item.CompletedAt = null;
+                    item.LastResetAt = DateTime.UtcNow;
+                    resetCount++;
+                    // 重置后重新对齐下一次提醒，避免旧定时器按过期时间误触发
+                    RegisterSingleRepeatReminder(item);
+                }
+            }
+
+            if (resetCount > 0) { await SaveAsync(); NotifyChanged(); }
+            return resetCount;
+        }
+        finally { stateLock.Release(); }
     }
 
-    /// <summary>注册所有活跃重复项的 Cron 提醒</summary>
+    /// <summary>注册所有活跃重复项的提醒</summary>
     public void RegisterRepeatReminders()
     {
         var repeating = items.Where(t => t.RepeatConfig != null && !t.IsTrashed).ToList();
         foreach (var item in repeating)
-            RegisterSingleRepeatReminder(item);
+        {
+            try { RegisterSingleRepeatReminder(item); }
+            catch (Exception ex)
+            {
+                // 单项注册失败不中断其余项
+                System.Diagnostics.Debug.WriteLine($"[ToolBox] 注册重复提醒失败 {item.Id}: {ex.Message}");
+            }
+        }
     }
 
-    /// <summary>注册单个重复项的 Cron 提醒</summary>
+    /// <summary>注册单个重复项的提醒：以 LastResetAt/StartDate 为锚点计算下一次提醒时间，挂一次性定时器</summary>
     public void RegisterSingleRepeatReminder(TodoItem item)
     {
         var config = item.RepeatConfig;
         if (config == null) return;
-        var cron = config.Frequency.ToCron(config.ReminderHour, config.ReminderMinute);
+
+        var anchor = item.LastResetAt ?? config.StartDate;
+        var next = RepeatCalculator.GetNextOccurrence(
+            anchor, config.Frequency, DateTime.UtcNow, config.ReminderHour, config.ReminderMinute);
+
         var cronId = "repeat_" + item.Id;
         CronExpressionr.Instance.Unregister(cronId);
+
+        // 已过结束日期：不再注册后续提醒
+        if (config.EndDate != null && next > config.EndDate.Value)
+            return;
+
         var capturedId = item.Id;
-        CronExpressionr.Instance.Register(cronId, cron, () =>
+        CronExpressionr.Instance.RegisterNext(cronId, next, () =>
         {
             try
             {
                 var current = items.FirstOrDefault(t => t.Id == capturedId);
-                if (current?.RepeatConfig == null || current.IsTrashed) return;
+                if (current == null || current.RepeatConfig == null || current.IsTrashed) return;
+
+                // 到期后不再重置，并停止后续提醒
+                if (current.RepeatConfig.EndDate != null && DateTime.UtcNow > current.RepeatConfig.EndDate.Value)
+                {
+                    UnregisterRepeatReminder(capturedId);
+                    return;
+                }
+
                 if (current.IsCompleted)
                 {
                     _ = ResetRepeatingAsync(capturedId);
@@ -256,6 +331,9 @@ public class TodoStore
                 {
                     RepeatReminderTriggered?.Invoke(current, false);
                 }
+
+                // 续订下一次提醒（从本次预定触发时刻推进，与 CalculateNextResetTime 同一时间基准）
+                RegisterSingleRepeatReminder(current);
             }
             catch (Exception ex)
             {
@@ -267,53 +345,97 @@ public class TodoStore
     public void UnregisterRepeatReminder(string itemId)
         => CronExpressionr.Instance.Unregister("repeat_" + itemId);
 
+    private System.Threading.Timer? periodicCatchUpTimer;
+    private static readonly TimeSpan PeriodicCatchUpInterval = TimeSpan.FromMinutes(30);
+
+    /// <summary>启动轻量周期补算：提醒时刻已过但错失重置的已完成项，定期自动补齐（幂等）</summary>
+    public void StartPeriodicCatchUp()
+    {
+        if (periodicCatchUpTimer != null) return;
+        periodicCatchUpTimer = new System.Threading.Timer(async _ =>
+        {
+            try
+            {
+                var missed = await CatchUpRepeatingAsync();
+                if (missed > 0)
+                    System.Diagnostics.Debug.WriteLine($"[ToolBox] 周期补算重置了 {missed} 个重复待办");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ToolBox] 周期补算失败: {ex.Message}");
+            }
+        }, null, PeriodicCatchUpInterval, PeriodicCatchUpInterval);
+    }
+
     /// <summary>设置或取消重复配置（替代直接修改 RepeatConfig 字段）</summary>
     public async Task SetRepeatConfigAsync(string id, RepeatConfig? config)
     {
-        var item = items.FirstOrDefault(t => t.Id == id);
-        if (item == null) return;
-        UnregisterRepeatReminder(id);
-        item.RepeatConfig = config;
-        item.LastResetAt = config != null ? DateTime.UtcNow : null;
-        if (config != null)
-            RegisterSingleRepeatReminder(item);
-        await SaveAsync();
-        NotifyChanged();
+        await stateLock.WaitAsync();
+        try
+        {
+            var item = items.FirstOrDefault(t => t.Id == id);
+            if (item == null) return;
+            UnregisterRepeatReminder(id);
+            item.RepeatConfig = config;
+            item.LastResetAt = config != null ? DateTime.UtcNow : null;
+            if (config != null)
+                RegisterSingleRepeatReminder(item);
+            await SaveAsync();
+            NotifyChanged();
+        }
+        finally { stateLock.Release(); }
     }
 
     public async Task<bool> DeleteAsync(string id)
     {
-        var item = items.FirstOrDefault(t => t.Id == id);
-        if (item == null) return false;
-        if (item.RepeatConfig != null)
-            UnregisterRepeatReminder(id);
-        var removed = items.RemoveAll(t => t.Id == id);
-        if (removed > 0) { await SaveAsync(); NotifyChanged(); }
-        return removed > 0;
+        await stateLock.WaitAsync();
+        try
+        {
+            var item = items.FirstOrDefault(t => t.Id == id);
+            if (item == null) return false;
+            if (item.RepeatConfig != null)
+                UnregisterRepeatReminder(id);
+            var removed = items.RemoveAll(t => t.Id == id);
+            if (removed > 0) { await SaveAsync(); NotifyChanged(); }
+            return removed > 0;
+        }
+        finally { stateLock.Release(); }
     }
 
     public async Task<bool> UpdateAsync(string id, string? title = null, string? description = null, int? priority = null, string? category = null, List<string>? tags = null, DateTime? dueDate = null, int? progress = null)
     {
-        var item = items.FirstOrDefault(t => t.Id == id);
-        if (item == null) return false;
-        if (title != null) item.Title = title;
-        if (description != null) item.Description = description;
-        if (priority.HasValue) item.Priority = priority.Value;
-        if (category != null)
+        await stateLock.WaitAsync();
+        try
         {
-            if (!categories.Contains(category)) categories.Add(category);
-            item.Category = category;
+            var item = items.FirstOrDefault(t => t.Id == id);
+            if (item == null) return false;
+            if (title != null) item.Title = title;
+            if (description != null) item.Description = description;
+            if (priority.HasValue) item.Priority = priority.Value;
+            if (category != null)
+            {
+                if (!categories.Contains(category)) categories.Add(category);
+                item.Category = category;
+            }
+            if (tags != null) item.Tags = tags;
+            if (dueDate.HasValue) item.DueDate = dueDate;
+            if (progress.HasValue) item.Progress = progress.Value;
+            await SaveAsync();
+            NotifyChanged();
+            return true;
         }
-        if (tags != null) item.Tags = tags;
-        if (dueDate.HasValue) item.DueDate = dueDate;
-        if (progress.HasValue) item.Progress = progress.Value;
-        await SaveAsync();
-        NotifyChanged();
-        return true;
+        finally { stateLock.Release(); }
     }
 
     // --- Trash system ---
     public async Task<bool> TrashAsync(string id)
+    {
+        await stateLock.WaitAsync();
+        try { await TrashCoreAsync(id); return true; }
+        finally { stateLock.Release(); }
+    }
+
+    async Task<bool> TrashCoreAsync(string id)
     {
         var item = items.FirstOrDefault(t => t.Id == id);
         if (item == null) return false;
@@ -324,7 +446,7 @@ public class TodoStore
         {
             if (child.RepeatConfig != null)
                 UnregisterRepeatReminder(child.Id);
-            await TrashAsync(child.Id);
+            await TrashCoreAsync(child.Id);
         }
         await SaveAsync();
         NotifyChanged();
@@ -333,13 +455,20 @@ public class TodoStore
 
     public async Task<bool> RestoreAsync(string id)
     {
+        await stateLock.WaitAsync();
+        try { await RestoreCoreAsync(id); return true; }
+        finally { stateLock.Release(); }
+    }
+
+    async Task<bool> RestoreCoreAsync(string id)
+    {
         var item = items.FirstOrDefault(t => t.Id == id);
         if (item == null) return false;
         item.IsTrashed = false;
         if (item.RepeatConfig != null)
             RegisterSingleRepeatReminder(item);
         foreach (var child in items.Where(t => t.ParentId == id).ToList())
-            await RestoreAsync(child.Id);
+            await RestoreCoreAsync(child.Id);
         await SaveAsync();
         NotifyChanged();
         return true;
@@ -347,9 +476,16 @@ public class TodoStore
 
     public async Task<bool> DeletePermanentlyAsync(string id)
     {
+        await stateLock.WaitAsync();
+        try { return await DeletePermanentlyCoreAsync(id); }
+        finally { stateLock.Release(); }
+    }
+
+    async Task<bool> DeletePermanentlyCoreAsync(string id)
+    {
         var children = items.Where(t => t.ParentId == id).ToList();
         foreach (var child in children)
-            await DeletePermanentlyAsync(child.Id);
+            await DeletePermanentlyCoreAsync(child.Id);
         var removed = items.RemoveAll(t => t.Id == id);
         if (removed > 0) { await SaveAsync(); NotifyChanged(); }
         return removed > 0;
@@ -359,12 +495,6 @@ public class TodoStore
         => items.Where(t => t.IsTrashed && t.ParentId == null)
                 .OrderByDescending(t => t.CompletedAt ?? t.CreatedAt)
                 .ToList();
-
-    public bool Trash(string id) => Task.Run(() => TrashAsync(id)).GetAwaiter().GetResult();
-    public bool Restore(string id) => Task.Run(() => RestoreAsync(id)).GetAwaiter().GetResult();
-    public bool DeletePermanently(string id) => Task.Run(() => DeletePermanentlyAsync(id)).GetAwaiter().GetResult();
-    public TodoItem AddRepeating(string title, ERepeatFrequency frequency, string description = "", int priority = 0, string category = "默认", List<string>? tags = null, DateTime? dueDate = null, DateTime? endDate = null, int reminderHour = 9, int reminderMinute = 0)
-        => Task.Run(() => AddRepeatingAsync(title, frequency, description, priority, category, tags, dueDate, endDate, reminderHour, reminderMinute)).GetAwaiter().GetResult();
 
     // --- Tree structure ---
     public List<TodoItem> GetChildren(string parentId)
@@ -404,14 +534,7 @@ public class TodoStore
 
     public bool HasChildren(string id) => items.Any(t => t.ParentId == id && !t.IsTrashed);
 
-    // Sync wrappers
-    public TodoItem Add(string title, string description = "", int priority = 0, string category = "默认", List<string>? tags = null, DateTime? dueDate = null, string? sessionId = null, string? parentId = null)
-        => Task.Run(() => AddAsync(title, description, priority, category, tags, dueDate, sessionId, parentId)).GetAwaiter().GetResult();
-    public bool Complete(string id) => Task.Run(() => CompleteAsync(id)).GetAwaiter().GetResult();
-    public bool Uncomplete(string id) => Task.Run(() => UncompleteAsync(id)).GetAwaiter().GetResult();
-    public bool Delete(string id) => Task.Run(() => DeleteAsync(id)).GetAwaiter().GetResult();
-    public bool Update(string id, string? title = null, string? description = null, int? priority = null, string? category = null, List<string>? tags = null, DateTime? dueDate = null)
-        => Task.Run(() => UpdateAsync(id, title, description, priority, category, tags, dueDate)).GetAwaiter().GetResult();
+    // Sync wrappers removed — all callers (TodoTools) now use async methods directly.
 
     private void Load()
     {

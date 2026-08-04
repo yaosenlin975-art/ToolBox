@@ -66,13 +66,15 @@ public static class ScheduleManager
 
     private static void CaptureFullScreen()
     {
-        // 通过 WPF 获取主屏幕尺寸
-        var width = (int)SystemParameters.PrimaryScreenWidth;
-        var height = (int)SystemParameters.PrimaryScreenHeight;
+        // 虚拟屏幕覆盖所有显示器，含非主屏区域
+        var left = (int)SystemParameters.VirtualScreenLeft;
+        var top = (int)SystemParameters.VirtualScreenTop;
+        var width = (int)SystemParameters.VirtualScreenWidth;
+        var height = (int)SystemParameters.VirtualScreenHeight;
 
         using var bitmap = new System.Drawing.Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
         using var g = System.Drawing.Graphics.FromImage(bitmap);
-        g.CopyFromScreen(0, 0, 0, 0, new System.Drawing.Size(width, height));
+        g.CopyFromScreen(left, top, 0, 0, new System.Drawing.Size(width, height));
 
         var dir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

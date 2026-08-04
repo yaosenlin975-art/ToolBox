@@ -6,7 +6,7 @@ namespace ToolBox.Core.Tools;
 public static class TodoTools
 {
     [Tool("add_todo", "创建新的 Todo 任务")]
-    public static string AddTodo(
+    public static async Task<string> AddTodo(
         [ToolParam("任务标题")] string title,
         [ToolParam("任务描述")] string description = "",
         [ToolParam("优先级 0=普通 1=重要 2=紧急")] int priority = 0,
@@ -34,17 +34,17 @@ public static class TodoTools
         if (!string.IsNullOrWhiteSpace(repeat)
             && Enum.TryParse<ERepeatFrequency>(repeat, true, out var freq))
         {
-            var item = TodoStore.Instance.AddRepeating(title, freq, description, priority, tags: tagList, dueDate: due);
+            var item = await TodoStore.Instance.AddRepeatingAsync(title, freq, description, priority, tags: tagList, dueDate: due);
             return $"已添加重复 Todo [{item.Id}]: {item.Title} ({freq})";
         }
 
-        var normal = TodoStore.Instance.Add(title, description, priority, tags: tagList, dueDate: due);
+        var normal = await TodoStore.Instance.AddAsync(title, description, priority, tags: tagList, dueDate: due);
         var dueInfo = due.HasValue ? $", 截止 {due:yyyy-MM-dd HH:mm}" : "";
         return $"已添加 Todo [{normal.Id}]: {normal.Title}{dueInfo}";
     }
 
     [Tool("list_todos", "查询 Todo 列表")]
-    public static string ListTodos(
+    public static Task<string> ListTodos(
         [ToolParam("筛选: all/pending/completed/repeating")] string filter = "all",
         [ToolParam("按标签筛选")] string tag = "")
     {
@@ -57,38 +57,38 @@ public static class TodoTools
         };
         if (!string.IsNullOrWhiteSpace(tag))
             items = items.Where(t => t.Tags.Contains(tag)).ToList();
-        if (items.Count == 0) return "没有找到 Todo";
-        return string.Join("\n", items.Select(t =>
-            "[" + (t.IsCompleted ? "完成" : "待办") + "] " + t.Id + " | " + (t.IsRepeating ? "\U0001F504 " : "") + t.Title + " | P" + t.Priority));
+        if (items.Count == 0) return Task.FromResult("没有找到 Todo");
+        return Task.FromResult(string.Join("\n", items.Select(t =>
+            "[" + (t.IsCompleted ? "完成" : "待办") + "] " + t.Id + " | " + (t.IsRepeating ? "\U0001F504 " : "") + t.Title + " | P" + t.Priority)));
     }
 
     [Tool("complete_todo", "标记 Todo 为已完成")]
-    public static string CompleteTodo(
+    public static async Task<string> CompleteTodo(
         [ToolParam("Todo ID")] string todoId)
     {
-        return TodoStore.Instance.Complete(todoId)
+        return await TodoStore.Instance.CompleteAsync(todoId)
             ? "已标记完成: " + todoId
             : "未找到 Todo: " + todoId;
     }
 
     [Tool("delete_todo", "删除 Todo")]
-    public static string DeleteTodo(
+    public static async Task<string> DeleteTodo(
         [ToolParam("Todo ID")] string todoId)
     {
-        return TodoStore.Instance.Delete(todoId)
+        return await TodoStore.Instance.DeleteAsync(todoId)
             ? "已删除: " + todoId
             : "未找到 Todo: " + todoId;
     }
 
     [Tool("update_todo", "更新 Todo 信息")]
-    public static string UpdateTodo(
+    public static async Task<string> UpdateTodo(
         [ToolParam("Todo ID")] string todoId,
         [ToolParam("新标题")] string title = "",
         [ToolParam("新描述")] string description = "",
         [ToolParam("新优先级")] string priority = "")
     {
         int? p = int.TryParse(priority, out var pv) ? pv : null;
-        var success = TodoStore.Instance.Update(todoId,
+        var success = await TodoStore.Instance.UpdateAsync(todoId,
             string.IsNullOrEmpty(title) ? null : title,
             string.IsNullOrEmpty(description) ? null : description,
             p);
@@ -96,14 +96,14 @@ public static class TodoTools
     }
 
     [Tool("parse_date", "解析自然语言中的日期时间表达")]
-    public static string ParseDate(
+    public static Task<string> ParseDate(
         [ToolParam("要解析的文本（如'明天下午3点'、'下周五'）")] string text)
     {
         var result = SmartDateParser.Parse(text);
         if (!result.HasDate)
-            return JsonSerializer.Serialize(new { success = false, error = "未能识别日期表达", input = text });
+            return Task.FromResult(JsonSerializer.Serialize(new { success = false, error = "未能识别日期表达", input = text }));
 
-        return JsonSerializer.Serialize(new
+        return Task.FromResult(JsonSerializer.Serialize(new
         {
             success = true,
             input = text,
@@ -111,6 +111,6 @@ public static class TodoTools
             parsedDate = result.ParsedDate!.Value.ToString("yyyy-MM-dd HH:mm"),
             isRepeat = result.IsRepeat,
             confidence = result.Confidence
-        });
+        }));
     }
 }
