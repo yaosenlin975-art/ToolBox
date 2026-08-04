@@ -15,7 +15,7 @@ public partial class TodoView : UserControl
     public TodoView()
     {
         InitializeComponent();
-        TodoStore.Instance.ItemsChanged += () => Dispatcher.Invoke(LoadTodos);
+        TodoStore.Instance.ItemsChanged += () => Dispatcher.BeginInvoke(LoadTodos);
         LoadTodos();
     }
 
@@ -39,6 +39,10 @@ public partial class TodoView : UserControl
             var drawer = CreateDrawer(display, roots, category);
             DrawerContainer.Children.Add(drawer);
         }
+
+        TodoEmptyState.Visibility = DrawerContainer.Children.Count == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private Dictionary<string, List<TodoItem>> GetGroupedCompleted()

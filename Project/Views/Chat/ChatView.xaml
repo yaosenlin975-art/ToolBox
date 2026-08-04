@@ -83,8 +83,27 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
+            <!-- 空状态：无会话时显示 -->
+            <Border x:Name="ChatEmptyState" Grid.Row="0"
+                    Background="{DynamicResource BgSecondaryBrush}"
+                    CornerRadius="8" Margin="24" Padding="32"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="💬" FontSize="40" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                    <TextBlock Text="{DynamicResource Lang_EmptyChatTitle}" FontSize="18" FontWeight="Bold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{DynamicResource Lang_EmptyChatHint}" FontSize="13"
+                               Foreground="{DynamicResource TextTertiaryBrush}" HorizontalAlignment="Center"
+                               Margin="0,8,0,16"/>
+                    <Button Content="{DynamicResource LLM.Session.NewSession}" Style="{StaticResource BtnPrimary}"
+                            Padding="18,8" FontSize="13" HorizontalAlignment="Center"
+                            Click="NewSessionBtn_Click"/>
+                </StackPanel>
+            </Border>
+
             <ScrollViewer x:Name="MessageScroller" Grid.Row="0"
-                          VerticalScrollBarVisibility="Auto" Padding="24,16,24,8">
+                          VerticalScrollBarVisibility="Auto" Padding="24,16,24,8"
+                          Visibility="Collapsed">
                 <StackPanel x:Name="MessagePanel" Orientation="Vertical"/>
             </ScrollViewer>
 

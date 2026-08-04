@@ -59,6 +59,14 @@
     <sys:String x:Key="Lang_HotkeyESC">Press ESC to cancel</sys:String>
     <sys:String x:Key="Lang_OK">OK</sys:String>
     <sys:String x:Key="Lang_NoHistory">No history yet</sys:String>
+
+    <!-- Empty States -->
+    <sys:String x:Key="Lang_EmptyChatTitle">Start a new conversation</sys:String>
+    <sys:String x:Key="Lang_EmptyChatHint">Select a session on the left or create a new one</sys:String>
+    <sys:String x:Key="Lang_EmptyTodoTitle">No to-dos yet</sys:String>
+    <sys:String x:Key="Lang_EmptyTodoHint">Tap the + button to add your first to-do</sys:String>
+    <sys:String x:Key="Lang_EmptyHistoryTitle">No screenshots yet</sys:String>
+    <sys:String x:Key="Lang_EmptyHistoryHint">Screenshots you take will appear here</sys:String>
     <sys:String x:Key="Lang_Version">Screenshots &amp; Pins</sys:String>
     <sys:String x:Key="Lang_Language">Language</sys:String>
     <sys:String x:Key="Lang_LanguageHint">Applied immediately after saving</sys:String>
@@ -203,5 +211,65 @@
     <sys:String x:Key="Lang_ClipMaxEntriesHint">Oldest entries (and thumbnails) are auto-pruned</sys:String>
     <sys:String x:Key="Lang_ClipIgnoredApps">Ignored process names</sys:String>
     <sys:String x:Key="Lang_ClipIgnoredAppsHint">Comma-separated, e.g. KeePass,1Password (privacy)</sys:String>
+
+    <!-- Network Diagnostics (PRD F1 / F9) -->
+    <sys:String x:Key="Lang_NetworkDiagnosis">Network Diagnostics</sys:String>
+    <sys:String x:Key="Lang_Page_Network">Network Diagnostics</sys:String>
+    <sys:String x:Key="Lang_Tray_Network">Network Diagnostics</sys:String>
+    <sys:String x:Key="Lang_NetworkHotkey">Network Diagnostics Hotkey</sys:String>
+    <sys:String x:Key="Lang_NetworkHotkeyHint">Bring up ToolBox and open the network diagnostics view</sys:String>
+    <sys:String x:Key="Lang_DashNetworkTitle">Network Diagnostics</sys:String>
+    <sys:String x:Key="Lang_DashNetworkHint">Run a one-click network check</sys:String>
+
+    <sys:String x:Key="Lang_Net_StatusIdle">Not Checked</sys:String>
+    <sys:String x:Key="Lang_Net_StatusIdleHint">Click "Run Diagnosis" to check your network environment</sys:String>
+    <sys:String x:Key="Lang_Net_StatusDiagnosing">Diagnosing network...</sys:String>
+    <sys:String x:Key="Lang_Net_StatusDiagnosingHint">Checking each item, please wait...</sys:String>
+    <sys:String x:Key="Lang_Net_StatusHealthy">Network environment is healthy</sys:String>
+    <sys:String x:Key="Lang_Net_StatusHealthyHint">All checks passed, nothing to fix</sys:String>
+    <sys:String x:Key="Lang_Net_StatusIssues">Network issues found</sys:String>
+    <sys:String x:Key="Lang_Net_StatusIssuesHint">Some checks failed — view details and repair suggestions below</sys:String>
+    <sys:String x:Key="Lang_Net_BtnDiagnose">Run Diagnosis</sys:String>
+    <sys:String x:Key="Lang_Net_BtnRetest">Re-check</sys:String>
+    <sys:String x:Key="Lang_Net_EmptyTitle">No diagnosis yet</sys:String>
+    <sys:String x:Key="Lang_Net_EmptyHint">Click "Run Diagnosis" to check your network environment — results will appear here</sys:String>
+    <sys:String x:Key="Lang_Net_SectionResults">Diagnosis Results</sys:String>
+    <sys:String x:Key="Lang_Net_SectionRepair">Repair Suggestions</sys:String>
+    <sys:String x:Key="Lang_Net_SectionLog">Diagnosis Log</sys:String>
+    <sys:String x:Key="Lang_Net_RepairTitle">{0} item(s) can be auto-repaired</sys:String>
+    <sys:String x:Key="Lang_Net_RepairImpact">Repairing will modify related network settings; some actions may briefly disconnect your network (a few seconds). Please confirm before proceeding.</sys:String>
+    <sys:String x:Key="Lang_Net_BtnRepair">Repair Now</sys:String>
+    <sys:String x:Key="Lang_Net_BtnLater">Later</sys:String>
+    <sys:String x:Key="Lang_Net_RepairExecuting">Repairing, please wait...</sys:String>
+    <sys:String x:Key="Lang_Net_RepairDone">Repair complete</sys:String>
+    <sys:String x:Key="Lang_Net_LogEmpty">No diagnosis records yet</sys:String>
+    <sys:String x:Key="Lang_Net_LogError">Diagnosis failed to run</sys:String>
+    <sys:String x:Key="Lang_Net_LogRepairDone">Repair completed (flushed DNS cache)</sys:String>
+    <sys:String x:Key="Lang_Net_LogRepairError">Repair failed</sys:String>
+    <sys:String x:Key="Lang_Net_LogDeferred">User chose "Later"; no repair was executed</sys:String>
+    <sys:String x:Key="Lang_Net_LogHealthy">Diagnosis done: network environment healthy</sys:String>
+    <sys:String x:Key="Lang_Net_LogWarned">Diagnosis done: {0} warning(s)</sys:String>
+    <sys:String x:Key="Lang_Net_LogFailed">Diagnosis done: {0} failed, {1} warning(s)</sys:String>
+    <sys:String x:Key="Lang_Net_StatusPass">Passed</sys:String>
+    <sys:String x:Key="Lang_Net_StatusFail">Failed</sys:String>
+    <sys:String x:Key="Lang_Net_StatusWarning">Warning</sys:String>
+    <sys:String x:Key="Lang_Net_StatusSkipped">Skipped</sys:String>
+    <sys:String x:Key="Lang_Net_StatusPending">Pending</sys:String>
+    <sys:String x:Key="Lang_Net_Testing">Testing...</sys:String>
+    <sys:String x:Key="Lang_Net_ErrorCode">Error code</sys:String>
+    <sys:String x:Key="Lang_Net_DetailPass">Check passed, nothing to do</sys:String>
+    <sys:String x:Key="Lang_Net_DetailWarnReason">Reason: {0}</sys:String>
+    <sys:String x:Key="Lang_Net_DetailWarnImpact">Impact: may affect experience but does not block connectivity</sys:String>
+    <sys:String x:Key="Lang_Net_DetailWarnAdvice">Advice: can be handled later or checked manually</sys:String>
+    <sys:String x:Key="Lang_Net_DetailNoInfo">No detailed information available</sys:String>
+    <sys:String x:Key="Lang_Net_DetailFailReason">Reason: {0}</sys:String>
+    <sys:String x:Key="Lang_Net_DetailFailImpact">Impact: may cause network connection issues</sys:String>
+    <sys:String x:Key="Lang_Net_DetailFailAdvice">Advice: see repair suggestions below or check the settings manually</sys:String>
+    <sys:String x:Key="Lang_Net_Check_Adapters">Network Adapter</sys:String>
+    <sys:String x:Key="Lang_Net_Check_Gateway">Default Gateway</sys:String>
+    <sys:String x:Key="Lang_Net_Check_Dns">DNS Resolution</sys:String>
+    <sys:String x:Key="Lang_Net_Check_Internet">Internet Connectivity</sys:String>
+    <sys:String x:Key="Lang_Net_Check_DnsConfig">DNS Server Configuration</sys:String>
+    <sys:String x:Key="Lang_Net_Check_Proxy">System Proxy</sys:String>
 
 </ResourceDictionary>

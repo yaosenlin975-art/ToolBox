@@ -59,6 +59,14 @@
     <sys:String x:Key="Lang_HotkeyESC">按 ESC 取消</sys:String>
     <sys:String x:Key="Lang_OK">确定</sys:String>
     <sys:String x:Key="Lang_NoHistory">暂无历史记录</sys:String>
+
+    <!-- Empty States -->
+    <sys:String x:Key="Lang_EmptyChatTitle">开始一段新对话</sys:String>
+    <sys:String x:Key="Lang_EmptyChatHint">选择左侧会话或新建一个会话</sys:String>
+    <sys:String x:Key="Lang_EmptyTodoTitle">暂无待办事项</sys:String>
+    <sys:String x:Key="Lang_EmptyTodoHint">点击右下角 + 添加你的第一个待办</sys:String>
+    <sys:String x:Key="Lang_EmptyHistoryTitle">暂无截图记录</sys:String>
+    <sys:String x:Key="Lang_EmptyHistoryHint">使用截图功能后，记录会显示在这里</sys:String>
     <sys:String x:Key="Lang_Version">截图 · 贴图 · 标注</sys:String>
     <sys:String x:Key="Lang_Language">语言</sys:String>
     <sys:String x:Key="Lang_LanguageHint">保存后立即生效</sys:String>
@@ -203,5 +211,65 @@
     <sys:String x:Key="Lang_ClipMaxEntriesHint">超出后自动清理最旧条目(含缩略图)</sys:String>
     <sys:String x:Key="Lang_ClipIgnoredApps">忽略的应用进程名</sys:String>
     <sys:String x:Key="Lang_ClipIgnoredAppsHint">逗号分隔,如 KeePass,1Password(隐私场景)</sys:String>
+
+    <!-- 网络诊断（PRD F1 / F9） -->
+    <sys:String x:Key="Lang_NetworkDiagnosis">网络诊断</sys:String>
+    <sys:String x:Key="Lang_Page_Network">网络诊断</sys:String>
+    <sys:String x:Key="Lang_Tray_Network">网络诊断</sys:String>
+    <sys:String x:Key="Lang_NetworkHotkey">网络诊断快捷键</sys:String>
+    <sys:String x:Key="Lang_NetworkHotkeyHint">唤起工具箱并打开网络诊断视图</sys:String>
+    <sys:String x:Key="Lang_DashNetworkTitle">网络诊断</sys:String>
+    <sys:String x:Key="Lang_DashNetworkHint">一键检查网络环境</sys:String>
+
+    <sys:String x:Key="Lang_Net_StatusIdle">未检测</sys:String>
+    <sys:String x:Key="Lang_Net_StatusIdleHint">点击「一键诊断」开始检查网络环境</sys:String>
+    <sys:String x:Key="Lang_Net_StatusDiagnosing">正在诊断网络...</sys:String>
+    <sys:String x:Key="Lang_Net_StatusDiagnosingHint">正在逐项检测，请稍候...</sys:String>
+    <sys:String x:Key="Lang_Net_StatusHealthy">网络环境正常</sys:String>
+    <sys:String x:Key="Lang_Net_StatusHealthyHint">所有检测项均通过，无需处理</sys:String>
+    <sys:String x:Key="Lang_Net_StatusIssues">发现网络问题</sys:String>
+    <sys:String x:Key="Lang_Net_StatusIssuesHint">部分检测项未通过，可在下方查看详情与修复建议</sys:String>
+    <sys:String x:Key="Lang_Net_BtnDiagnose">一键诊断</sys:String>
+    <sys:String x:Key="Lang_Net_BtnRetest">重新检测</sys:String>
+    <sys:String x:Key="Lang_Net_EmptyTitle">还没有进行过网络检测</sys:String>
+    <sys:String x:Key="Lang_Net_EmptyHint">点击「一键诊断」开始检查网络环境，检测结果将展示在这里</sys:String>
+    <sys:String x:Key="Lang_Net_SectionResults">检测结果</sys:String>
+    <sys:String x:Key="Lang_Net_SectionRepair">修复建议</sys:String>
+    <sys:String x:Key="Lang_Net_SectionLog">诊断日志</sys:String>
+    <sys:String x:Key="Lang_Net_RepairTitle">发现 {0} 项可自动修复</sys:String>
+    <sys:String x:Key="Lang_Net_RepairImpact">执行修复将修改相关网络配置，部分动作可能导致网络短暂中断（约数秒）。执行前请确认。</sys:String>
+    <sys:String x:Key="Lang_Net_BtnRepair">执行修复</sys:String>
+    <sys:String x:Key="Lang_Net_BtnLater">稍后处理</sys:String>
+    <sys:String x:Key="Lang_Net_RepairExecuting">修复执行中，请稍候...</sys:String>
+    <sys:String x:Key="Lang_Net_RepairDone">修复完成</sys:String>
+    <sys:String x:Key="Lang_Net_LogEmpty">暂无诊断记录</sys:String>
+    <sys:String x:Key="Lang_Net_LogError">诊断执行失败</sys:String>
+    <sys:String x:Key="Lang_Net_LogRepairDone">修复执行完成（刷新 DNS 缓存）</sys:String>
+    <sys:String x:Key="Lang_Net_LogRepairError">修复执行失败</sys:String>
+    <sys:String x:Key="Lang_Net_LogDeferred">用户选择稍后处理，未执行修复</sys:String>
+    <sys:String x:Key="Lang_Net_LogHealthy">诊断完成：网络环境正常</sys:String>
+    <sys:String x:Key="Lang_Net_LogWarned">诊断完成：{0} 项警告</sys:String>
+    <sys:String x:Key="Lang_Net_LogFailed">诊断完成：{0} 项失败、{1} 项警告</sys:String>
+    <sys:String x:Key="Lang_Net_StatusPass">通过</sys:String>
+    <sys:String x:Key="Lang_Net_StatusFail">失败</sys:String>
+    <sys:String x:Key="Lang_Net_StatusWarning">警告</sys:String>
+    <sys:String x:Key="Lang_Net_StatusSkipped">已跳过</sys:String>
+    <sys:String x:Key="Lang_Net_StatusPending">待检测</sys:String>
+    <sys:String x:Key="Lang_Net_Testing">检测中...</sys:String>
+    <sys:String x:Key="Lang_Net_ErrorCode">错误码</sys:String>
+    <sys:String x:Key="Lang_Net_DetailPass">检测通过，无需处理</sys:String>
+    <sys:String x:Key="Lang_Net_DetailWarnReason">原因：{0}</sys:String>
+    <sys:String x:Key="Lang_Net_DetailWarnImpact">影响：可能影响使用体验，但不阻断网络连接</sys:String>
+    <sys:String x:Key="Lang_Net_DetailWarnAdvice">建议：可稍后处理或手动检查相关设置</sys:String>
+    <sys:String x:Key="Lang_Net_DetailNoInfo">未获取到详细信息</sys:String>
+    <sys:String x:Key="Lang_Net_DetailFailReason">原因：{0}</sys:String>
+    <sys:String x:Key="Lang_Net_DetailFailImpact">影响：可能导致网络连接异常</sys:String>
+    <sys:String x:Key="Lang_Net_DetailFailAdvice">建议：查看下方修复建议或手动检查相关设置</sys:String>
+    <sys:String x:Key="Lang_Net_Check_Adapters">网络适配器</sys:String>
+    <sys:String x:Key="Lang_Net_Check_Gateway">默认网关</sys:String>
+    <sys:String x:Key="Lang_Net_Check_Dns">DNS 解析</sys:String>
+    <sys:String x:Key="Lang_Net_Check_Internet">外网连通</sys:String>
+    <sys:String x:Key="Lang_Net_Check_DnsConfig">DNS 服务器配置</sys:String>
+    <sys:String x:Key="Lang_Net_Check_Proxy">系统代理</sys:String>
 
 </ResourceDictionary>

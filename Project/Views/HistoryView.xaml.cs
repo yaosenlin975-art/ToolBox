@@ -16,6 +16,7 @@ namespace ToolBox.Views;
 public partial class HistoryView : UserControl
 {
     private const int PageSize = 16;
+    private const double CardMinWidth = 240; // Minimum card width including margin
     private List<CacheItem> allItems = new();
     private List<CacheItem> filteredItems = new();
     private int loadedCount;
@@ -62,7 +63,8 @@ public partial class HistoryView : UserControl
         if (!Directory.Exists(cachePath))
         {
             lblSubtitle.Text = "0 条记录";
-            lblEmpty.Visibility = Visibility.Visible;
+            HistoryEmptyState.Visibility = Visibility.Visible;
+            HistoryScrollViewer.Visibility = Visibility.Collapsed;
             btnLoadMore.Visibility = Visibility.Collapsed;
             lstHistory.Items.Clear();
             BuildTagCloud();
@@ -126,7 +128,9 @@ public partial class HistoryView : UserControl
         LoadNextPage();
 
         lblSubtitle.Text = $"{filteredItems.Count} 条记录";
-        lblEmpty.Visibility = filteredItems.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var isEmpty = filteredItems.Count == 0;
+        HistoryEmptyState.Visibility = isEmpty ? Visibility.Visible : Visibility.Collapsed;
+        HistoryScrollViewer.Visibility = isEmpty ? Visibility.Collapsed : Visibility.Visible;
         BuildTagCloud();
     }
 
@@ -156,6 +160,9 @@ public partial class HistoryView : UserControl
 
         loadedCount += take;
         btnLoadMore.Visibility = loadedCount < filteredItems.Count ? Visibility.Visible : Visibility.Collapsed;
+
+        if (currentViewMode == "grid")
+            Dispatcher.BeginInvoke(UpdateGridItemWidth, System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     private void DateFilter_Changed(object sender, RoutedEventArgs e)
@@ -254,6 +261,28 @@ public partial class HistoryView : UserControl
     }
 
     private void BtnLoadMore_Click(object sender, RoutedEventArgs e) => LoadNextPage();
+
+    private void OnGridSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (currentViewMode != "grid") return;
+        UpdateGridItemWidth();
+    }
+
+    private void UpdateGridItemWidth()
+    {
+        var availableWidth = HistoryScrollViewer.ActualWidth - 64; // account for padding
+        if (availableWidth <= 0) return;
+        var columns = Math.Max(1, (int)Math.Floor(availableWidth / CardMinWidth));
+        var itemWidth = (availableWidth - (columns - 1) * 12) / columns; // 12 = margin between items
+
+        foreach (var item in lstHistory.Items)
+        {
+            if (lstHistory.ItemContainerGenerator.ContainerFromItem(item) is System.Windows.Controls.ContentPresenter presenter)
+            {
+                presenter.Width = itemWidth;
+            }
+        }
+    }
 
     private void HistoryItem_Click(object sender, MouseButtonEventArgs e)
     {

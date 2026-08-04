@@ -4,20 +4,20 @@
              Background="{DynamicResource BgBrush}">
     <UserControl.Resources>
         <ItemsPanelTemplate x:Key="HistoryGridPanel">
-            <UniformGrid Columns="4"/>
+            <WrapPanel/>
         </ItemsPanelTemplate>
         <ItemsPanelTemplate x:Key="HistoryListPanel">
             <StackPanel Orientation="Vertical"/>
         </ItemsPanelTemplate>
 
-        <!-- 网格视图：沿用原有卡片样式（300x200 缩略图 + 时间/尺寸） -->
+        <!-- 网格视图：沿用原有卡片样式（缩略图 + 时间/尺寸） -->
         <DataTemplate x:Key="HistoryGridTemplate">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <Border Grid.Row="0" Width="300" Height="200" Background="{DynamicResource BgSunkenBrush}">
+                <Border Grid.Row="0" Width="220" Height="147" Background="{DynamicResource BgSunkenBrush}">
                     <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"
                            RenderOptions.BitmapScalingMode="HighQuality"
                            MouseLeftButtonUp="HistoryItem_Click" MouseRightButtonDown="HistoryItem_RightClick" ToolTip="{DynamicResource Lang_Compact_ViewOriginal}"/>
@@ -56,7 +56,7 @@
             </Grid>
         </DataTemplate>
     </UserControl.Resources>
-    <Grid>
+    <Grid SizeChanged="OnGridSizeChanged">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -125,8 +125,24 @@
             </ScrollViewer>
         </Border>
 
+        <!-- 空状态：居中显示 -->
+        <Border x:Name="HistoryEmptyState" Grid.Row="3"
+                Background="{DynamicResource BgSecondaryBrush}"
+                CornerRadius="8" Margin="32" Padding="32"
+                HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                Visibility="Collapsed">
+            <StackPanel HorizontalAlignment="Center">
+                <TextBlock Text="🖼️" FontSize="40" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                <TextBlock Text="{DynamicResource Lang_EmptyHistoryTitle}" FontSize="18" FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                <TextBlock Text="{DynamicResource Lang_EmptyHistoryHint}" FontSize="13"
+                           Foreground="{DynamicResource TextTertiaryBrush}" HorizontalAlignment="Center"
+                           Margin="0,8,0,0"/>
+            </StackPanel>
+        </Border>
+
         <!-- Grid Container -->
-        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" Padding="32,16">
+        <ScrollViewer x:Name="HistoryScrollViewer" Grid.Row="3" VerticalScrollBarVisibility="Auto" Padding="32,16">
             <ListBox x:Name="lstHistory" Background="Transparent" BorderThickness="0"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      ItemsPanel="{StaticResource HistoryGridPanel}"
@@ -163,9 +179,6 @@
                 <Button x:Name="btnLoadMore" Content="{DynamicResource Lang_LoadMore}" Click="BtnLoadMore_Click"
                         Style="{StaticResource OutlineButton}" Padding="20,6" FontSize="12"
                         Visibility="Collapsed"/>
-                <TextBlock x:Name="lblEmpty" Text="{DynamicResource Lang_NoHistory}" Margin="0,0,0,0"
-                           Foreground="{DynamicResource TextTertiaryBrush}" FontSize="12"
-                           Visibility="Collapsed"/>
             </StackPanel>
         </Border>
     </Grid>

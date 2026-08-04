@@ -37,7 +37,7 @@
             </StackPanel>
             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="24,20,24,20">
                 <Button x:Name="BtnMinimize" Content="最小化到系统抽屉" Width="130" Height="30"
-                        Style="{StaticResource BtnDefault}" Click="OnMinimizeClick" Margin="0,0,8,0"/>
+                        Style="{StaticResource OutlineButton}" Click="OnMinimizeClick" Margin="0,0,8,0"/>
                 <Button x:Name="BtnExit" Content="退出" Width="72" Height="30"
                         Style="{StaticResource BtnPrimary}" Click="OnExitClick"/>
             </StackPanel>

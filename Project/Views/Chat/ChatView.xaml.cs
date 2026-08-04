@@ -57,6 +57,14 @@ public partial class ChatView : UserControl
         SessionList.ItemsSource = chatManager.Sessions.ToList();
         if (chatManager.Sessions.Count > 0)
             SessionList.SelectedIndex = 0;
+        UpdateEmptyState();
+    }
+
+    private void UpdateEmptyState()
+    {
+        var hasSession = currentSession != null;
+        ChatEmptyState.Visibility = hasSession ? Visibility.Collapsed : Visibility.Visible;
+        MessageScroller.Visibility = hasSession ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>外部填入输入框文本(用于"发送到 AI 助手"等场景)</summary>
@@ -80,6 +88,7 @@ public partial class ChatView : UserControl
             chatManager.SwitchSession(session.Id);
             currentAgent = CreateAgent(session);
             LoadMessages(session);
+            UpdateEmptyState();
         }
     }
 
