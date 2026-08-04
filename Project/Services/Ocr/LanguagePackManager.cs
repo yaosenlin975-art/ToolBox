@@ -1,6 +1,6 @@
 // File: LanguagePackManager.cs
 // Tesseract 语言包(traineddata)下载与校验管理。
-// 语言包存放于 %LocalAppData%/Setuna/ocr/tessdata/，与 CachePath 同根(Setuna 目录)。
+// 语言包存放于 %LocalAppData%/ToolBox/ocr/tessdata/，与截图缓存同根。
 // 数据源: tesseract-ocr/tessdata_fast (体积更小，适合桌面工具按需下载)。
 using System;
 using System.Collections.Generic;
@@ -17,6 +17,10 @@ public class LanguagePackManager
 
     /// <summary>tessdata 目录(包含 *.traineddata)。与截图缓存同根，便于统一清理。</summary>
     public static readonly string TessDataPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "ToolBox", "ocr", "tessdata");
+
+    private static readonly string LegacyTessDataPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Setuna", "ocr", "tessdata");
 
@@ -36,6 +40,28 @@ public class LanguagePackManager
         {
             Timeout = TimeSpan.FromMinutes(5)
         };
+
+        // 迁移旧版 tessdata 目录
+        MigrateLegacyTessData();
+    }
+
+    private static void MigrateLegacyTessData()
+    {
+        if (!Directory.Exists(LegacyTessDataPath) || LegacyTessDataPath == TessDataPath) return;
+        try
+        {
+            Directory.CreateDirectory(TessDataPath);
+            foreach (var f in Directory.GetFiles(LegacyTessDataPath, "*.traineddata"))
+            {
+                var dest = Path.Combine(TessDataPath, Path.GetFileName(f));
+                if (!File.Exists(dest))
+                    File.Move(f, dest);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[ToolBox] Tessdata migration failed: " + ex.Message);
+        }
     }
 
     /// <summary>指定语言包是否已安装。"chi_sim+eng" 拆分后逐一检查。</summary>

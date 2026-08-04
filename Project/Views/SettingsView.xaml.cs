@@ -60,7 +60,7 @@ public partial class SettingsView : UserControl
 
         rdoResidentMode.IsChecked = data.AppType == EApplicationType.ResidentMode;
 
-        chkAutoStartup.IsChecked = data.ShowMainWindow;
+        chkAutoStartup.IsChecked = AutoStartup.IsEnabled;
 
 
 
@@ -79,6 +79,8 @@ public partial class SettingsView : UserControl
         txtHotKey1.Text = ToolBoxOption.KeyToDisplayString(result.CaptureHotKey);
 
         txtHotKey2.Text = ToolBoxOption.KeyToDisplayString(result.HideShowHotKey);
+
+        txtHotKey3.Text = ToolBoxOption.KeyToDisplayString(result.NetworkHotKey);
 
 
 
@@ -369,6 +371,12 @@ public partial class SettingsView : UserControl
         result.Data.AppType = rdoAppMode.IsChecked == true ? EApplicationType.ApplicationMode : EApplicationType.ResidentMode;
 
         result.Data.ShowMainWindow = rdoAppMode.IsChecked == true;
+
+        // 开机自启：以注册表 Run 键为准，勾选则写入、取消则删除
+        if (chkAutoStartup.IsChecked == true)
+            AutoStartup.Enable();
+        else
+            AutoStartup.Disable();
 
         result.HotKeyEnable = chkHotKeyEnable.IsChecked == true;
 
@@ -675,6 +683,10 @@ public partial class SettingsView : UserControl
 
                 txtHotKey2.Text = ToolBoxOption.KeyToDisplayString(result.HideShowHotKey);
 
+            else if (sender == txtHotKey3)
+
+                txtHotKey3.Text = ToolBoxOption.KeyToDisplayString(result.NetworkHotKey);
+
         }
 
     }
@@ -730,6 +742,16 @@ public partial class SettingsView : UserControl
             result.HideShowHotKey = combined;
 
             txtHotKey2.Text = ToolBoxOption.KeyToDisplayString(combined);
+
+        }
+
+        else if (sender == txtHotKey3)
+
+        {
+
+            result.NetworkHotKey = combined;
+
+            txtHotKey3.Text = ToolBoxOption.KeyToDisplayString(combined);
 
         }
 

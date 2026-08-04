@@ -272,4 +272,100 @@
     <sys:String x:Key="Lang_Net_Check_DnsConfig">DNS Server Configuration</sys:String>
     <sys:String x:Key="Lang_Net_Check_Proxy">System Proxy</sys:String>
 
+    <!-- ScrapWindow context menu -->
+    <sys:String x:Key="Lang_Scrap_Copy">Copy</sys:String>
+    <sys:String x:Key="Lang_Scrap_Cut">Cut</sys:String>
+    <sys:String x:Key="Lang_Scrap_TodoRecognize">Recognize Todos</sys:String>
+    <sys:String x:Key="Lang_Scrap_TodoRecognizeTitle">Todo Recognition</sys:String>
+    <sys:String x:Key="Lang_Scrap_TodoRecognizeFailed">Failed to recognize todos from the image.</sys:String>
+    <sys:String x:Key="Lang_Scrap_OcrRecognize">OCR Recognize</sys:String>
+    <sys:String x:Key="Lang_Scrap_OcrSelect">Select OCR</sys:String>
+    <sys:String x:Key="Lang_Scrap_Close">Close</sys:String>
+    <sys:String x:Key="Lang_Scrap_PngFilter">PNG Image|*.png|JPEG Image|*.jpg;*.jpeg|All Files|*.*</sys:String>
+    <sys:String x:Key="Lang_Scrap_ScreenshotPrefix">Screenshot_</sys:String>
+
+    <!-- Chat module (code-behind) -->
+    <sys:String x:Key="LLM.Error.ProviderNotConfigured">Please configure LLM provider in settings first</sys:String>
+    <sys:String x:Key="LLM.Session.Unpin">Unpin</sys:String>
+    <sys:String x:Key="LLM.Session.Pin">Pin</sys:String>
+    <sys:String x:Key="LLM.Session.Delete">Delete</sys:String>
+    <sys:String x:Key="LLM.Message.Quote">Quote</sys:String>
+    <sys:String x:Key="LLM.ToolCall.Params">Params: </sys:String>
+    <sys:String x:Key="LLM.ToolCall.Error">Error: </sys:String>
+    <sys:String x:Key="LLM.ToolCall.Result">Result: </sys:String>
+
+    <!-- Todo module -->
+    <sys:String x:Key="Lang_Todo_FilterAll">All</sys:String>
+    <sys:String x:Key="Lang_Todo_FilterPending">Pending</sys:String>
+    <sys:String x:Key="Lang_Todo_FilterCompleted">Completed</sys:String>
+    <sys:String x:Key="Lang_Todo_FilterRepeating">Repeating</sys:String>
+    <sys:String x:Key="Lang_Todo_FilterTrashed">Trashed</sys:String>
+    <sys:String x:Key="Lang_Todo_TaskDetail">Task Details</sys:String>
+    <sys:String x:Key="Lang_Todo_SelectTask">Select a task to view details</sys:String>
+    <sys:String x:Key="Lang_Todo_Category">Category</sys:String>
+    <sys:String x:Key="Lang_Todo_Priority">Priority</sys:String>
+    <sys:String x:Key="Lang_Todo_PriLow">Normal</sys:String>
+    <sys:String x:Key="Lang_Todo_PriMid">Important</sys:String>
+    <sys:String x:Key="Lang_Todo_PriHigh">Urgent</sys:String>
+    <sys:String x:Key="Lang_Todo_DueDate">Due Date</sys:String>
+    <sys:String x:Key="Lang_Todo_Progress">Progress</sys:String>
+    <sys:String x:Key="Lang_Todo_RepeatSettings">Repeat Settings</sys:String>
+    <sys:String x:Key="Lang_Todo_Frequency">Frequency</sys:String>
+    <sys:String x:Key="Lang_Todo_NoRepeat">No Repeat</sys:String>
+    <sys:String x:Key="Lang_Todo_Daily">Daily</sys:String>
+    <sys:String x:Key="Lang_Todo_Weekly">Weekly</sys:String>
+    <sys:String x:Key="Lang_Todo_Monthly">Monthly</sys:String>
+    <sys:String x:Key="Lang_Todo_Yearly">Yearly</sys:String>
+    <sys:String x:Key="Lang_Todo_ReminderTime">Reminder Time</sys:String>
+    <sys:String x:Key="Lang_Todo_EndDate">End Date</sys:String>
+    <sys:String x:Key="Lang_Todo_SetRepeat">Set as Repeating</sys:String>
+    <sys:String x:Key="Lang_Todo_Description">Description</sys:String>
+    <sys:String x:Key="Lang_Todo_CreatedTime">Created</sys:String>
+    <sys:String x:Key="Lang_Todo_CompletedTime">Completed</sys:String>
+    <sys:String x:Key="Lang_Todo_AddSubtask">Add Subtask</sys:String>
+    <sys:String x:Key="Lang_Todo_TrashTask">Trash Task</sys:String>
+    <sys:String x:Key="Lang_Todo_Restore">Restore</sys:String>
+    <sys:String x:Key="Lang_Todo_Uncategorized">Uncategorized</sys:String>
+    <sys:String x:Key="Lang_Todo_StatusCompleted">Completed</sys:String>
+    <sys:String x:Key="Lang_Todo_StatusTrashed">Trashed</sys:String>
+    <sys:String x:Key="Lang_Todo_StatusPending">Pending</sys:String>
+    <sys:String x:Key="Lang_Todo_AddSubtaskTitle">Add Subtask</sys:String>
+    <sys:String x:Key="Lang_Todo_AddSubtaskPrompt">Enter subtask title:</sys:String>
+    <sys:String x:Key="Lang_Todo_AddTodoTitle">Add Todo</sys:String>
+    <sys:String x:Key="Lang_Todo_AddTodoPrompt">Enter todo title:</sys:String>
+    <sys:String x:Key="Lang_Todo_DefaultCategory">Default</sys:String>
+
+    <!-- Settings: Action Chains -->
+    <sys:String x:Key="Lang_ActionChains">Screenshot Action Chains</sys:String>
+    <sys:String x:Key="Lang_ActionChainsHint">Configure post-capture action sequences, e.g. &quot;OCR → Copy&quot; to extract text directly</sys:String>
+    <sys:String x:Key="Lang_ActionChainManage">Action Chain Management</sys:String>
+    <sys:String x:Key="Lang_ActionChainDefault">Default Action Chain</sys:String>
+    <sys:String x:Key="Lang_ActionChainDefaultHint">Auto-execute this chain after capture</sys:String>
+    <sys:String x:Key="Lang_ActionChainExisting">Existing Chains</sys:String>
+    <sys:String x:Key="Lang_ActionChainNew">+ New Chain</sys:String>
+    <sys:String x:Key="Lang_ActionChainContinueOnError">Continue on Error</sys:String>
+    <sys:String x:Key="Lang_ActionChainContinueOnErrorHint">Don't stop on error, continue to next node</sys:String>
+
+    <!-- Settings: Capture -->
+    <sys:String x:Key="Lang_ScreenshotMaxAge">Screenshot History Max Age</sys:String>
+    <sys:String x:Key="Lang_ScreenshotMaxAgeHint">Screenshots older than this will be auto-cleaned</sys:String>
+    <sys:String x:Key="Lang_ScreenshotMaxAgeValue">30 days</sys:String>
+
+    <!-- Settings: OCR -->
+    <sys:String x:Key="Lang_OcrTitle">OCR Text Recognition</sys:String>
+    <sys:String x:Key="Lang_OcrHint">Configure offline OCR engine and default language</sys:String>
+    <sys:String x:Key="Lang_OcrEngine">OCR Engine</sys:String>
+    <sys:String x:Key="Lang_OcrEngineLabel">Recognition Engine</sys:String>
+    <sys:String x:Key="Lang_OcrEngineHint">Tesseract: higher accuracy; Windows OCR: built-in, no language packs needed</sys:String>
+    <sys:String x:Key="Lang_OcrDefaultLanguage">Default Language</sys:String>
+    <sys:String x:Key="Lang_OcrDefaultLanguageHint">Tesseract: use + for multiple languages, e.g. chi_sim+eng; Windows OCR: uses the first one</sys:String>
+    <sys:String x:Key="Lang_OcrInstalledLangs">Installed Language Packs</sys:String>
+    <sys:String x:Key="Lang_OcrNotInstalled">(Not installed)</sys:String>
+    <sys:String x:Key="Lang_OcrRefresh">Refresh</sys:String>
+
+    <!-- Settings: Categories -->
+    <sys:String x:Key="Lang_CategoryManage">Category Management</sys:String>
+    <sys:String x:Key="Lang_CategoryManageHint">Manage todo categories, displayed as drawers in the list</sys:String>
+    <sys:String x:Key="Lang_CategoryAdd">Add Category</sys:String>
+
 </ResourceDictionary>

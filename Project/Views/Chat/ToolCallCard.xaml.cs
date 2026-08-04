@@ -15,10 +15,10 @@ public partial class ToolCallCard : UserControl
     public void SetToolCall(string name, string arguments, string? result, bool isError)
     {
         ToolNameText.Text = name;
-        ArgsText.Text = $"参数: {arguments}";
+        ArgsText.Text = $"{FindResource("LLM.ToolCall.Params")}{arguments}";
         if (result != null)
         {
-            ResultText.Text = isError ? $"错误: {result}" : $"结果: {result}";
+            ResultText.Text = isError ? $"{FindResource("LLM.ToolCall.Error")}{result}" : $"{FindResource("LLM.ToolCall.Result")}{result}";
             StatusIcon.Text = isError ? " ✗" : " ✓";
         }
     }

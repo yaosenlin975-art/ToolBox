@@ -35,7 +35,7 @@ public partial class TodoView : UserControl
 
         foreach (var (category, roots) in grouped)
         {
-            var display = category == "默认" ? "未分类" : category;
+        var display = category == (string)FindResource("Lang_Todo_DefaultCategory") ? (string)FindResource("Lang_Todo_Uncategorized") : category;
             var drawer = CreateDrawer(display, roots, category);
             DrawerContainer.Children.Add(drawer);
         }
@@ -64,7 +64,7 @@ public partial class TodoView : UserControl
         var grouped = trashed.GroupBy(t => t.Category);
         foreach (var g in grouped)
         {
-            var display = g.Key == "默认" ? "未分类" : g.Key;
+            var display = g.Key == (string)FindResource("Lang_Todo_DefaultCategory") ? (string)FindResource("Lang_Todo_Uncategorized") : g.Key;
             result[display] = g.ToList();
         }
         return result;
@@ -79,7 +79,7 @@ public partial class TodoView : UserControl
             var catItems = repeating.Where(t => t.Category == cat).ToList();
             if (catItems.Count > 0)
             {
-                var display = cat == "默认" ? "未分类" : cat;
+                var display = cat == (string)FindResource("Lang_Todo_DefaultCategory") ? (string)FindResource("Lang_Todo_Uncategorized") : cat;
                 result[display] = catItems;
             }
         }
@@ -87,7 +87,7 @@ public partial class TodoView : UserControl
         var uncategorized = repeating.Where(t => !TodoStore.Instance.Categories.Contains(t.Category)).ToList();
         if (uncategorized.Count > 0)
         {
-            var display = uncategorized[0].Category == "默认" ? "未分类" : uncategorized[0].Category;
+            var display = uncategorized[0].Category == (string)FindResource("Lang_Todo_DefaultCategory") ? (string)FindResource("Lang_Todo_Uncategorized") : uncategorized[0].Category;
             result[display] = uncategorized;
         }
         return result;
@@ -141,7 +141,7 @@ public partial class TodoView : UserControl
         if (e.Data.GetData(typeof(string)) is not string itemId) return;
         var item = TodoStore.Instance.Items.FirstOrDefault(t => t.Id == itemId);
         if (item == null) return;
-        var newCategory = exp.Tag as string ?? "默认";
+        var newCategory = exp.Tag as string ?? (string)FindResource("Lang_Todo_DefaultCategory");
         if (item.Category == newCategory && string.IsNullOrEmpty(item.ParentId)) return;
         item.ParentId = null;
         await TodoStore.Instance.UpdateAsync(itemId, category: newCategory);
@@ -210,7 +210,7 @@ public partial class TodoView : UserControl
         if (item.Priority > 0)
         {
             var priColor = item.Priority == 2 ? "#E74C3C" : "#F5A623";
-            var priText = item.Priority == 2 ? "紧急" : "重要";
+            var priText = item.Priority == 2 ? (string)FindResource("Lang_Todo_PriHigh") : (string)FindResource("Lang_Todo_PriMid");
             var badge = new Border { CornerRadius = new CornerRadius(4), Padding = new Thickness(4, 1, 4, 1), Margin = new Thickness(0, 0, 4, 0), Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(priColor + "22")) };
             var badgeText = new TextBlock { Text = priText, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(priColor)) };
             badge.Child = badgeText;
@@ -310,7 +310,7 @@ public partial class TodoView : UserControl
 
         DetailTitle.Text = item.Title;
         DetailDesc.Text = item.Description;
-        DetailStatusText.Text = item.IsCompleted ? "已完成" : (item.IsTrashed ? "废弃" : "待办");
+        DetailStatusText.Text = item.IsCompleted ? (string)FindResource("Lang_Todo_StatusCompleted") : (item.IsTrashed ? (string)FindResource("Lang_Todo_StatusTrashed") : (string)FindResource("Lang_Todo_StatusPending"));
         DetailCreated.Text = item.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
         DetailCompleted.Text = item.CompletedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—";
 
@@ -321,7 +321,7 @@ public partial class TodoView : UserControl
         DetailDueDate.SelectedDate = item.DueDate?.ToLocalTime();
         DetailProgress.Value = item.Progress;
         DetailProgressText.Text = item.Progress + "%";
-        DetailCategory.Text = item.Category == "默认" ? "" : item.Category;
+        DetailCategory.Text = item.Category == (string)FindResource("Lang_Todo_DefaultCategory") ? "" : item.Category;
 
         // Trash/Restore button visibility
         var isTrashed = item.IsTrashed;
@@ -455,7 +455,7 @@ public partial class TodoView : UserControl
         CategorySuggestions.Visibility = Visibility.Collapsed;
         if (selected == null) return;
         var cat = DetailCategory.Text.Trim();
-        cat = string.IsNullOrEmpty(cat) ? "默认" : cat;
+        cat = string.IsNullOrEmpty(cat) ? (string)FindResource("Lang_Todo_DefaultCategory") : cat;
         if (cat != selected.Category)
             await TodoStore.Instance.UpdateAsync(selected.Id, category: cat);
     }
@@ -476,7 +476,7 @@ public partial class TodoView : UserControl
     private void UpdateCategorySuggestions(string filter)
     {
         var cats = TodoStore.Instance.Categories
-            .Where(c => c != "默认" && (string.IsNullOrEmpty(filter) || c.Contains(filter, StringComparison.OrdinalIgnoreCase)))
+            .Where(c => c != (string)FindResource("Lang_Todo_DefaultCategory") && (string.IsNullOrEmpty(filter) || c.Contains(filter, StringComparison.OrdinalIgnoreCase)))
             .ToList();
         if (cats.Count == 0 || cats[0].Equals(filter, StringComparison.OrdinalIgnoreCase))
         {
@@ -490,7 +490,7 @@ public partial class TodoView : UserControl
     private async void AddSubTodo_Click(object sender, RoutedEventArgs e)
     {
         if (selected == null) return;
-        var input = new InputWindow("添加子任务", "请输入子任务标题:");
+        var input = new InputWindow((string)FindResource("Lang_Todo_AddSubtaskTitle"), (string)FindResource("Lang_Todo_AddSubtaskPrompt"));
         input.Owner = Window.GetWindow(this);
         input.ShowTodoFields();
         if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
@@ -505,7 +505,7 @@ public partial class TodoView : UserControl
     {
         try
         {
-            var input = new InputWindow("添加待办", "请输入待办标题:");
+            var input = new InputWindow((string)FindResource("Lang_Todo_AddTodoTitle"), (string)FindResource("Lang_Todo_AddTodoPrompt"));
             input.Owner = Window.GetWindow(this);
             input.ShowTodoFields();
             if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))

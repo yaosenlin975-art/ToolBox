@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -650,14 +650,14 @@ public class ScrapWindow : Window
             menu.Items.Add(new System.Windows.Controls.Separator());
         }
 
-        var copyItem = new System.Windows.Controls.MenuItem { Header = "复制" };
+        var copyItem = new System.Windows.Controls.MenuItem { Header = (string)FindResource("Lang_Scrap_Copy") };
         copyItem.Click += (s, e) =>
         {
             CopyBitmapToClipboard(GetOriginalBitmap());
         };
         menu.Items.Add(copyItem);
 
-        var cutItem = new System.Windows.Controls.MenuItem { Header = "剪切" };
+        var cutItem = new System.Windows.Controls.MenuItem { Header = (string)FindResource("Lang_Scrap_Cut") };
         cutItem.Click += (s, e) =>
         {
             CopyBitmapToClipboard(GetOriginalBitmap());
@@ -665,16 +665,16 @@ public class ScrapWindow : Window
         };
         menu.Items.Add(cutItem);
 
-        var saveItem = new System.Windows.Controls.MenuItem { Header = "另存为" };
+        var saveItem = new System.Windows.Controls.MenuItem { Header = (string)FindResource("Lang_SaveAs") };
         saveItem.Click += (s, e) =>
         {
             var bitmap = GetOriginalBitmap();
             if (bitmap == null) return;
             var dialog = new Microsoft.Win32.SaveFileDialog
             {
-                Filter = "PNG 图片|*.png|JPEG 图片|*.jpg;*.jpeg|所有文件|*.*",
+                Filter = (string)FindResource("Lang_Scrap_PngFilter"),
                 DefaultExt = ".png",
-                FileName = "截图_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".png"
+                FileName = (string)FindResource("Lang_Scrap_ScreenshotPrefix") + DateTime.Now.ToString("yyyyMMddHHmmss") + ".png"
             };
             if (dialog.ShowDialog() == true)
             {
@@ -686,7 +686,7 @@ public class ScrapWindow : Window
         };
         menu.Items.Add(saveItem);
 
-        var todoItem = new System.Windows.Controls.MenuItem { Header = "代办识别" };
+        var todoItem = new System.Windows.Controls.MenuItem { Header = (string)FindResource("Lang_Scrap_TodoRecognize") };
         todoItem.Click += async (s, e) =>
         {
             var bitmap = GetOriginalBitmap();
@@ -739,7 +739,7 @@ public class ScrapWindow : Window
 
                 if (candidates.Count == 0)
                 {
-                    System.Windows.MessageBox.Show("未能从图片中识别出待办事项。", "待办识别", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                    System.Windows.MessageBox.Show((string)FindResource("Lang_Scrap_TodoRecognizeFailed"), (string)FindResource("Lang_Scrap_TodoRecognizeTitle"), System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
                     return;
                 }
 
@@ -763,22 +763,22 @@ public class ScrapWindow : Window
         menu.Items.Add(new System.Windows.Controls.Separator());
 
         // OCR 识别: 整图识别弹出 OcrResultOverlay(AC1.1)
-        var ocrWholeItem = new System.Windows.Controls.MenuItem { Header = "OCR 识别" };
+        var ocrWholeItem = new System.Windows.Controls.MenuItem { Header = (string)FindResource("Lang_Scrap_OcrRecognize") };
         ocrWholeItem.Click += (s, e) => RunOcrWhole();
         menu.Items.Add(ocrWholeItem);
 
         // 选字 OCR: 进入选字模式,拖拽选区后弹出 OcrTextPopup(AC2.1 / AC2.2)
-        var ocrSelectItem = new System.Windows.Controls.MenuItem { Header = "选字 OCR" };
+        var ocrSelectItem = new System.Windows.Controls.MenuItem { Header = (string)FindResource("Lang_Scrap_OcrSelect") };
         ocrSelectItem.Click += (s, e) => EnterOcrSelectMode();
         menu.Items.Add(ocrSelectItem);
 
         menu.Items.Add(new System.Windows.Controls.Separator());
 
-        var chatItem = new System.Windows.Controls.MenuItem { Header = "发起对话" };
+        var chatItem = new System.Windows.Controls.MenuItem { Header = (string)FindResource("LLM.ScrapWindow.StartChat") };
         chatItem.Click += (s, e) => StartChat();
         menu.Items.Add(chatItem);
 
-        var closeItem = new System.Windows.Controls.MenuItem { Header = "关闭" };
+        var closeItem = new System.Windows.Controls.MenuItem { Header = (string)FindResource("Lang_Scrap_Close") };
         closeItem.Click += (s, e) => CloseScrap();
         menu.Items.Add(closeItem);
 

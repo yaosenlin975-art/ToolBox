@@ -1,0 +1,23 @@
+{
+  "project_id": "82b4b0bb-ebe7-4cad-936f-104aa87a90b5",
+  "project_title": "自用工具箱",
+  "project_description": "啥都可能往里塞",
+  "resources": [
+    {
+      "id": "ccff3e1a-12c4-4a28-9fb4-aba31789dee5",
+      "resource_type": "github_repo",
+      "resource_ref": {
+        "url": "https://github.com/yaosenlin975-art/ToolBox.git"
+      }
+    },
+    {
+      "id": "c866b418-cd90-42f5-ab3f-76feb5307a18",
+      "resource_type": "local_directory",
+      "resource_ref": {
+        "label": "ToolBox",
+        "daemon_id": "019fca32-e6d1-7d4c-ab37-45c3991f5417",
+        "local_path": "D:\\Workspaces\\ToolBox"
+      }
+    }
+  ]
+}

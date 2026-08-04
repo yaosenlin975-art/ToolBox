@@ -49,10 +49,10 @@ public partial class MessageBubble : UserControl
         _needsRender = false;
         RoleLabel.Text = role switch
         {
-            "user" => "你",
-            "assistant" => "助手",
-            "system" => "系统",
-            "tool" => "工具",
+            "user" => (string)FindResource("LLM.Message.User"),
+            "assistant" => (string)FindResource("LLM.Message.Assistant"),
+            "system" => (string)FindResource("LLM.Message.System"),
+            "tool" => (string)FindResource("LLM.Message.Tool"),
             _ => role
         };
         RoleLabel.Visibility = showRole ? Visibility.Visible : Visibility.Collapsed;

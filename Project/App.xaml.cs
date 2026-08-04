@@ -17,6 +17,9 @@ public partial class App : Application
     public static Views.WorkbenchWindow? Workbench => Current is App app ? app.workbench : null;
     public static Views.MainWindow? MainWindow => Current is App app ? app.mainWindow : null;
 
+    /// <summary>语言包切换完成通知（已渲染的代码构建内容借此重新本地化）。</summary>
+    public static event Action? LanguageChanged;
+
     /// <summary>
     /// 切换界面语言资源字典，使设置中的语言修改即时生效，无需重启。
     /// </summary>
@@ -33,6 +36,7 @@ public partial class App : Application
                 md.RemoveAt(i);
         }
         md.Add(new ResourceDictionary { Source = uri });
+        LanguageChanged?.Invoke();
     }
 
     protected override void OnStartup(StartupEventArgs e)
@@ -98,16 +102,22 @@ public partial class App : Application
         // 可重复待办：补齐 + 通知 + 注册提醒
         TodoStore.Instance.RepeatReminderTriggered += (item, wasReset) =>
         {
-            var tray = MainWindow?.TrayIcon;
-            if (tray == null) return;
-            try
+            // 事件可能由 Cron 后台线程触发，编组到 UI 线程执行托盘通知
+            var disp = Dispatcher;
+            if (disp == null) return;
+            disp.BeginInvoke(new Action(() =>
             {
-                if (wasReset)
-                    tray.ShowBalloon("🔄 " + item.Title, $"{item.Title} 已重置，记得完成哦");
-                else
-                    tray.ShowBalloon(item.Title, $"{item.Title} 今天还没有完成哦");
-            }
-            catch { /* best-effort */ }
+                var tray = MainWindow?.TrayIcon;
+                if (tray == null) return;
+                try
+                {
+                    if (wasReset)
+                        tray.ShowBalloon("🔄 " + item.Title, $"{item.Title} 已重置，记得完成哦");
+                    else
+                        tray.ShowBalloon(item.Title, $"{item.Title} 今天还没有完成哦");
+                }
+                catch { /* best-effort */ }
+            }));
         };
 
         // CatchUp + RegisterReminders run async after startup
@@ -127,6 +137,9 @@ public partial class App : Application
             try { TodoStore.Instance.RegisterRepeatReminders(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] 注册提醒失败: {ex.Message}"); }
         });
+
+        // 轻量周期补算：运行期到点错失重置的项，每 30 分钟自动补齐一次
+        TodoStore.Instance.StartPeriodicCatchUp();
 
         // 启动代码片段关键字展开(低层键盘钩子)
         try

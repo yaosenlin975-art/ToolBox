@@ -8,31 +8,46 @@ public static class RepeatCalculator
         int reminderHour = 9,
         int reminderMinute = 0)
     {
+        // ReminderHour/Minute 为用户本地时间（与旧 Cron 语义一致），日期运算在本地时区进行，
+        // 避免 UTC 日期与本地日期错位（如本地 6:00 在 UTC 是前一天 22:00）。
+        var anchor = lastReset.Kind switch
+        {
+            DateTimeKind.Utc => lastReset,
+            // 兼容旧数据：无时区后缀的 JSON 时间戳按 UTC 处理
+            _ => DateTime.SpecifyKind(lastReset, DateTimeKind.Utc),
+        };
+        anchor = anchor.ToLocalTime();
+
         var baseTime = frequency switch
         {
-            ERepeatFrequency.Daily => lastReset.AddDays(1),
-            ERepeatFrequency.Weekly => lastReset.AddDays(7),
-            ERepeatFrequency.Monthly => AddMonthsSafe(lastReset, 1),
-            ERepeatFrequency.Yearly => AddYearsSafe(lastReset, 1),
-            _ => lastReset.AddDays(1)
+            ERepeatFrequency.Daily => anchor.AddDays(1),
+            ERepeatFrequency.Weekly => anchor.AddDays(7),
+            ERepeatFrequency.Monthly => AddMonthsSafe(anchor, 1),
+            ERepeatFrequency.Yearly => AddYearsSafe(anchor, 1),
+            _ => anchor.AddDays(1)
         };
-        return new DateTime(
+        var nextLocal = new DateTime(
             baseTime.Year, baseTime.Month, baseTime.Day,
-            reminderHour, reminderMinute, 0, DateTimeKind.Utc);
+            reminderHour, reminderMinute, 0);
+        return TimeZoneInfo.ConvertTimeToUtc(nextLocal);
     }
 
-    public static string ToCron(this ERepeatFrequency frequency, int hour = 9, int minute = 0)
+    /// <summary>
+    /// 计算下一次提醒时间：从 lastReset 起按频率推进。
+    /// 与 CalculateNextResetTime 同一套相对计算（唯一时间基准），
+    /// 提醒注册与补齐/重置共用，避免 Cron 固定星期/日期造成的不一致。
+    /// </summary>
+    public static DateTime GetNextOccurrence(
+        DateTime lastReset,
+        ERepeatFrequency frequency,
+        DateTime afterUtc,
+        int reminderHour = 9,
+        int reminderMinute = 0)
     {
-        // hour/minute 为本地时间，CronScheduler 以 UTC 计算下次触发，需转换为 UTC
-        var utc = DateTime.Today.AddHours(hour).AddMinutes(minute).ToUniversalTime();
-        return frequency switch
-        {
-            ERepeatFrequency.Daily => $"{utc.Minute} {utc.Hour} * * *",
-            ERepeatFrequency.Weekly => $"{utc.Minute} {utc.Hour} * * 1",
-            ERepeatFrequency.Monthly => $"{utc.Minute} {utc.Hour} 1 * *",
-            ERepeatFrequency.Yearly => $"{utc.Minute} {utc.Hour} 1 1 *",
-            _ => $"{utc.Minute} {utc.Hour} * * *"
-        };
+        var next = CalculateNextResetTime(lastReset, frequency, reminderHour, reminderMinute);
+        while (next <= afterUtc)
+            next = CalculateNextResetTime(next, frequency, reminderHour, reminderMinute);
+        return next;
     }
 
     private static DateTime AddMonthsSafe(DateTime date, int months)

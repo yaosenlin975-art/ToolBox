@@ -19,10 +19,10 @@
                 </Grid.RowDefinitions>
                 <Border Grid.Row="0" Padding="16,14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
                     <Grid>
-                        <TextBlock Text="会话" FontSize="13" FontWeight="SemiBold"
+                        <TextBlock Text="{DynamicResource LLM.Session.Sessions}" FontSize="13" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                         <Button x:Name="NewSessionBtn" HorizontalAlignment="Right" Width="28" Height="28"
-                                Style="{StaticResource IconButton}" Click="NewSessionBtn_Click" ToolTip="新建会话"
+                                Style="{StaticResource IconButton}" Click="NewSessionBtn_Click" ToolTip="{DynamicResource LLM.Session.NewSession}"
                                 Content="+"/>
                     </Grid>
                 </Border>
@@ -126,10 +126,10 @@
                                  KeyDown="InputBox_KeyDown" TextChanged="InputBox_TextChanged"/>
                     </Border>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-                        <TextBlock x:Name="StatusText" Text="就绪" FontSize="11"
+                        <TextBlock x:Name="StatusText" Text="{DynamicResource LLM.ChatWindow.Ready}" FontSize="11"
                                    Foreground="{DynamicResource TextTertiaryBrush}"
                                    VerticalAlignment="Center" Margin="0,0,12,0"/>
-                        <Button x:Name="SendBtn" Content="发送" Padding="18,8" FontSize="13"
+                        <Button x:Name="SendBtn" Content="{DynamicResource LLM.ChatWindow.Send}" Padding="18,8" FontSize="13"
                                 Style="{StaticResource BtnPrimary}" IsEnabled="False"
                                 Click="SendBtn_Click"/>
                     </StackPanel>

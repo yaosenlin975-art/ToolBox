@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -203,6 +203,13 @@ public partial class MainWindow : Window
         {
             System.Diagnostics.Debug.WriteLine($"[ToolBox] Scrolling capture hotkey registration failed: {ex.Message}");
         }
+
+        // Register network diagnosis hotkey: 默认 Ctrl+Alt+N (PRD F1, SettingsView 可配置)
+        RegisterSingleHotkey(options.NetworkHotKey, () =>
+        {
+            if (isStarted)
+                ShowNetworkWindow();
+        });
 
         // Register window pin hotkey: Ctrl+Shift+T (P3-03)
         try
@@ -477,6 +484,11 @@ public partial class MainWindow : Window
         todoItem.Click += (s, e) => ShowTodoWindow();
         menu.Items.Add(todoItem);
 
+        // 网络诊断(PRD F1): 打开主窗口并跳转到该视图
+        var networkItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_Tray_Network") as string) ?? "网络诊断" };
+        networkItem.Click += (s, e) => ShowNetworkWindow();
+        menu.Items.Add(networkItem);
+
         // 暂停剪贴板监听 5 分钟(隐私场景:密码输入等)
         var pauseClipItem = new System.Windows.Controls.MenuItem
         {
@@ -680,6 +692,16 @@ public partial class MainWindow : Window
     private void ShowChatWindow()
     {
         OpenWorkbench("assistant");
+    }
+
+    /// <summary>打开主工作台并跳转到网络诊断视图（托盘菜单 / 全局热键入口，PRD F1）。</summary>
+    private void ShowNetworkWindow()
+    {
+        var wb = App.Workbench;
+        if (wb == null) return;
+        wb.Show();
+        wb.Activate();
+        wb.LoadPage("network");
     }
 
     private void ShowTodoWindow()

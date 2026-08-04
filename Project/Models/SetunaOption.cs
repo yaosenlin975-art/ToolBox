@@ -41,12 +41,26 @@ public class ToolBoxOption
         set => HideShowHotKey = (Key)value;
     }
 
+    /// <summary>网络诊断全局热键（默认 Ctrl+Alt+N，PRD F1）。</summary>
+    [XmlIgnore]
+    public Key NetworkHotKey { get; set; } = (Key)((int)Key.N | CtrlBit | AltBit);
+
+    [XmlElement("NetworkHotKey")]
+    public int NetworkHotKeyValue
+    {
+        get => (int)NetworkHotKey;
+        set => NetworkHotKey = (Key)value;
+    }
+
     public string Language { get; set; } = "zh-CN";
+
+    private static readonly string LegacyConfigPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "Setuna", "config.xml");
 
     private static readonly string configPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        // TODO: 迁移到 "ToolBox" 目录与其他数据统一；当前保留 "Setuna" 以兼容旧版配置。
-        "Setuna", "config.xml");
+        "ToolBox", "config.xml");
 
     public static ToolBoxOption GetDefaultOption()
     {
@@ -71,6 +85,7 @@ public class ToolBoxOption
         option.Scrap.ImageDrag = true;
         option.CaptureHotKey = (Key)((int)Key.D1 | CtrlBit);
         option.HideShowHotKey = (Key)((int)Key.D2 | CtrlBit);
+        option.NetworkHotKey = (Key)((int)Key.N | CtrlBit | AltBit);
 
         var copyStyle = new CStyle { StyleName = "Copy" };
         copyStyle.AddStyle(new CCopyStyleItem { CopyFromSource = true });
@@ -131,11 +146,25 @@ public class ToolBoxOption
 
     public static ToolBoxOption Load()
     {
-        if (!File.Exists(configPath))
+        // 迁移：优先读取新目录，若不存在则尝试从旧目录迁移
+        var path = configPath;
+        if (!File.Exists(path) && File.Exists(LegacyConfigPath))
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(path);
+                if (!Directory.Exists(dir))
+                    Directory.CreateDirectory(dir!);
+                File.Copy(LegacyConfigPath, path);
+            }
+            catch { /* migration is best-effort */ }
+        }
+
+        if (!File.Exists(path))
             return GetDefaultOption();
         try
         {
-            using var stream = File.OpenRead(configPath);
+            using var stream = File.OpenRead(path);
             var serializer = new XmlSerializer(typeof(ToolBoxOption));
             return (ToolBoxOption)serializer.Deserialize(stream);
         }
@@ -189,6 +218,7 @@ public class ToolBoxOption
             HotKeyEnable = HotKeyEnable,
             CaptureHotKey = CaptureHotKey,
             HideShowHotKey = HideShowHotKey,
+            NetworkHotKey = NetworkHotKey,
             Language = Language
         };
         foreach (var style in Styles)

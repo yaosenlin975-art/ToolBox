@@ -269,35 +269,52 @@ private static DateTime CalculateResetTime(
 // Core/Todo/RepeatCalculator.cs — 纯函数，方便测试
 public static class RepeatCalculator
 {
+    // ReminderHour/Minute 为用户本地时间（与旧 Cron 语义一致），日期运算在本地时区进行，
+    // 避免 UTC 日期与本地日期错位（如本地 6:00 在 UTC 是前一天 22:00）。
     public static DateTime CalculateNextResetTime(
         DateTime lastReset,
         ERepeatFrequency frequency,
         int reminderHour = 9,
         int reminderMinute = 0)
     {
+        var anchor = lastReset.Kind switch
+        {
+            DateTimeKind.Utc => lastReset,
+            // 兼容旧数据：无时区后缀的 JSON 时间戳按 UTC 处理
+            _ => DateTime.SpecifyKind(lastReset, DateTimeKind.Utc),
+        };
+        anchor = anchor.ToLocalTime();
         var baseTime = frequency switch
         {
-            ERepeatFrequency.Daily => lastReset.AddDays(1),
-            ERepeatFrequency.Weekly => lastReset.AddDays(7),
-            ERepeatFrequency.Monthly => AddMonthsSafe(lastReset, 1),
-            ERepeatFrequency.Yearly => AddYearsSafe(lastReset, 1),
-            _ => lastReset.AddDays(1)
+            ERepeatFrequency.Daily => anchor.AddDays(1),
+            ERepeatFrequency.Weekly => anchor.AddDays(7),
+            ERepeatFrequency.Monthly => AddMonthsSafe(anchor, 1),
+            ERepeatFrequency.Yearly => AddYearsSafe(anchor, 1),
+            _ => anchor.AddDays(1)
         };
-        return new DateTime(
+        var nextLocal = new DateTime(
             baseTime.Year, baseTime.Month, baseTime.Day,
-            reminderHour, reminderMinute, 0, DateTimeKind.Utc);
+            reminderHour, reminderMinute, 0);
+        return TimeZoneInfo.ConvertTimeToUtc(nextLocal);
     }
 
-    public static string ToCron(this ERepeatFrequency frequency, int hour = 9, int minute = 0)
+    /// <summary>
+    /// 计算下一次提醒时间：从 lastReset 起按频率推进；
+    /// 若已过期则连续推进到 afterUtc 之后最近的一次。
+    /// 与 CalculateNextResetTime 同一套相对计算（唯一时间基准），
+    /// 提醒注册与补齐/重置共用，避免 Cron 固定星期/日期造成的不一致。
+    /// </summary>
+    public static DateTime GetNextOccurrence(
+        DateTime lastReset,
+        ERepeatFrequency frequency,
+        DateTime afterUtc,
+        int reminderHour = 9,
+        int reminderMinute = 0)
     {
-        return frequency switch
-        {
-            ERepeatFrequency.Daily => $"0 {minute} {hour} * * *",
-            ERepeatFrequency.Weekly => $"0 {minute} {hour} * * 1",
-            ERepeatFrequency.Monthly => $"0 {minute} {hour} 1 * *",
-            ERepeatFrequency.Yearly => $"0 {minute} {hour} 1 1 *",
-            _ => $"0 {minute} {hour} * * *"
-        };
+        var next = CalculateNextResetTime(lastReset, frequency, reminderHour, reminderMinute);
+        while (next <= afterUtc)
+            next = CalculateNextResetTime(next, frequency, reminderHour, reminderMinute);
+        return next;
     }
 
     private static DateTime AddMonthsSafe(DateTime date, int months)
@@ -318,28 +335,54 @@ public static class RepeatCalculator
 }
 ```
 
-## 五、CronScheduler 提醒集成
+> 说明：v2.0 曾同时存在两套时间计算（`ToCron` 的 Cron 固定星期/日期 + `CalculateNextResetTime` 的相对周期），二者日期基准互相矛盾（Weekly 固定周一 vs 同星期几、Monthly 固定 1 号 vs 同日期、Yearly 固定 1 月 1 日 vs 同月日），且 Cron 回调不校验 nextReset 直接重置。v2.1 已移除 `ToCron`，重复待办改由一次性定时器按 `CalculateNextResetTime` 推进，**统一为单一时间基准**。
 
-### 重置提醒
+## 五、提醒调度集成（一次性定时器，非 Cron）
 
-为每个活跃重复项注册 Cron 任务：
+为每个活跃重复项按 `CalculateNextResetTime` 计算下一次提醒时刻，挂一次性定时器；触发后由回调续订下一次提醒。
 
 ```csharp
-// ScheduleManager 或 TodoStore 中的方法
-public void RegisterRepeatReminders()
+// TodoStore.RegisterSingleRepeatReminder（要点）
+var anchor = item.LastResetAt ?? config.StartDate;
+var next = RepeatCalculator.GetNextOccurrence(
+    anchor, config.Frequency, DateTime.UtcNow,
+    config.ReminderHour, config.ReminderMinute);
+
+var cronId = "repeat_" + item.Id;
+CronExpressionr.Instance.Unregister(cronId);
+
+// 已过结束日期：不再注册后续提醒
+if (config.EndDate != null && next > config.EndDate.Value)
+    return;
+
+CronExpressionr.Instance.RegisterNext(cronId, next, () =>
 {
-    var repeating = items.Where(t => t.RepeatConfig != null && !t.IsTrashed).ToList();
-    foreach (var item in repeating)
+    var current = items.FirstOrDefault(t => t.Id == item.Id);
+    if (current?.RepeatConfig == null || current.IsTrashed) return;
+    // 触发时已过 EndDate：注销并停止
+    if (current.RepeatConfig.EndDate != null && DateTime.UtcNow > current.RepeatConfig.EndDate.Value)
     {
-        var config = item.RepeatConfig!;
-        var cron = config.Frequency.ToCron(config.ReminderHour, config.ReminderMinute);
-        CronExpressionr.Instance.Register(
-            "repeat_" + item.Id,
-            cron,
-            () => OnRepeatReminder(item));
+        UnregisterRepeatReminder(item.Id);
+        return;
     }
-}
+    if (current.IsCompleted)
+    {
+        _ = ResetRepeatingAsync(item.Id);      // 已完成 → 重置
+        RepeatReminderTriggered?.Invoke(current, true);
+    }
+    else
+    {
+        RepeatReminderTriggered?.Invoke(current, false); // 未完成 → 仅提醒
+    }
+    RegisterSingleRepeatReminder(current);     // 续订下一次提醒
+});
 ```
+
+### CronExpressionr 支持
+
+- `RegisterNext(id, fireAtUtc, handler)`：一次性提醒，触发一次不自动续订（由回调续期）。
+- 长延时分段调度：`System.Threading.Timer` 的 dueTime 上限约 49.7 天（`uint.MaxValue - 1` 毫秒），Yearly 项最长 366 天会抛 `ArgumentOutOfRangeException`；调度器对超过上限的延时自动分段（每次挂一段最大延时，到期后重新计算剩余延时），对 Cron 与一次性注册均生效。
+- 启动/恢复逻辑不变：`RegisterRepeatReminders` 逐项注册（单项失败 try/catch 不中断其余项）。
 
 ### 回调逻辑
 
@@ -362,7 +405,7 @@ private void OnRepeatReminder(TodoItem item)
 
 ### 启动集成
 
-在 `App.OnStartup` 中，TodoStore 初始化后调用补齐 + 注册提醒：
+在 `App.OnStartup` 中，TodoStore 初始化后调用补齐 + 注册提醒 + 周期补算：
 
 ```csharp
 // App.xaml.cs — OnStartup 中 ScheduleManager.ApplyCurrent() 之后
@@ -372,6 +415,7 @@ if (missed > 0)
     System.Diagnostics.Debug.WriteLine($"[ToolBox] 重置了 {missed} 个重复待办");
 }
 TodoStore.Instance.RegisterRepeatReminders();
+TodoStore.Instance.StartPeriodicCatchUp(); // 每 30 分钟轻量补算一次
 ```
 
 ## 六、UI 变更
@@ -510,13 +554,16 @@ public static string ListTodos(
 | 场景 | 处理 |
 |------|------|
 | 应用关闭多天后打开 | CatchUpRepeatingAsync 检查：已完成且过重置时间 → 重置一次；用户只能看到一个当前周期的项 |
-| Day N 未完成就到了 Day N+1 | 旧项保持未完成状态（红色/逾期样式），新周期 Cron 触发时不重置（因为已完成 != true），只提醒 |
-| EndDate 到期 | Cron 任务注销，重置逻辑停止；项保留在列表中（和普通项一样） |
-| 修改频率（比如从 Daily 改为 Weekly） | 更新 `RepeatConfig`，注销旧 Cron 任务，注册新 Cron 任务 |
-| 取消重复（频率改为不重复） | 清除 `RepeatConfig`，注销 Cron 任务；项保留为普通待办 |
-| 删除重复项（走 Trash） | 正常走 Trash 回收站流程；恢复时重复配置保留，重新注册 Cron |
+| Day N 未完成就到了 Day N+1 | 旧项保持未完成状态（红色/逾期样式），新周期提醒触发时不重置（因为已完成 != true），只提醒 |
+| EndDate 到期 | 注册时 next > EndDate 直接不注册；触发时已过 EndDate 注销并停止重置；ResetRepeatingAsync/CatchUpRepeatingAsync 均校验 EndDate。项保留在列表中（和普通项一样） |
+| 修改频率（比如从 Daily 改为 Weekly） | 更新 `RepeatConfig`，注销旧定时器，注册新定时器 |
+| 取消重复（频率改为不重复） | 清除 `RepeatConfig`，注销定时器；项保留为普通待办 |
+| 删除重复项（走 Trash） | 正常走 Trash 回收站流程；恢复时重复配置保留，重新注册 |
+| 运行期新建重复项 | `AddRepeatingAsync` 创建成功后即注册提醒（悬浮添加、紧凑窗口快捷添加、`TodoTools.AddTodo` 均生效） |
+| Yearly 长延时（最长 366 天） | 一次性定时器超过 `Timer` dueTime 上限（约 49.7 天）时自动分段调度，不抛异常 |
+| 运行期错失到点（提醒时刻后才完成/睡眠唤醒等） | `StartPeriodicCatchUp` 每 30 分钟轻量补算一次（幂等），与启动补齐共用 `CatchUpRepeatingAsync` |
 | 重复 + 子任务 | 子任务不参与重复，跟随父项；重置父项不影响子任务状态 |
-| 频繁切换应用 | TodoStore 已有 SemaphoreSlim 写锁保护，无并发问题 |
+| 频繁切换应用 / 定时器并发重置 | 所有 items/categories 读改写由 `stateLock`（SemaphoreSlim）串行化；`writeLock` 保护持久化写入；UI 刷新统一走 `Dispatcher.BeginInvoke` 异步编组，避免锁内同步回 UI 线程造成死锁 |
 | 提醒时间在半夜而应用夜间关闭 | 次日启动补齐时检查：如果应该重置则重置一次；如果已过提醒时间但用户已标记完成，重置为未完成 |
 
 ## 九、文件变更清单
@@ -525,9 +572,9 @@ public static string ListTodos(
 |------|------|------|
 | `Core/Todo/TodoItem.cs` | 修改 | 新增 RepeatConfig、LastResetAt 字段 |
 | `Core/Todo/RepeatConfig.cs` | 新增 | ERepeatFrequency 枚举 + RepeatConfig 类 |
-| `Core/Todo/RepeatCalculator.cs` | 新增 | 日期计算纯函数 + Cron 表达式生成 |
-| `Core/Todo/TodoStore.cs` | 修改 | 新增 AddRepeatingAsync、GetRepeating、GetDueRepeating、ResetRepeatingAsync、CatchUpRepeatingAsync、RegisterRepeatReminders |
-| `Core/Scheduling/ScheduleManager.cs` | 修改 | 新增 RegisterRepeatReminders 调用 |
+| `Core/Todo/RepeatCalculator.cs` | 新增 | 日期计算纯函数 + GetNextOccurrence（唯一时间基准，v2.1 移除 ToCron） |
+| `Core/Todo/TodoStore.cs` | 修改 | 新增 AddRepeatingAsync、GetRepeating、GetDueRepeating、ResetRepeatingAsync、CatchUpRepeatingAsync、RegisterSingleRepeatReminder、StartPeriodicCatchUp；创建成功即注册提醒；EndDate 校验 |
+| `Core/Scheduling/CronScheduler.cs` | 修改 | 新增 RegisterNext 一次性提醒 + 超过 dueTime 上限的长延时分段调度 + 线程安全 |
 | `Views/Todo/TodoView.xaml` | 修改 | 详情面板增加重复配置区、筛选栏增加"重复"标签 |
 | `Views/Todo/TodoView.xaml.cs` | 修改 | 处理重复配置 UI 逻辑、筛选"重复"时的数据加载 |
 | `Views/CompactToolboxWindow.xaml` | 修改 | 待办区增加"今日重复"分组 |
@@ -535,8 +582,8 @@ public static string ListTodos(
 | `Views/InputWindow.xaml` | 修改 | 增加重复频率下拉选项 |
 | `Views/InputWindow.xaml.cs` | 修改 | 传递重复频率参数 |
 | `Core/Tools/TodoTools.cs` | 修改 | add_todo 增加 repeat 参数、list_todos 增加 repeating 筛选 |
-| `App.xaml.cs` | 修改 | 启动时调用 CatchUpRepeatingAsync + RegisterRepeatReminders |
+| `App.xaml.cs` | 修改 | 启动时调用 CatchUpRepeatingAsync + RegisterRepeatReminders + StartPeriodicCatchUp |
 
 ---
 
-*设计方案 v2.0 — 重置模型 — 2026-07-08*
+*设计方案 v2.1 — 重置模型（一次性定时器 + 统一时间基准）— 2026-08-04*

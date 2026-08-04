@@ -272,4 +272,100 @@
     <sys:String x:Key="Lang_Net_Check_DnsConfig">DNS 服务器配置</sys:String>
     <sys:String x:Key="Lang_Net_Check_Proxy">系统代理</sys:String>
 
+    <!-- ScrapWindow context menu -->
+    <sys:String x:Key="Lang_Scrap_Copy">复制</sys:String>
+    <sys:String x:Key="Lang_Scrap_Cut">剪切</sys:String>
+    <sys:String x:Key="Lang_Scrap_TodoRecognize">代办识别</sys:String>
+    <sys:String x:Key="Lang_Scrap_TodoRecognizeTitle">待办识别</sys:String>
+    <sys:String x:Key="Lang_Scrap_TodoRecognizeFailed">未能从图片中识别出待办事项。</sys:String>
+    <sys:String x:Key="Lang_Scrap_OcrRecognize">OCR 识别</sys:String>
+    <sys:String x:Key="Lang_Scrap_OcrSelect">选字 OCR</sys:String>
+    <sys:String x:Key="Lang_Scrap_Close">关闭</sys:String>
+    <sys:String x:Key="Lang_Scrap_PngFilter">PNG 图片|*.png|JPEG 图片|*.jpg;*.jpeg|所有文件|*.*</sys:String>
+    <sys:String x:Key="Lang_Scrap_ScreenshotPrefix">截图_</sys:String>
+
+    <!-- Chat module (code-behind) -->
+    <sys:String x:Key="LLM.Error.ProviderNotConfigured">请先在设置中配置 LLM 供应商</sys:String>
+    <sys:String x:Key="LLM.Session.Unpin">取消置顶</sys:String>
+    <sys:String x:Key="LLM.Session.Pin">置顶</sys:String>
+    <sys:String x:Key="LLM.Session.Delete">删除</sys:String>
+    <sys:String x:Key="LLM.Message.Quote">引用</sys:String>
+    <sys:String x:Key="LLM.ToolCall.Params">参数: </sys:String>
+    <sys:String x:Key="LLM.ToolCall.Error">错误: </sys:String>
+    <sys:String x:Key="LLM.ToolCall.Result">结果: </sys:String>
+
+    <!-- Todo module -->
+    <sys:String x:Key="Lang_Todo_FilterAll">全部</sys:String>
+    <sys:String x:Key="Lang_Todo_FilterPending">待办</sys:String>
+    <sys:String x:Key="Lang_Todo_FilterCompleted">已完成</sys:String>
+    <sys:String x:Key="Lang_Todo_FilterRepeating">重复</sys:String>
+    <sys:String x:Key="Lang_Todo_FilterTrashed">废弃</sys:String>
+    <sys:String x:Key="Lang_Todo_TaskDetail">任务详情</sys:String>
+    <sys:String x:Key="Lang_Todo_SelectTask">选择左侧任务查看详情</sys:String>
+    <sys:String x:Key="Lang_Todo_Category">分类</sys:String>
+    <sys:String x:Key="Lang_Todo_Priority">优先级</sys:String>
+    <sys:String x:Key="Lang_Todo_PriLow">普通</sys:String>
+    <sys:String x:Key="Lang_Todo_PriMid">重要</sys:String>
+    <sys:String x:Key="Lang_Todo_PriHigh">紧急</sys:String>
+    <sys:String x:Key="Lang_Todo_DueDate">截止日期</sys:String>
+    <sys:String x:Key="Lang_Todo_Progress">完成进度</sys:String>
+    <sys:String x:Key="Lang_Todo_RepeatSettings">重复设置</sys:String>
+    <sys:String x:Key="Lang_Todo_Frequency">频率</sys:String>
+    <sys:String x:Key="Lang_Todo_NoRepeat">不重复</sys:String>
+    <sys:String x:Key="Lang_Todo_Daily">每天</sys:String>
+    <sys:String x:Key="Lang_Todo_Weekly">每周</sys:String>
+    <sys:String x:Key="Lang_Todo_Monthly">每月</sys:String>
+    <sys:String x:Key="Lang_Todo_Yearly">每年</sys:String>
+    <sys:String x:Key="Lang_Todo_ReminderTime">提醒时间</sys:String>
+    <sys:String x:Key="Lang_Todo_EndDate">结束日期</sys:String>
+    <sys:String x:Key="Lang_Todo_SetRepeat">设为重复</sys:String>
+    <sys:String x:Key="Lang_Todo_Description">描述</sys:String>
+    <sys:String x:Key="Lang_Todo_CreatedTime">创建时间</sys:String>
+    <sys:String x:Key="Lang_Todo_CompletedTime">完成时间</sys:String>
+    <sys:String x:Key="Lang_Todo_AddSubtask">添加子任务</sys:String>
+    <sys:String x:Key="Lang_Todo_TrashTask">废弃任务</sys:String>
+    <sys:String x:Key="Lang_Todo_Restore">恢复</sys:String>
+    <sys:String x:Key="Lang_Todo_Uncategorized">未分类</sys:String>
+    <sys:String x:Key="Lang_Todo_StatusCompleted">已完成</sys:String>
+    <sys:String x:Key="Lang_Todo_StatusTrashed">废弃</sys:String>
+    <sys:String x:Key="Lang_Todo_StatusPending">待办</sys:String>
+    <sys:String x:Key="Lang_Todo_AddSubtaskTitle">添加子任务</sys:String>
+    <sys:String x:Key="Lang_Todo_AddSubtaskPrompt">请输入子任务标题:</sys:String>
+    <sys:String x:Key="Lang_Todo_AddTodoTitle">添加待办</sys:String>
+    <sys:String x:Key="Lang_Todo_AddTodoPrompt">请输入待办标题:</sys:String>
+    <sys:String x:Key="Lang_Todo_DefaultCategory">默认</sys:String>
+
+    <!-- Settings: Action Chains -->
+    <sys:String x:Key="Lang_ActionChains">截图动作链</sys:String>
+    <sys:String x:Key="Lang_ActionChainsHint">配置截图完成后自动执行的动作序列，例如&quot;OCR → 复制&quot;直接提字到剪贴板</sys:String>
+    <sys:String x:Key="Lang_ActionChainManage">动作链管理</sys:String>
+    <sys:String x:Key="Lang_ActionChainDefault">当前默认动作链</sys:String>
+    <sys:String x:Key="Lang_ActionChainDefaultHint">截图后自动执行此链</sys:String>
+    <sys:String x:Key="Lang_ActionChainExisting">已有动作链</sys:String>
+    <sys:String x:Key="Lang_ActionChainNew">+ 新建链</sys:String>
+    <sys:String x:Key="Lang_ActionChainContinueOnError">遇错继续执行</sys:String>
+    <sys:String x:Key="Lang_ActionChainContinueOnErrorHint">节点出错时不停止，继续执行下一个节点</sys:String>
+
+    <!-- Settings: Capture -->
+    <sys:String x:Key="Lang_ScreenshotMaxAge">截图历史最大时效</sys:String>
+    <sys:String x:Key="Lang_ScreenshotMaxAgeHint">超过时效的截图将自动从历史中清理</sys:String>
+    <sys:String x:Key="Lang_ScreenshotMaxAgeValue">30 天</sys:String>
+
+    <!-- Settings: OCR -->
+    <sys:String x:Key="Lang_OcrTitle">OCR 文字识别</sys:String>
+    <sys:String x:Key="Lang_OcrHint">配置离线 OCR 引擎与默认识别语言</sys:String>
+    <sys:String x:Key="Lang_OcrEngine">OCR 引擎</sys:String>
+    <sys:String x:Key="Lang_OcrEngineLabel">识别引擎</sys:String>
+    <sys:String x:Key="Lang_OcrEngineHint">Tesseract 精度较高,Windows OCR 系统内置无需语言包</sys:String>
+    <sys:String x:Key="Lang_OcrDefaultLanguage">默认语言</sys:String>
+    <sys:String x:Key="Lang_OcrDefaultLanguageHint">Tesseract 用 + 分隔多语言,如 chi_sim+eng;Windows OCR 取首个</sys:String>
+    <sys:String x:Key="Lang_OcrInstalledLangs">已安装语言包</sys:String>
+    <sys:String x:Key="Lang_OcrNotInstalled">(未安装)</sys:String>
+    <sys:String x:Key="Lang_OcrRefresh">刷新</sys:String>
+
+    <!-- Settings: Categories -->
+    <sys:String x:Key="Lang_CategoryManage">分类管理</sys:String>
+    <sys:String x:Key="Lang_CategoryManageHint">管理待办事项的分类，分类会以抽屉形式展示在列表中</sys:String>
+    <sys:String x:Key="Lang_CategoryAdd">添加分类</sys:String>
+
 </ResourceDictionary>

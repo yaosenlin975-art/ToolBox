@@ -65,7 +65,7 @@ public partial class SessionSidebar : UserControl
 
             var pinItem = new MenuItem
             {
-                Header = session.IsPinned ? "取消置顶" : "置顶",
+                Header = session.IsPinned ? (string)Application.Current.FindResource("LLM.Session.Unpin") : (string)Application.Current.FindResource("LLM.Session.Pin"),
                 Padding = new Thickness(16, 6, 16, 6),
                 FontSize = 13,
                 Foreground = (Brush)Application.Current.FindResource("TextPrimaryBrush")
@@ -78,7 +78,7 @@ public partial class SessionSidebar : UserControl
 
             var deleteItem = new MenuItem
             {
-                Header = "删除",
+                Header = (string)Application.Current.FindResource("LLM.Session.Delete"),
                 Padding = new Thickness(16, 6, 16, 6),
                 FontSize = 13,
                 Foreground = (Brush)Application.Current.FindResource("DangerBrush")

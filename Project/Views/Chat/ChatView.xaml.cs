@@ -118,7 +118,7 @@ public partial class ChatView : UserControl
         var provider = ProviderManager.Instance.CreateActiveProvider();
         if (provider == null)
         {
-            StatusText.Text = "请先在设置中配置 LLM 供应商";
+            StatusText.Text = (string)FindResource("LLM.Error.ProviderNotConfigured");
             return null;
         }
         var promptBuilder = new DefaultSystemPromptBuilder();
@@ -186,7 +186,7 @@ public partial class ChatView : UserControl
 
         isStreaming = true;
         SendBtn.IsEnabled = false;
-        StatusText.Text = "思考中...";
+        StatusText.Text = (string)FindResource("LLM.ChatWindow.Thinking");
 
         var assistantBubble = new MessageBubble();
         assistantBubble.SetMessage("assistant", "");
@@ -232,7 +232,7 @@ public partial class ChatView : UserControl
 
         isStreaming = false;
         SendBtn.IsEnabled = true;
-        StatusText.Text = "Ready";
+        StatusText.Text = (string)FindResource("LLM.ChatWindow.Ready");
         ScrollToBottom();
     }
 

@@ -79,15 +79,15 @@
             <Border Grid.Row="0" Padding="20,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
                     Background="{DynamicResource BgElevatedBrush}">
                 <StackPanel Orientation="Horizontal">
-                    <RadioButton x:Name="FilterAll" Content="全部" IsChecked="True" Margin="0,0,4,0"
+                    <RadioButton x:Name="FilterAll" Content="{DynamicResource Lang_Todo_FilterAll}" IsChecked="True" Margin="0,0,4,0"
                                  Style="{StaticResource FilterTabStyle}" Click="Filter_Changed"/>
-                    <RadioButton x:Name="FilterPending" Content="待办" Margin="0,0,4,0"
+                    <RadioButton x:Name="FilterPending" Content="{DynamicResource Lang_Todo_FilterPending}" Margin="0,0,4,0"
                                  Style="{StaticResource FilterTabStyle}" Click="Filter_Changed"/>
-                    <RadioButton x:Name="FilterCompleted" Content="已完成" Margin="0,0,4,0"
+                    <RadioButton x:Name="FilterCompleted" Content="{DynamicResource Lang_Todo_FilterCompleted}" Margin="0,0,4,0"
                                  Style="{StaticResource FilterTabStyle}" Click="Filter_Changed"/>
-                    <RadioButton x:Name="FilterRepeating" Content="重复" Margin="0,0,4,0"
+                    <RadioButton x:Name="FilterRepeating" Content="{DynamicResource Lang_Todo_FilterRepeating}" Margin="0,0,4,0"
                                  Style="{StaticResource FilterTabStyle}" Click="Filter_Changed"/>
-                    <RadioButton x:Name="FilterTrashed" Content="废弃" Margin="0,0,4,0"
+                    <RadioButton x:Name="FilterTrashed" Content="{DynamicResource Lang_Todo_FilterTrashed}" Margin="0,0,4,0"
                                  Style="{StaticResource FilterTabStyle}" Click="Filter_Changed"/>
                 </StackPanel>
             </Border>
@@ -116,7 +116,7 @@
             <Button x:Name="FloatingAddBtn" Grid.Row="2" Width="36" Height="36" Margin="0,0,16,16"
                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
                     Style="{StaticResource BtnPrimary}" Content="+" FontSize="20"
-                    Click="FloatingAddBtn_Click" ToolTip="添加待办"/>
+                    Click="FloatingAddBtn_Click" ToolTip="{DynamicResource Lang_Todo_AddTodoTitle}"/>
         </Grid>
 
         <!-- Right: detail panel -->
@@ -128,12 +128,12 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <Border Grid.Row="0" Padding="20,14" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
-                    <TextBlock Text="任务详情" FontSize="12" FontWeight="SemiBold"
+                    <TextBlock Text="{DynamicResource Lang_Todo_TaskDetail}" FontSize="12" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </Border>
 
                 <Grid x:Name="DetailContainer" Grid.Row="1">
-                    <TextBlock x:Name="EmptyHint" Text="选择左侧任务查看详情"
+                    <TextBlock x:Name="EmptyHint" Text="{DynamicResource Lang_Todo_SelectTask}"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                Foreground="{DynamicResource TextTertiaryBrush}" FontSize="13"/>
 
@@ -154,7 +154,7 @@
                         </StackPanel>
 
                         <!-- Category -->
-                        <TextBlock Text="分类" FontSize="11" FontWeight="SemiBold"
+                        <TextBlock Text="{DynamicResource Lang_Todo_Category}" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                         <Grid Margin="0,0,0,16" Width="220" HorizontalAlignment="Left">
                             <Grid.RowDefinitions>
@@ -176,26 +176,26 @@
                         </Grid>
 
                         <!-- Priority -->
-                        <TextBlock Text="优先级" FontSize="11" FontWeight="SemiBold"
+                        <TextBlock Text="{DynamicResource Lang_Todo_Priority}" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                            <RadioButton x:Name="PriLow" Content="普通" Margin="0,0,6,0"
+                            <RadioButton x:Name="PriLow" Content="{DynamicResource Lang_Todo_PriLow}" Margin="0,0,6,0"
                                          Style="{StaticResource PriOptionStyle}" Click="Priority_Changed"/>
-                            <RadioButton x:Name="PriMid" Content="重要" Margin="0,0,6,0"
+                            <RadioButton x:Name="PriMid" Content="{DynamicResource Lang_Todo_PriMid}" Margin="0,0,6,0"
                                          Style="{StaticResource PriOptionStyle}" Click="Priority_Changed"/>
-                            <RadioButton x:Name="PriHigh" Content="紧急"
+                            <RadioButton x:Name="PriHigh" Content="{DynamicResource Lang_Todo_PriHigh}"
                                          Style="{StaticResource PriOptionStyle}" Click="Priority_Changed"/>
                         </StackPanel>
 
                         <!-- Due date -->
-                        <TextBlock Text="截止日期" FontSize="11" FontWeight="SemiBold"
+                        <TextBlock Text="{DynamicResource Lang_Todo_DueDate}" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                         <DatePicker x:Name="DetailDueDate" FontSize="12" Margin="0,0,0,16"
                                     SelectedDateChanged="DetailDueDate_Changed"
                                     Foreground="{DynamicResource TextPrimaryBrush}"/>
 
                         <!-- Progress -->
-                        <TextBlock Text="完成进度" FontSize="11" FontWeight="SemiBold"
+                        <TextBlock Text="{DynamicResource Lang_Todo_Progress}" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                         <Grid Margin="0,0,0,16">
                             <Grid.ColumnDefinitions>
@@ -217,21 +217,21 @@
                             <StackPanel>
                                 <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="{StaticResource RadiusSm}" Padding="10">
                                     <StackPanel>
-                                        <TextBlock Text="重复设置" FontSize="11" FontWeight="SemiBold"
+                                        <TextBlock Text="{DynamicResource Lang_Todo_RepeatSettings}" FontSize="11" FontWeight="SemiBold"
                                                    Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,0,0,8"/>
 
-                                        <TextBlock Text="频率" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="{DynamicResource Lang_Todo_Frequency}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                         <ComboBox x:Name="DetailRepeatFreq" FontSize="12" SelectedIndex="0" Margin="0,0,0,8"
                                                   Background="{DynamicResource BgElevatedBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}">
-                                            <ComboBoxItem Content="不重复"/>
-                                            <ComboBoxItem Content="每天"/>
-                                            <ComboBoxItem Content="每周"/>
-                                            <ComboBoxItem Content="每月"/>
-                                            <ComboBoxItem Content="每年"/>
+                                            <ComboBoxItem Content="{DynamicResource Lang_Todo_NoRepeat}"/>
+                                            <ComboBoxItem Content="{DynamicResource Lang_Todo_Daily}"/>
+                                            <ComboBoxItem Content="{DynamicResource Lang_Todo_Weekly}"/>
+                                            <ComboBoxItem Content="{DynamicResource Lang_Todo_Monthly}"/>
+                                            <ComboBoxItem Content="{DynamicResource Lang_Todo_Yearly}"/>
                                         </ComboBox>
 
-                                        <TextBlock Text="提醒时间" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="{DynamicResource Lang_Todo_ReminderTime}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                         <Grid Margin="0,0,0,8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
@@ -244,11 +244,11 @@
                                                      BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"/>
                                         </Grid>
 
-                                        <TextBlock Text="结束日期" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="{DynamicResource Lang_Todo_EndDate}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                         <DatePicker x:Name="DetailRepeatEndDate" FontSize="12" Margin="0,0,0,8"
                                                     Foreground="{DynamicResource TextPrimaryBrush}"/>
 
-                                        <Button x:Name="DetailRepeatSaveBtn" Content="设为重复"
+                                        <Button x:Name="DetailRepeatSaveBtn" Content="{DynamicResource Lang_Todo_SetRepeat}"
                                                 Padding="14,6" FontSize="12"
                                                 Style="{StaticResource BtnPrimary}"
                                                 Click="DetailRepeatSave_Click"/>
@@ -258,7 +258,7 @@
                         </Border>
 
                         <!-- Description -->
-                        <TextBlock Text="描述" FontSize="11" FontWeight="SemiBold"
+                        <TextBlock Text="{DynamicResource Lang_Todo_Description}" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8"/>
                         <TextBox x:Name="DetailDesc" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80"
                                  FontSize="13" Padding="10" Margin="0,0,0,16"
@@ -272,13 +272,13 @@
                         <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="{StaticResource RadiusSm}" Padding="10">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                    <TextBlock Text="创建时间" FontSize="11"
+                                    <TextBlock Text="{DynamicResource Lang_Todo_CreatedTime}" FontSize="11"
                                                Foreground="{DynamicResource TextTertiaryBrush}" Width="60"/>
                                     <TextBlock x:Name="DetailCreated" FontSize="11"
                                                Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="完成时间" FontSize="11"
+                                    <TextBlock Text="{DynamicResource Lang_Todo_CompletedTime}" FontSize="11"
                                                Foreground="{DynamicResource TextTertiaryBrush}" Width="60"/>
                                     <TextBlock x:Name="DetailCompleted" FontSize="11"
                                                Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -287,16 +287,16 @@
                         </Border>
 
                         <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
-                            <Button Content="添加子任务" HorizontalAlignment="Left" Padding="14,6" FontSize="12"
+                            <Button Content="{DynamicResource Lang_Todo_AddSubtask}" HorizontalAlignment="Left" Padding="14,6" FontSize="12"
                                     Style="{StaticResource BtnPrimary}" Margin="0,0,8,0"
                                     Click="AddSubTodo_Click"/>
-                            <Button x:Name="DetailTrashBtn" Content="废弃任务"
+                            <Button x:Name="DetailTrashBtn" Content="{DynamicResource Lang_Todo_TrashTask}"
                                     Padding="14,6" FontSize="12"
                                     Style="{StaticResource OutlineButton}"
                                     Foreground="{DynamicResource DangerBrush}"
                                     BorderBrush="{DynamicResource DangerBrush}"
                                     Click="DetailTrash_Click"/>
-                            <Button x:Name="DetailRestoreBtn" Content="恢复"
+                            <Button x:Name="DetailRestoreBtn" Content="{DynamicResource Lang_Todo_Restore}"
                                     Padding="14,6" FontSize="12"
                                     Style="{StaticResource BtnPrimary}"
                                     Margin="8,0,0,0"

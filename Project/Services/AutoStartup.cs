@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
@@ -21,6 +22,11 @@ public static class AutoStartup
     public static void Enable()
     {
         var exePath = Environment.ProcessPath;
+        // 通过 dotnet host（dotnet run / 调试器）启动时 ProcessPath 指向 dotnet.exe，
+        // 回退到程序集位置，确保写入的是 ToolBox.exe 本体路径。
+        if (string.IsNullOrEmpty(exePath)
+            || Path.GetFileNameWithoutExtension(exePath).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
+            exePath = System.Reflection.Assembly.GetEntryAssembly()?.Location;
         if (string.IsNullOrEmpty(exePath)) return;
 
         using var key = Registry.CurrentUser.OpenSubKey(RegistryPath, true);

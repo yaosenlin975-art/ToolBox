@@ -10,10 +10,13 @@ namespace ToolBox.Services;
 
 public class CacheManager : IScrapAddedListener, IScrapRemovedListener, IScrapLocationChangedListener, IScrapImageChangedListener, IScrapStyleAppliedListener, IScrapStyleRemovedListener
 {
-    // TODO: 迁移到 "ToolBox" 目录与其他数据统一；当前保留 "Setuna" 以兼容旧版截图缓存。
-    public static readonly string CachePath = Path.Combine(
+    private static readonly string LegacyCachePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Setuna");
+
+    public static readonly string CachePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "ToolBox");
 
     public static CacheManager Instance { get; } = new();
 
@@ -25,6 +28,9 @@ public class CacheManager : IScrapAddedListener, IScrapRemovedListener, IScrapLo
     {
         IsInit = false;
 
+        // 迁移旧版 Setuna 目录到 ToolBox
+        MigrateLegacyDirectory();
+
         if (!Directory.Exists(CachePath))
             Directory.CreateDirectory(CachePath);
 
@@ -33,6 +39,37 @@ public class CacheManager : IScrapAddedListener, IScrapRemovedListener, IScrapLo
         CleanupExpired(options.Data.ScreenshotMaxAge);
 
         return this;
+    }
+
+    private static void MigrateLegacyDirectory()
+    {
+        if (!Directory.Exists(LegacyCachePath) || LegacyCachePath == CachePath) return;
+        try
+        {
+            if (!Directory.Exists(CachePath))
+                Directory.Move(LegacyCachePath, CachePath);
+            else
+            {
+                // Target already exists; merge legacy files into target
+                foreach (var dir in Directory.GetDirectories(LegacyCachePath, "*", SearchOption.TopDirectoryOnly))
+                {
+                    var destDir = Path.Combine(CachePath, Path.GetFileName(dir));
+                    if (!Directory.Exists(destDir))
+                        Directory.Move(dir, destDir);
+                }
+                foreach (var file in Directory.GetFiles(LegacyCachePath, "*", SearchOption.TopDirectoryOnly))
+                {
+                    var destFile = Path.Combine(CachePath, Path.GetFileName(file));
+                    if (!File.Exists(destFile))
+                        File.Move(file, destFile);
+                }
+                Directory.Delete(LegacyCachePath, true);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine("[ToolBox] Cache directory migration failed: " + ex.Message);
+        }
     }
 
     public void RestoreScraps(ScrapBook mainBook)
