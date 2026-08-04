@@ -8,7 +8,6 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/DesignTokens.xaml"/>
                 <ResourceDictionary Source="Themes/Dark.xaml"/>
-                <ResourceDictionary Source="Themes/LLM-Colors.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <chat:BoolToVisibilityConverter x:Key="BoolToVis"/>
         </ResourceDictionary>

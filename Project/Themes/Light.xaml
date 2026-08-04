@@ -38,14 +38,25 @@
     <SolidColorBrush x:Key="SidebarHoverBrush" Color="#0FFFFFFF"/>
 
     <!-- Chat -->
-    <SolidColorBrush x:Key="ChatUserBgBrush" Color="#D63031"/>
-    <SolidColorBrush x:Key="ChatUserTextBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="ChatBgBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="ChatUserBgBrush" Color="#E3F2FD"/>
+    <SolidColorBrush x:Key="ChatUserTextBrush" Color="#1565C0"/>
     <SolidColorBrush x:Key="ChatAiBgBrush" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="ChatAiTextBrush" Color="#0F1117"/>
     <SolidColorBrush x:Key="ChatToolBgBrush" Color="#F3E5F5"/>
     <SolidColorBrush x:Key="ChatToolTextBrush" Color="#6A1B9A"/>
+    <SolidColorBrush x:Key="ChatSystemBgBrush" Color="#FFF8E1"/>
+    <SolidColorBrush x:Key="ChatSystemTextBrush" Color="#F57F17"/>
     <SolidColorBrush x:Key="ChatInputBgBrush" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="ChatInputBorderBrush" Color="#E2E4E9"/>
+    <SolidColorBrush x:Key="ChatInputFocusBrush" Color="#1976D2"/>
+    <SolidColorBrush x:Key="ChatSendBtnBrush" Color="#1976D2"/>
+    <SolidColorBrush x:Key="ChatSendBtnDisabledBrush" Color="#BDBDBD"/>
+    <SolidColorBrush x:Key="ChatSidebarBgBrush" Color="#F5F5F5"/>
+    <SolidColorBrush x:Key="ChatSidebarHoverBrush" Color="#EEEEEE"/>
+    <SolidColorBrush x:Key="ChatSidebarActiveBrush" Color="#E3F2FD"/>
+    <SolidColorBrush x:Key="ChatSidebarBorderBrush" Color="#E0E0E0"/>
+    <SolidColorBrush x:Key="ChatStreamingDotBrush" Color="#1976D2"/>
 
     <!-- Code syntax -->
     <SolidColorBrush x:Key="CodeBgBrush" Color="#F0F1F4"/>

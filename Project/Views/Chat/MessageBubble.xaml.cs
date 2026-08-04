@@ -63,23 +63,23 @@ public partial class MessageBubble : UserControl
         switch (role)
         {
             case "user":
-                bg = (Brush)FindResource("ChatBgUserBrush");
-                fg = (Brush)FindResource("ChatTextUserBrush");
+                bg = (Brush)FindResource("ChatUserBgBrush");
+                fg = (Brush)FindResource("ChatUserTextBrush");
                 align = HorizontalAlignment.Right;
                 break;
             case "assistant":
                 bg = Brushes.Transparent;
-                fg = (Brush)FindResource("ChatTextAssistantBrush");
+                fg = (Brush)FindResource("ChatAiTextBrush");
                 align = HorizontalAlignment.Left;
                 break;
             case "system":
-                bg = (Brush)FindResource("ChatBgSystemBrush");
-                fg = (Brush)FindResource("ChatTextSystemBrush");
+                bg = (Brush)FindResource("ChatSystemBgBrush");
+                fg = (Brush)FindResource("ChatSystemTextBrush");
                 align = HorizontalAlignment.Left;
                 break;
             case "tool":
-                bg = (Brush)FindResource("ChatBgToolBrush");
-                fg = (Brush)FindResource("ChatTextToolBrush");
+                bg = (Brush)FindResource("ChatToolBgBrush");
+                fg = (Brush)FindResource("ChatToolTextBrush");
                 align = HorizontalAlignment.Left;
                 break;
             default:
