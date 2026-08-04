@@ -1,9 +1,10 @@
-﻿﻿using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ToolBox.Views.Chat;
 using ToolBox.Views.ClipboardHistory;
 using ToolBox.Views.Dashboard;
+using ToolBox.Views.NetworkDiagnosis;
 using ToolBox.Views.Todo;
 using ToolBox.Views.Snippets;
 
@@ -12,8 +13,13 @@ namespace ToolBox.Views;
 public partial class WorkbenchWindow : Window
 {
     private DashboardView? dashboardView;
+    private ChatView? chatView;
+    private TodoView? todoView;
+    private HistoryView? historyView;
     private ClipboardView? clipboardView;
     private SnippetView? snippetView;
+    private NetworkDiagnosisView? networkView;
+    private SettingsView? settingsView;
 
     public WorkbenchWindow()
     {
@@ -34,6 +40,7 @@ public partial class WorkbenchWindow : Window
             "screenshots" => (FindResource("Lang_Page_Screenshots") as string) ?? "截图历史",
             "clipboard" => (FindResource("Lang_Page_Clipboard") as string) ?? "剪贴板",
             "snippets" => "代码片段",
+            "network" => (FindResource("Lang_Page_Network") as string) ?? "网络诊断",
             "settings" => (FindResource("Lang_Page_Settings") as string) ?? "设置",
             _ => string.Empty
         };
@@ -43,12 +50,13 @@ public partial class WorkbenchWindow : Window
         PageHost.Content = page switch
         {
             "dashboard" => GetDashboard(),
-            "assistant" => new ChatView(),
-            "todos" => new TodoView(),
-            "screenshots" => new HistoryView(),
+            "assistant" => GetChatView(),
+            "todos" => GetTodoView(),
+            "screenshots" => GetHistoryView(),
             "clipboard" => GetClipboard(),
             "snippets" => GetSnippets(),
-            "settings" => new SettingsView(),
+            "network" => GetNetwork(),
+            "settings" => GetSettingsView(),
             _ => null
         };
     }
@@ -64,6 +72,36 @@ public partial class WorkbenchWindow : Window
     {
         snippetView ??= new SnippetView();
         return snippetView;
+    }
+
+    private NetworkDiagnosisView GetNetwork()
+    {
+        networkView ??= new NetworkDiagnosisView();
+        return networkView;
+    }
+
+    private ChatView GetChatView()
+    {
+        chatView ??= new ChatView();
+        return chatView;
+    }
+
+    private TodoView GetTodoView()
+    {
+        todoView ??= new TodoView();
+        return todoView;
+    }
+
+    private HistoryView GetHistoryView()
+    {
+        historyView ??= new HistoryView();
+        return historyView;
+    }
+
+    private SettingsView GetSettingsView()
+    {
+        settingsView ??= new SettingsView();
+        return settingsView;
     }
 
     private DashboardView GetDashboard()

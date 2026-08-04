@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:ToolBox.Views.Shell"
         Title="{DynamicResource Lang_Workbench_Title}" Width="1440" Height="900"
+        MinWidth="960" MinHeight="600"
         WindowStyle="None" AllowsTransparency="True"
         WindowStartupLocation="CenterScreen" Background="Transparent"
         ShowInTaskbar="True">
