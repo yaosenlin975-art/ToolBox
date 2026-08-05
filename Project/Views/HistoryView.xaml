@@ -145,6 +145,7 @@
         <ScrollViewer x:Name="HistoryScrollViewer" Grid.Row="3" VerticalScrollBarVisibility="Auto" Padding="32,16">
             <ListBox x:Name="lstHistory" Background="Transparent" BorderThickness="0"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
                      ItemsPanel="{StaticResource HistoryGridPanel}"
                      ItemTemplate="{StaticResource HistoryGridTemplate}">
                 <ListBox.ItemContainerStyle>
