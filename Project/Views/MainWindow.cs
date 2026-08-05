@@ -381,29 +381,10 @@ public partial class MainWindow : Window
     {
         var menu = new System.Windows.Controls.ContextMenu
         {
-            Background = (System.Windows.Media.Brush)Application.Current.FindResource("BgSecondaryBrush"),
-            Foreground = (System.Windows.Media.Brush)Application.Current.FindResource("TextPrimaryBrush"),
-            BorderBrush = (System.Windows.Media.Brush)Application.Current.FindResource("BorderBrush"),
-            Padding = new Thickness(4),
             Placement = System.Windows.Controls.Primitives.PlacementMode.Absolute,
             HorizontalOffset = SystemParameters.WorkArea.Right - 200,
             VerticalOffset = SystemParameters.WorkArea.Bottom - 300
         };
-
-        var itemStyle = new System.Windows.Style(typeof(System.Windows.Controls.MenuItem))
-        {
-            Setters =
-            {
-                new System.Windows.Setter(System.Windows.Controls.Control.ForegroundProperty,
-                    Application.Current.FindResource("TextPrimaryBrush")),
-            }
-        };
-        void StyleItem(System.Windows.Controls.MenuItem mi)
-        {
-            mi.Style = itemStyle;
-            mi.Padding = new Thickness(16,6,16,6);
-            mi.FontSize = 13;
-        }
 
         var scrapMenuItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_ScrapList") as string) ?? "参考图列表" };
         if (scrapBook.ScrapCount > 0)
@@ -477,21 +458,6 @@ public partial class MainWindow : Window
         var exitItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_Exit") as string) ?? "退出" };
         exitItem.Click += (s, e) => Shutdown();
         menu.Items.Add(exitItem);
-
-        foreach (var obj in menu.Items)
-        {
-            if (obj is System.Windows.Controls.MenuItem mi)
-            {
-                StyleItem(mi);
-                if (mi.Items.Count > 0)
-                {
-                    foreach (var subObj in mi.Items)
-                    {
-                        if (subObj is System.Windows.Controls.MenuItem subMi) StyleItem(subMi);
-                    }
-                }
-            }
-        }
 
         menu.IsOpen = true;
     }
