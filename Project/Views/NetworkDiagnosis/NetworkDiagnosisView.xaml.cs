@@ -202,6 +202,18 @@ public partial class NetworkDiagnosisView : UserControl
                 string.Format(L(summary.ElevationCancelled ? "Lang_Net_UacCancelled" : "Lang_Net_UacFailed"), affected),
                 Window.GetWindow(this));
             AddLogEntry(summary.ElevationCancelled ? "Lang_Net_LogRepairUacCancel" : "Lang_Net_LogRepairUacFail");
+            // PRD AC-16 降级路径：不静默失败，展示手动修复指引（逐条命令 + 以管理员身份执行）
+            ShowManualGuide(repairSteps.Where(s => s.Status == RepairStepStatus.Skipped));
+        }
+
+        // 提权步骤执行失败（如命令本身未成功）同样给出手动指引，避免"无法执行"无后续
+        var failedElevated = repairSteps
+            .Where(s => s.Status == RepairStepStatus.Fail && s.RequiresElevation)
+            .ToList();
+        if (failedElevated.Count > 0)
+        {
+            ShowManualGuide(failedElevated);
+            AddLogEntry("Lang_Net_LogRepairNeedManual", failedElevated.Count);
         }
 
         if (summary.Failed + summary.Skipped == 0)
@@ -229,9 +241,11 @@ public partial class NetworkDiagnosisView : UserControl
         {
             case RepairUiState.Hidden:
                 RepairSection.Visibility = Visibility.Collapsed;
+                ManualGuidePanel.Visibility = Visibility.Collapsed;
                 break;
             case RepairUiState.Executing:
                 RepairSection.Visibility = Visibility.Visible;
+                ManualGuidePanel.Visibility = Visibility.Collapsed;
                 RepairTitle.Text = L("Lang_Net_RepairExecuting");
                 BtnRepair.IsEnabled = false;
                 BtnLater.IsEnabled = false;
@@ -267,6 +281,43 @@ public partial class NetworkDiagnosisView : UserControl
         if (pass > 0 && pass == repairSteps.Count) return L("Lang_Net_RepairDone");
         if (pass > 0) return L("Lang_Net_RepairPartial");
         return L("Lang_Net_RepairFailed");
+    }
+
+    /// <summary>
+    /// 渲染手动修复指引（PRD 5.5-3 降级路径 / AC-16）：
+    /// 提权被取消/失败或提权命令执行失败时，逐条列出对应命令并提示以管理员身份执行，不静默失败。
+    /// </summary>
+    private void ShowManualGuide(IEnumerable<RepairStep> failedSteps)
+    {
+        ManualGuideList.Children.Clear();
+        foreach (var step in failedSteps)
+        {
+            if (step.Commands.Count == 0) continue;
+            var title = new TextBlock
+            {
+                Text = step.Title,
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 6, 0, 0)
+            };
+            title.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            ManualGuideList.Children.Add(title);
+            foreach (var cmd in step.Commands)
+            {
+                var line = new TextBlock
+                {
+                    Text = $"> {cmd.File} {cmd.Args}",
+                    FontSize = 11,
+                    FontFamily = (FontFamily)FindResource("FontMono"),
+                    Margin = new Thickness(0, 3, 0, 0),
+                    TextWrapping = TextWrapping.Wrap
+                };
+                line.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+                ManualGuideList.Children.Add(line);
+            }
+        }
+        if (ManualGuideList.Children.Count > 0)
+            ManualGuidePanel.Visibility = Visibility.Visible;
     }
 
     /// <summary>渲染修复计划列表（状态图标 + 步骤名 + 错误码/提权标记）。</summary>

@@ -295,6 +295,9 @@
     <sys:String x:Key="Lang_Net_UacErrorTitle">Administrator Privileges Required</sys:String>
     <sys:String x:Key="Lang_Net_UacCancelled">You cancelled the administrator authorization. The following actions were not executed: {0}</sys:String>
     <sys:String x:Key="Lang_Net_UacFailed">Elevation failed. The following actions could not be executed: {0}</sys:String>
+    <sys:String x:Key="Lang_Net_ManualGuideTitle">Manual Repair Guide</sys:String>
+    <sys:String x:Key="Lang_Net_ManualGuideHint">The following commands require administrator privileges. Right-click "Start" and open "Terminal (Admin)" or "Windows PowerShell (Admin)", then run them one by one:</sys:String>
+    <sys:String x:Key="Lang_Net_LogRepairNeedManual">Some elevated repairs did not complete; a manual execution guide has been shown ({0})</sys:String>
     <sys:String x:Key="Lang_Net_LogDeferred">User chose "Later"; no repair was executed</sys:String>
     <sys:String x:Key="Lang_Net_LogHealthy">Diagnosis done: network environment healthy</sys:String>
     <sys:String x:Key="Lang_Net_LogWarned">Diagnosis done: {0} warning(s)</sys:String>

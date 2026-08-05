@@ -295,6 +295,9 @@
     <sys:String x:Key="Lang_Net_UacErrorTitle">需要管理员权限</sys:String>
     <sys:String x:Key="Lang_Net_UacCancelled">您已取消管理员授权，以下操作未执行：{0}</sys:String>
     <sys:String x:Key="Lang_Net_UacFailed">提权失败，无法执行以下操作：{0}</sys:String>
+    <sys:String x:Key="Lang_Net_ManualGuideTitle">手动修复指引</sys:String>
+    <sys:String x:Key="Lang_Net_ManualGuideHint">以下命令需要管理员权限。请右键点击「开始」→「终端(管理员)」或「Windows PowerShell(管理员)」，逐条粘贴执行：</sys:String>
+    <sys:String x:Key="Lang_Net_LogRepairNeedManual">部分提权修复未完成，已展示手动执行指引（{0} 项）</sys:String>
     <sys:String x:Key="Lang_Net_LogDeferred">用户选择稍后处理，未执行修复</sys:String>
     <sys:String x:Key="Lang_Net_LogHealthy">诊断完成：网络环境正常</sys:String>
     <sys:String x:Key="Lang_Net_LogWarned">诊断完成：{0} 项警告</sys:String>

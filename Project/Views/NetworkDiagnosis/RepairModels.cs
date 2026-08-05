@@ -81,6 +81,12 @@ public static class NetworkRepairService
     private const string InternetSettingsKey = @"Software\Microsoft\Windows\CurrentVersion\Internet Settings";
     private const int ErrorCanceled = 1223; // ERROR_CANCELLED：用户取消 UAC
 
+    /// <summary>单条命令执行超时（网络栈异常时 ipconfig/netsh 可能长时间挂起，超时后终止进程，避免修复区无限"执行中"）。</summary>
+    private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>提权 bat 子进程整体执行超时。</summary>
+    private static readonly TimeSpan ElevationTimeout = TimeSpan.FromSeconds(90);
+
     /// <summary>bat 脚本编码：系统 OEM 代码页（cmd 原生解析中文适配器名）。</summary>
     private static readonly Encoding BatEncoding = CreateBatEncoding();
 
@@ -280,7 +286,7 @@ public static class NetworkRepairService
         return true;
     }
 
-    /// <summary>普通进程执行（无提权），捕获输出避免死锁，返回退出码。</summary>
+    /// <summary>普通进程执行（无提权），捕获输出避免死锁，返回退出码；超时（CommandTimeout）则终止进程并返回 -1。</summary>
     private static async Task<int> RunProcessAsync(string file, string args, CancellationToken ct)
     {
         using var p = new Process
@@ -296,7 +302,16 @@ public static class NetworkRepairService
         p.Start();
         var stdout = p.StandardOutput.ReadToEndAsync(ct);
         var stderr = p.StandardError.ReadToEndAsync(ct);
-        await p.WaitForExitAsync(ct);
+        var exitTask = p.WaitForExitAsync(ct);
+        var completed = await Task.WhenAny(exitTask, Task.Delay(CommandTimeout, ct));
+        if (!ReferenceEquals(completed, exitTask))
+        {
+            try { p.Kill(entireProcessTree: true); } catch { /* best-effort */ }
+            try { await exitTask; } catch { /* 进程已终止 */ }
+            _ = stdout.ContinueWith(_ => { });
+            _ = stderr.ContinueWith(_ => { });
+            return -1;
+        }
         await Task.WhenAll(stdout, stderr);
         return p.ExitCode;
     }
@@ -379,7 +394,15 @@ public static class NetworkRepairService
             {
                 using var p = Process.Start(psi);
                 if (p == null) throw new Win32Exception();
-                await p.WaitForExitAsync(ct);
+                var exitTask = p.WaitForExitAsync(ct);
+                var completed = await Task.WhenAny(exitTask, Task.Delay(ElevationTimeout, ct));
+                if (!ReferenceEquals(completed, exitTask))
+                {
+                    // 提权子进程长时间无响应：终止并整体标记失败，避免修复区无限"执行中"
+                    try { p.Kill(entireProcessTree: true); } catch { /* best-effort */ }
+                    foreach (var s in steps) s.Status = RepairStepStatus.Fail;
+                    return (false, false);
+                }
             }
             catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCanceled)
             {

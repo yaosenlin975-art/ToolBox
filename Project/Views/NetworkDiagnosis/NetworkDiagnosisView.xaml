@@ -150,6 +150,21 @@
                         <TextBlock x:Name="RepairRestartHint" FontSize="11" Margin="0,10,0,0"
                                    Foreground="{DynamicResource TextTertiaryBrush}" TextWrapping="Wrap"
                                    Visibility="Collapsed"/>
+                        <!-- 手动修复指引（PRD 5.5-3 降级路径 / AC-16）：提权被取消/失败或提权命令失败时展示，不静默失败 -->
+                        <Border x:Name="ManualGuidePanel" Margin="0,14,0,0" Padding="14,12" Visibility="Collapsed"
+                                Background="{DynamicResource BgSunkenBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="8">
+                            <StackPanel>
+                                <TextBlock x:Name="ManualGuideTitle" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Text="{DynamicResource Lang_Net_ManualGuideTitle}"/>
+                                <TextBlock x:Name="ManualGuideHint" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Text="{DynamicResource Lang_Net_ManualGuideHint}"/>
+                                <StackPanel x:Name="ManualGuideList" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
                         <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
                             <Button x:Name="BtnRepair" Content="{DynamicResource Lang_Net_BtnRepair}"
                                     Style="{StaticResource BtnPrimary}" Click="BtnRepair_Click"/>

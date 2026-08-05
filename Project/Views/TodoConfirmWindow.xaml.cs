@@ -47,4 +47,11 @@ public partial class TodoConfirmWindow : Window
     {
         DialogResult = false;
     }
+
+    private void OnClose(object sender, RoutedEventArgs e) => DialogResult = false;
+
+    private void OnTitleBarMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == System.Windows.Input.MouseButton.Left) DragMove();
+    }
 }

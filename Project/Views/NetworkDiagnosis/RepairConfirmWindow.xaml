@@ -3,35 +3,57 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="确认执行网络修复" Width="480" SizeToContent="Height" MaxHeight="520"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
-        Background="{DynamicResource BgPrimaryBrush}">
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False">
+    <!-- 自定义窗口样式（与 MessageWindow 确认弹窗范式一致）：无系统顶栏，圆角卡片 + 阴影 + 自定义标题栏 -->
+    <Border Background="{DynamicResource BgElevatedBrush}"
+            BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
+            CornerRadius="{StaticResource RadiusMd}">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="24" ShadowDepth="8" Opacity="0.2" Color="#000000"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="36"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <TextBlock x:Name="TitleText" FontSize="15" FontWeight="SemiBold"
-                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+            <!-- 自定义标题栏：拖拽移动 + 关闭按钮 -->
+            <Grid Grid.Row="0" Background="{DynamicResource BgElevatedBrush}"
+                  MouseLeftButtonDown="OnTitleBarMouseDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" x:Name="TitleText" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           VerticalAlignment="Center" Margin="14,0,0,0"/>
+                <Button Grid.Column="1" Width="28" Height="28" Style="{StaticResource IconButton}"
+                        Click="OnClose" Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                        Margin="0,0,6,0"/>
+            </Grid>
 
-        <TextBlock x:Name="MessageText" Grid.Row="1" FontSize="12" Margin="0,10,0,0"
-                   Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="MessageText" Grid.Row="1" FontSize="12" Margin="20,12,20,0"
+                       Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
 
-        <Border Grid.Row="2" Margin="0,14,0,0" Padding="14,12"
-                Background="{DynamicResource BgSecondaryBrush}"
-                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                CornerRadius="8">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel x:Name="PlanList"/>
-            </ScrollViewer>
-        </Border>
+            <!-- 修复动作列表：固定最大高度，超长列表内部滚动，底部按钮始终可见 -->
+            <Border Grid.Row="2" Margin="20,12,20,0" Padding="14,12" MaxHeight="260"
+                    Background="{DynamicResource BgSecondaryBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="PlanList"/>
+                </ScrollViewer>
+            </Border>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button x:Name="BtnCancel" Style="{StaticResource OutlineButton}" Padding="16,6"
-                    FontSize="12" Click="Cancel_Click"/>
-            <Button x:Name="BtnConfirm" Style="{StaticResource BtnPrimary}" Padding="16,6"
-                    FontSize="12" Margin="12,0,0,0" Click="Confirm_Click"/>
-        </StackPanel>
-    </Grid>
+            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,20,16">
+                <Button x:Name="BtnCancel" Style="{StaticResource OutlineButton}" Padding="16,6"
+                        FontSize="12" Click="Cancel_Click"/>
+                <Button x:Name="BtnConfirm" Style="{StaticResource BtnPrimary}" Padding="16,6"
+                        FontSize="12" Margin="12,0,0,0" Click="Confirm_Click"/>
+            </StackPanel>
+        </Grid>
+    </Border>
 </Window>

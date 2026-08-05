@@ -90,6 +90,13 @@ public partial class RepairConfirmWindow : Window
 
     private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
 
+    private void OnClose(object sender, RoutedEventArgs e) => DialogResult = false;
+
+    private void OnTitleBarMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == System.Windows.Input.MouseButton.Left) DragMove();
+    }
+
     private string L(string key)
     {
         return (FindResource(key) as string) ?? key;
