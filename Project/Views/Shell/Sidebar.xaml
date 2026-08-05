@@ -16,10 +16,10 @@
                                     Background="Transparent" CornerRadius="{StaticResource RadiusXs}" Margin="-8,0,0,0"/>
                             <Border x:Name="bg" Background="Transparent" CornerRadius="{StaticResource RadiusSm}">
                                 <Grid>
-                                    <TextBlock x:Name="icon" FontFamily="Segoe MDL2 Assets" FontSize="18"
-                                               Foreground="{TemplateBinding Foreground}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                    <Path x:Name="icon" Width="18" Height="18" Stretch="Uniform"
+                                          Fill="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Grid>
                             </Border>
                         </Grid>
@@ -53,26 +53,26 @@
             </Border>
             <StackPanel Grid.Row="1" Margin="0,0,0,16">
                 <RadioButton x:Name="NavDashboard" GroupName="Nav" IsChecked="True"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE80F;"
+                             Style="{StaticResource NavItemStyle}" Tag="{StaticResource IconDashboard}"
                              AutomationProperties.Name="{DynamicResource Lang_Page_Dashboard}" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavAssistant" GroupName="Nav"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE8BD;"
+                             Style="{StaticResource NavItemStyle}" Tag="{StaticResource IconChat}"
                              AutomationProperties.Name="{DynamicResource Lang_Page_Assistant}" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavTodos" GroupName="Nav"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE9D5;"
+                             Style="{StaticResource NavItemStyle}" Tag="{StaticResource IconChecklist}"
                              AutomationProperties.Name="{DynamicResource Lang_Page_Todos}" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavScreenshots" GroupName="Nav"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE722;"
+                             Style="{StaticResource NavItemStyle}" Tag="{StaticResource IconCamera}"
                              AutomationProperties.Name="{DynamicResource Lang_Page_Screenshots}" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavClipboard" GroupName="Nav"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE77F;"
+                             Style="{StaticResource NavItemStyle}" Tag="{StaticResource IconClipboard}"
                              AutomationProperties.Name="{DynamicResource Lang_Page_Clipboard}" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavNetwork" GroupName="Nav"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE968;"
+                             Style="{StaticResource NavItemStyle}" Tag="{StaticResource IconDns}"
                              AutomationProperties.Name="{DynamicResource Lang_NetworkDiagnosis}"
                              ToolTip="{DynamicResource Lang_NetworkDiagnosis}" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavSettings" GroupName="Nav"
-                             Style="{StaticResource NavItemStyle}" Tag="&#xE713;"
+                             Style="{StaticResource NavItemStyle}" Tag="{StaticResource IconSettings}"
                              AutomationProperties.Name="{DynamicResource Lang_Settings}" Checked="OnNavChecked"/>
             </StackPanel>
             <TextBlock Grid.Row="2" Text="v2.0" FontSize="10"

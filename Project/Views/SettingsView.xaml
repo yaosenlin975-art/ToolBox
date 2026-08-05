@@ -17,10 +17,10 @@
                                 BorderBrush="Transparent" BorderThickness="3,0,0,0"
                                 CornerRadius="{StaticResource RadiusSm}" Padding="9,10,12,10">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock x:Name="icon" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                           Foreground="{TemplateBinding Foreground}" Opacity="0.7"
-                                           VerticalAlignment="Center" Margin="0,0,10,0"
-                                           Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                <Path x:Name="icon" Width="16" Height="16" Stretch="Uniform" Opacity="0.7"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}"
+                                      Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                      VerticalAlignment="Center" Margin="0,0,10,0"/>
                                 <ContentPresenter VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
@@ -35,7 +35,7 @@
                                 <Setter TargetName="bg" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                                 <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                                 <Setter TargetName="icon" Property="Opacity" Value="1"/>
-                                <Setter TargetName="icon" Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="icon" Property="Fill" Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -153,27 +153,27 @@
                     </TextBlock>
                     <StackPanel Margin="8,20,8,0">
                         <RadioButton x:Name="NavGeneral" GroupName="SettingsNav" IsChecked="True"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE713;" Content="{DynamicResource Lang_General}" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconSettings}" Content="{DynamicResource Lang_General}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavHotKey" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE765;" Content="{DynamicResource Lang_Hotkey}" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconKeyboard}" Content="{DynamicResource Lang_Hotkey}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavCapture" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE722;" Content="{DynamicResource Lang_Capture}" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconCamera}" Content="{DynamicResource Lang_Capture}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavActionChains" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE9C5;" Content="{DynamicResource Lang_ActionChains}" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconLink}" Content="{DynamicResource Lang_ActionChains}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavLlm" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE8BD;" Content="LLM" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconChat}" Content="LLM" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavSchedule" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE823;" Content="{DynamicResource Lang_Schedule}" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconSchedule}" Content="{DynamicResource Lang_Schedule}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavShutdown" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE7E8;" Content="{DynamicResource Lang_Settings_Shutdown}" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconPower}" Content="{DynamicResource Lang_Settings_Shutdown}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavClipboard" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE77F;" Content="{DynamicResource Lang_Clipboard}" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconClipboard}" Content="{DynamicResource Lang_Clipboard}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavOcr" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE7BC;" Content="OCR" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconTextDoc}" Content="OCR" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavLanguage" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE774;" Content="{DynamicResource Lang_Language}" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconTranslate}" Content="{DynamicResource Lang_Language}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavAbout" GroupName="SettingsNav"
-                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE946;" Content="{DynamicResource Lang_About}" Checked="OnNavChecked"/>
+                                     Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconInfo}" Content="{DynamicResource Lang_About}" Checked="OnNavChecked"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -189,8 +189,8 @@
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
-                                               Text="&#xE7F4;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Path Data="{StaticResource IconTune}" Fill="{DynamicResource AccentBrush}" Width="16" Height="16" Stretch="Uniform"
+                                          VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Text="{DynamicResource Lang_RunMode}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
@@ -288,8 +288,8 @@
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
-                                               Text="&#xE9C5;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Path Data="{StaticResource IconLink}" Fill="{DynamicResource AccentBrush}" Width="16" Height="16" Stretch="Uniform"
+                                          VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Text="{DynamicResource Lang_ActionChainManage}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
@@ -350,8 +350,8 @@
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
-                                               Text="&#xE765;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Path Data="{StaticResource IconKeyboard}" Fill="{DynamicResource AccentBrush}" Width="16" Height="16" Stretch="Uniform"
+                                          VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Text="{DynamicResource Lang_GlobalHotkey}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
@@ -447,8 +447,8 @@
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
-                                               Text="&#xE722;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Path Data="{StaticResource IconCamera}" Fill="{DynamicResource AccentBrush}" Width="16" Height="16" Stretch="Uniform"
+                                          VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Text="{DynamicResource Lang_Capture}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
@@ -561,8 +561,8 @@
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
-                                               Text="&#xE8BD;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Path Data="{StaticResource IconChat}" Fill="{DynamicResource AccentBrush}" Width="16" Height="16" Stretch="Uniform"
+                                          VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Text="{DynamicResource Lang_ProviderConfig}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
@@ -649,8 +649,8 @@
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
-                                               Text="&#xE823;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Path Data="{StaticResource IconSchedule}" Fill="{DynamicResource AccentBrush}" Width="16" Height="16" Stretch="Uniform"
+                                          VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Text="{DynamicResource Lang_ScheduleTask}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
@@ -719,8 +719,8 @@
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
-                                               Text="&#xE7E8;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Path Data="{StaticResource IconPower}" Fill="{DynamicResource AccentBrush}" Width="16" Height="16" Stretch="Uniform"
+                                          VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Text="{DynamicResource Lang_Settings_Shutdown}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
@@ -817,8 +817,8 @@
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
-                                               Text="&#xE77F;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Path Data="{StaticResource IconClipboard}" Fill="{DynamicResource AccentBrush}" Width="16" Height="16" Stretch="Uniform"
+                                          VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Text="{DynamicResource Lang_Clipboard}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
@@ -865,8 +865,8 @@
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
-                                               Text="&#xE7BC;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Path Data="{StaticResource IconTextDoc}" Fill="{DynamicResource AccentBrush}" Width="16" Height="16" Stretch="Uniform"
+                                          VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Text="{DynamicResource Lang_OcrEngine}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
@@ -967,9 +967,10 @@
                                                 <TextBlock Grid.Column="0" Text="{Binding}" FontSize="13"
                                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                                            VerticalAlignment="Center"/>
-                                                <Button Grid.Column="1" Content="&#xE74D;" FontFamily="Segoe MDL2 Assets"
-                                                        FontSize="12" Width="24" Height="24"
+                                                <Button Grid.Column="1" Width="24" Height="24"
                                                         Click="DeleteCategory_Click" Tag="{Binding}">
+                                                    <Path Data="{StaticResource IconDelete}" Width="12" Height="12" Stretch="Uniform"
+                                                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                                                     <Button.Style>
                                                         <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
                                                             <Style.Triggers>
@@ -996,8 +997,8 @@
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
-                                               Text="&#xE774;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Path Data="{StaticResource IconTranslate}" Fill="{DynamicResource AccentBrush}" Width="16" Height="16" Stretch="Uniform"
+                                          VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Text="{DynamicResource Lang_InterfaceLanguage}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 
@@ -1027,8 +1028,8 @@
                         <Border Style="{StaticResource SettingsSection}">
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
-                                               Text="&#xE946;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Path Data="{StaticResource IconInfo}" Fill="{DynamicResource AccentBrush}" Width="16" Height="16" Stretch="Uniform"
+                                          VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Text="ToolBox" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
 

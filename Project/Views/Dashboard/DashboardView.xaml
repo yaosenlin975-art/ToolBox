@@ -136,9 +136,9 @@
                     <StackPanel Orientation="Horizontal">
                         <Border Width="36" Height="36" CornerRadius="{StaticResource RadiusMd}"
                                 Background="{DynamicResource AccentBrush}" Opacity="0.12">
-                            <TextBlock Text="&#xE968;" FontFamily="Segoe MDL2 Assets" FontSize="18"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource AccentBrush}"/>
+                            <Path Data="{StaticResource IconDns}" Width="18" Height="18" Stretch="Uniform"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Fill="{DynamicResource AccentBrush}"/>
                         </Border>
                         <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
                             <TextBlock Text="{DynamicResource Lang_DashNetworkTitle}" FontSize="13" FontWeight="SemiBold"

@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace ToolBox.Views.NetworkDiagnosis;
 
@@ -348,21 +349,13 @@ public partial class NetworkDiagnosisView : UserControl
         }
         else
         {
-            var (glyph, brushKey) = step.Status switch
+            var (geomKey, brushKey) = step.Status switch
             {
-                RepairStepStatus.Pass => ("\uE73E", "SuccessBrush"),
-                RepairStepStatus.Fail => ("\uE711", "ErrorBrush"),
-                _ => ("\u25CB", "TextTertiaryBrush")
+                RepairStepStatus.Pass => ("IconCheck", "SuccessBrush"),
+                RepairStepStatus.Fail => ("IconCancel", "ErrorBrush"),
+                _ => (null, "TextTertiaryBrush")
             };
-            var glyphBlock = new TextBlock
-            {
-                Text = glyph,
-                FontFamily = new FontFamily("Segoe MDL2 Assets"),
-                FontSize = 14,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            glyphBlock.SetResourceReference(TextBlock.ForegroundProperty, brushKey);
-            icon = glyphBlock;
+            icon = geomKey != null ? BuildIcon(geomKey, brushKey, 14, new Thickness(0)) : BuildCircle(14, new Thickness(0));
         }
         Grid.SetColumn(icon, 0);
         grid.Children.Add(icon);
@@ -508,16 +501,10 @@ public partial class NetworkDiagnosisView : UserControl
         }
         else
         {
-            var (glyph, brushKey) = GetStatusVisual(item.Status);
-            var icon = new TextBlock
-            {
-                Text = glyph,
-                FontFamily = new FontFamily("Segoe MDL2 Assets"),
-                FontSize = 16,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 10, 0)
-            };
-            icon.SetResourceReference(TextBlock.ForegroundProperty, brushKey);
+            var (geomKey, brushKey) = GetStatusVisual(item.Status);
+            UIElement icon = geomKey != null
+                ? BuildIcon(geomKey, brushKey, 16, new Thickness(0, 0, 10, 0))
+                : BuildCircle(16, new Thickness(0, 0, 10, 0));
             Grid.SetColumn(icon, 0);
             headerGrid.Children.Add(icon);
         }
@@ -624,16 +611,45 @@ public partial class NetworkDiagnosisView : UserControl
         return grid;
     }
 
-    private static (string glyph, string brushKey) GetStatusVisual(DiagnosisItemStatus status)
+    private static (string? geomKey, string brushKey) GetStatusVisual(DiagnosisItemStatus status)
     {
         return status switch
         {
-            DiagnosisItemStatus.Pass => ("\uE73E", "SuccessBrush"),
-            DiagnosisItemStatus.Fail => ("\uE711", "ErrorBrush"),
-            DiagnosisItemStatus.Warning => ("\uE7BA", "WarningBrush"),
-            DiagnosisItemStatus.Skipped => ("\u25CB", "TextTertiaryBrush"),
-            _ => ("\u25CB", "TextTertiaryBrush")
+            DiagnosisItemStatus.Pass => ("IconCheck", "SuccessBrush"),
+            DiagnosisItemStatus.Fail => ("IconCancel", "ErrorBrush"),
+            DiagnosisItemStatus.Warning => ("IconWarning", "WarningBrush"),
+            _ => (null, "TextTertiaryBrush")
         };
+    }
+
+    /// <summary>构建 Path 几何图标（不依赖 Segoe MDL2 Assets 字体），画刷走动态资源适配双主题。</summary>
+    private static Path BuildIcon(string geometryKey, string brushKey, double size, Thickness margin)
+    {
+        var path = new Path
+        {
+            Width = size,
+            Height = size,
+            Stretch = Stretch.Uniform,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = margin,
+            Data = Application.Current.TryFindResource(geometryKey) as Geometry
+        };
+        path.SetResourceReference(Shape.FillProperty, brushKey);
+        return path;
+    }
+
+    /// <summary>未判定状态使用通用圆点字符（U+25CB，所有系统字体均支持，无字体依赖）。</summary>
+    private static TextBlock BuildCircle(double size, Thickness margin)
+    {
+        var circle = new TextBlock
+        {
+            Text = "\u25CB",
+            FontSize = size,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = margin
+        };
+        circle.SetResourceReference(TextBlock.ForegroundProperty, "TextTertiaryBrush");
+        return circle;
     }
 
     private void RowHeader_Click(object sender, MouseButtonEventArgs e)

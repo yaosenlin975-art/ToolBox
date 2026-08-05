@@ -115,8 +115,11 @@
             <!-- Floating + button -->
             <Button x:Name="FloatingAddBtn" Grid.Row="2" Width="36" Height="36" Margin="0,0,16,16"
                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                    Style="{StaticResource BtnPrimary}" Content="&#xE710;" FontFamily="Segoe MDL2 Assets" FontSize="16"
-                    Click="FloatingAddBtn_Click" ToolTip="{DynamicResource Lang_Todo_AddTodoTitle}"/>
+                    Style="{StaticResource BtnPrimary}"
+                    Click="FloatingAddBtn_Click" ToolTip="{DynamicResource Lang_Todo_AddTodoTitle}">
+                <Path Data="{StaticResource IconAdd}" Width="16" Height="16" Stretch="Uniform"
+                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+            </Button>
         </Grid>
 
         <!-- Right: detail panel -->

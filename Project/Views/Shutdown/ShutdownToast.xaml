@@ -19,9 +19,9 @@
             <StackPanel Orientation="Horizontal">
                 <Border Width="40" Height="40" CornerRadius="{StaticResource RadiusFull}"
                         Background="{DynamicResource AccentSoftBrush}" VerticalAlignment="Top">
-                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="18"
-                               Text="&#xE7E8;" Foreground="{DynamicResource AccentBrush}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Path Data="{StaticResource IconPower}" Width="18" Height="18" Stretch="Uniform"
+                          Fill="{DynamicResource AccentBrush}"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel Margin="12,0,0,0">
                     <TextBlock x:Name="TitleText" FontSize="14" FontWeight="SemiBold"

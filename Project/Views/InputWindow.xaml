@@ -27,8 +27,10 @@
                            Foreground="{DynamicResource TextPrimaryBrush}"
                            VerticalAlignment="Center" Margin="14,0,0,0"/>
                 <Button Grid.Column="1" Width="28" Height="28" Style="{StaticResource IconButton}"
-                        Click="OnClose" Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="10"
-                        Margin="0,0,6,0"/>
+                        Click="OnClose" Margin="0,0,6,0">
+                    <Path Data="{StaticResource IconClose}" Width="10" Height="10" Stretch="Uniform"
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </Button>
             </Grid>
             <Grid Grid.Row="1" Margin="20,16">
                 <Grid.RowDefinitions>

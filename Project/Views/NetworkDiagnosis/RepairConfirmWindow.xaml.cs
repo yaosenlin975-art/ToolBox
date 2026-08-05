@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace ToolBox.Views.NetworkDiagnosis;
 
@@ -29,15 +30,16 @@ public partial class RepairConfirmWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var dot = new TextBlock
+        var dot = new Path
         {
-            Text = "\uE73E",
-            FontFamily = new FontFamily("Segoe MDL2 Assets"),
-            FontSize = 11,
+            Data = Application.Current.TryFindResource("IconCheck") as Geometry,
+            Width = 11,
+            Height = 11,
+            Stretch = Stretch.Uniform,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 10, 0)
         };
-        dot.SetResourceReference(TextBlock.ForegroundProperty, "SuccessBrush");
+        dot.SetResourceReference(Shape.FillProperty, "SuccessBrush");
         Grid.SetColumn(dot, 0);
         grid.Children.Add(dot);
 

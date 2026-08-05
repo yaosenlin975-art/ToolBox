@@ -17,10 +17,12 @@
                 <Grid>
                     <TextBlock Text="任务详情" FontSize="14" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                    <Button x:Name="CloseBtn" Content="&#xE8BB;" Width="24" Height="24" FontSize="10"
-                            FontFamily="Segoe MDL2 Assets"
+                    <Button x:Name="CloseBtn" Width="24" Height="24"
                             HorizontalAlignment="Right" Background="Transparent" Foreground="{DynamicResource TextTertiaryBrush}"
-                            BorderThickness="0" Cursor="Hand" Click="CloseBtn_Click"/>
+                            BorderThickness="0" Cursor="Hand" Click="CloseBtn_Click">
+                        <Path Data="{StaticResource IconClose}" Width="10" Height="10" Stretch="Uniform"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
                 </Grid>
             </Border>
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="16,12">

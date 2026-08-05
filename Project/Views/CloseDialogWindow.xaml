@@ -27,8 +27,11 @@
                                Foreground="{DynamicResource TextPrimaryBrush}"
                                VerticalAlignment="Center" HorizontalAlignment="Left"/>
                     <Button Grid.Column="1" Width="28" Height="28" Style="{StaticResource IconButton}"
-                            Click="OnCancelClick" Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" FontSize="10"
-                            HorizontalAlignment="Right" Margin="0,0,0,0"/>
+                            Click="OnCancelClick"
+                            HorizontalAlignment="Right" Margin="0,0,0,0">
+                        <Path Data="{StaticResource IconClose}" Width="10" Height="10" Stretch="Uniform"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
                 </Grid>
             </Border>
             <StackPanel Grid.Row="1" Margin="24,20,24,0">
