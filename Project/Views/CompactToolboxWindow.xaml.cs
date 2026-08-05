@@ -315,7 +315,7 @@ public partial class CompactToolboxWindow : Window
             {
                 CornerRadius = new CornerRadius(3), Padding = new Thickness(3, 0, 3, 0),
                 Margin = new Thickness(0, 0, 4, 0),
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(priColor + "22"))
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(priColor + "40"))
             };
             var badgeText = new TextBlock
             {

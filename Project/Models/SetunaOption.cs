@@ -275,7 +275,7 @@ public class ToolBoxOptionData
     public byte FullscreenCursorColorR { get; set; } = 255;
     public byte FullscreenCursorColorG { get; set; } = 165;
     public byte FullscreenCursorColorB { get; set; } = 0;
-    public int CompactOpacity { get; set; } = 50;
+    public int CompactOpacity { get; set; } = 85;
     public bool AutoScreenshotEnabled { get; set; }
     public string AutoScreenshotCron { get; set; } = "0 */30 * * * *";
     public bool DailyReportEnabled { get; set; }
