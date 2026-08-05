@@ -145,17 +145,6 @@ public partial class App : Application
         // 轻量周期补算：运行期到点错失重置的项，每 30 分钟自动补齐一次
         TodoStore.Instance.StartPeriodicCatchUp();
 
-        // 启动代码片段关键字展开(低层键盘钩子)
-        try
-        {
-            var expander = Core.Snippets.SnippetExpander.Instance;
-            expander.Start();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[ToolBox] SnippetExpander start failed: {ex.Message}");
-        }
-
         if (e.Args.Length > 0)
         {
             mainWindow.CommandRun(e.Args);

@@ -86,13 +86,6 @@ public class ContextAwareService
             });
             actions.Add(new ContextualAction
             {
-                Id = "save_snippet",
-                Label = "保存为片段",
-                Icon = "💾",
-                Description = "保存为代码片段"
-            });
-            actions.Add(new ContextualAction
-            {
                 Id = "find_refs",
                 Label = "查找引用",
                 Icon = "🔍",

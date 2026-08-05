@@ -6,7 +6,6 @@ using ToolBox.Views.ClipboardHistory;
 using ToolBox.Views.Dashboard;
 using ToolBox.Views.NetworkDiagnosis;
 using ToolBox.Views.Todo;
-using ToolBox.Views.Snippets;
 
 namespace ToolBox.Views;
 
@@ -17,7 +16,6 @@ public partial class WorkbenchWindow : Window
     private TodoView? todoView;
     private HistoryView? historyView;
     private ClipboardView? clipboardView;
-    private SnippetView? snippetView;
     private NetworkDiagnosisView? networkView;
     private SettingsView? settingsView;
 
@@ -39,7 +37,6 @@ public partial class WorkbenchWindow : Window
             "todos" => (FindResource("Lang_Page_Todos") as string) ?? "待办管理",
             "screenshots" => (FindResource("Lang_Page_Screenshots") as string) ?? "截图历史",
             "clipboard" => (FindResource("Lang_Page_Clipboard") as string) ?? "剪贴板",
-            "snippets" => "代码片段",
             "network" => (FindResource("Lang_Page_Network") as string) ?? "网络诊断",
             "settings" => (FindResource("Lang_Page_Settings") as string) ?? "设置",
             _ => string.Empty
@@ -54,7 +51,6 @@ public partial class WorkbenchWindow : Window
             "todos" => GetTodoView(),
             "screenshots" => GetHistoryView(),
             "clipboard" => GetClipboard(),
-            "snippets" => GetSnippets(),
             "network" => GetNetwork(),
             "settings" => GetSettingsView(),
             _ => null
@@ -66,12 +62,6 @@ public partial class WorkbenchWindow : Window
         // 复用同一实例,避免每次切换都重新订阅事件
         clipboardView ??= new ClipboardView();
         return clipboardView;
-    }
-
-    private SnippetView GetSnippets()
-    {
-        snippetView ??= new SnippetView();
-        return snippetView;
     }
 
     private NetworkDiagnosisView GetNetwork()

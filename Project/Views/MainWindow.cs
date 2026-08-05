@@ -172,22 +172,6 @@ public partial class MainWindow : Window
             System.Diagnostics.Debug.WriteLine($"[ToolBox] OCR hotkey registration failed: {ex.Message}");
         }
 
-        // Register snippet popup hotkey: Ctrl+Shift+S (固定, 弹出代码片段浮窗)
-        try
-        {
-            HotkeyManager.Instance.RegisterHotkey(
-                Key.S, ModifierKeys.Control | ModifierKeys.Shift,
-                () =>
-                {
-                    if (isStarted)
-                        ShowSnippetPopup();
-                });
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[ToolBox] Snippet popup hotkey registration failed: {ex.Message}");
-        }
-
         // Register scrolling capture hotkey: Ctrl+Shift+L (P1 - AC1.1)
         try
         {
@@ -311,22 +295,6 @@ public partial class MainWindow : Window
             }
         }
         var popup = new ToolBox.Views.ClipboardHistory.ClipboardPopup();
-        popup.Show();
-        return this;
-    }
-
-    /// <summary>显示代码片段浮窗(避免重复打开)</summary>
-    public MainWindow ShowSnippetPopup()
-    {
-        foreach (Window w in Application.Current.Windows)
-        {
-            if (w is ToolBox.Views.Snippets.SnippetPopup existing)
-            {
-                existing.Activate();
-                return this;
-            }
-        }
-        var popup = new ToolBox.Views.Snippets.SnippetPopup();
         popup.Show();
         return this;
     }

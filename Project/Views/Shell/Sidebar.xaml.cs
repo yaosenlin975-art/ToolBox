@@ -21,7 +21,6 @@ public partial class Sidebar : UserControl
             "todos" => NavTodos,
             "screenshots" => NavScreenshots,
             "clipboard" => NavClipboard,
-            "snippets" => NavSnippets,
             "network" => NavNetwork,
             "settings" => NavSettings,
             _ => NavDashboard
@@ -37,7 +36,6 @@ public partial class Sidebar : UserControl
         else if (sender == NavTodos) NavigationRequested?.Invoke("todos");
         else if (sender == NavScreenshots) NavigationRequested?.Invoke("screenshots");
         else if (sender == NavClipboard) NavigationRequested?.Invoke("clipboard");
-        else if (sender == NavSnippets) NavigationRequested?.Invoke("snippets");
         else if (sender == NavNetwork) NavigationRequested?.Invoke("network");
         else if (sender == NavSettings) NavigationRequested?.Invoke("settings");
     }
