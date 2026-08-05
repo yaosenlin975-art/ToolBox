@@ -57,52 +57,81 @@ public class Agent
                 StringBuilder? currentText = null;
                 bool llmSuccess = false;
 
-                // 每轮最多 3 次重试（缓冲区模式：try/catch 内收集到 List，外部统一 yield return）
+                // 每轮最多 3 次重试。流式直出：chunk 到达即 yield，UI 可实时逐字渲染；
+                // 仅当一条 chunk 都未发出时（连接级失败）才可安全重试，中途失败无法回滚已输出内容。
                 for (int retry = 0; retry < 3 && !llmSuccess; retry++)
                 {
                     lastChunk = null;
                     currentText = null;
-                    var chunks = new List<ChatChunk>();
+                    string? streamError = null;
+
+                    // 手动推进枚举器：yield return 不能位于带 catch 的 try 块内（CS1626），
+                    // 因此 try/catch 只包裹 MoveNextAsync，yield 放在循环体外层。
+                    var enumerator = provider.ChatAsync(messages, tools.GetAllTools(), cts.Token).GetAsyncEnumerator(cts.Token);
                     try
                     {
-                        await foreach (var chunk in provider.ChatAsync(messages, tools.GetAllTools(), cts.Token))
+                        while (true)
                         {
-                            lastChunk = chunk;
-                            if (chunk.Text != null)
+                            bool moved;
+                            try
+                            {
+                                moved = await enumerator.MoveNextAsync();
+                            }
+                            catch (Exception ex) when (!cts.Token.IsCancellationRequested)
+                            {
+                                streamError = ex.Message;
+                                break;
+                            }
+                            if (!moved) break;
+
+                            lastChunk = enumerator.Current;
+                            if (lastChunk.Text != null)
                             {
                                 currentText ??= new StringBuilder();
-                                currentText.Append(chunk.Text);
+                                currentText.Append(lastChunk.Text);
                             }
-                            chunks.Add(chunk);
+                            yield return lastChunk;
                         }
+                    }
+                    finally
+                    {
+                        await enumerator.DisposeAsync();
+                    }
+
+                    if (streamError == null)
+                    {
                         llmSuccess = true;
+                        break;
                     }
-                    catch (Exception ex) when (retry < 2 && !cts.Token.IsCancellationRequested)
+
+                    if (lastChunk == null && retry < 2)
                     {
-                        chunks.Add(new ChatChunk { Error = $"请求失败，正在重试 ({retry + 2}/3): {ex.Message}" });
+                        // 一条 chunk 都未发出（如连接失败），可安全重试
+                        yield return new ChatChunk { Error = $"请求失败，正在重试 ({retry + 2}/3): {streamError}" };
                         await Task.Delay(1000, cts.Token);
+                        continue;
                     }
 
-                    // 统一 yield：成功数据或重试错误信息
-                    foreach (var c in chunks)
+                    // 已输出部分内容或重试耗尽，无法回滚，直接上报错误并终止本轮
+                    yield return new ChatChunk
                     {
-                        yield return c;
-                    }
-                }
-
-                if (!llmSuccess)
-                {
-                    yield return new ChatChunk { Error = "请求失败，已达最大重试次数（3次）" };
+                        Error = lastChunk == null
+                            ? $"请求失败，已达最大重试次数（3次）: {streamError}"
+                            : $"请求中断: {streamError}"
+                    };
                     break;
                 }
 
-                // 无工具调用 → 完成：落盘并通过最后一个 text chunk 把最终文本刷新到 UI
+                // 失败轮次：错误已通过 chunk 上报，不落盘、不执行工具
+                if (!llmSuccess) break;
+
+                // 无工具调用 → 完成：最终文本写入本轮持久化集合。
+                // 文本已随流式逐字输出到 UI，此处不再重复 yield（避免 UI 重复追加）。
                 if (lastChunk?.ToolCall == null)
                 {
                     if (currentText != null && currentText.Length > 0)
                     {
                         turnMessages.Add(new ChatMessage { Role = "assistant", Content = currentText.ToString() });
-                        yield return new ChatChunk { Text = currentText.ToString() };
                     }
                     break;
                 }

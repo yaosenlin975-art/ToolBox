@@ -211,6 +211,7 @@ public partial class ChatView : UserControl
             // 将本轮完整对话（含最终助手回复与工具调用轮次）持久化，避免重启后丢失
             foreach (var m in currentAgent.TurnMessages)
                 currentSession.Messages.Add(m);
+            await chatManager.SaveSessionMessagesAsync(currentSession);
 
             // Auto-title the session from the first user message once the first exchange completes
             if (!currentSession.IsTitleLocked && currentSession.Messages.Count >= 2)
