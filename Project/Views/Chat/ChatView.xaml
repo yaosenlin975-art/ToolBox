@@ -50,7 +50,8 @@
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel>
                                                     <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="📌" FontSize="10" Margin="0,0,4,0"
+                                                        <TextBlock Text="P" FontSize="10" Margin="0,0,4,0"
+                                                                   FontFamily="{StaticResource FontSans}" FontWeight="SemiBold"
                                                                    Foreground="{DynamicResource AccentBrush}"
                                                                    Visibility="{Binding IsPinned, Converter={StaticResource BoolToVis}}"/>
                                                         <TextBlock Text="{Binding Title}" FontSize="13" TextTrimming="CharacterEllipsis"
