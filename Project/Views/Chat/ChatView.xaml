@@ -75,7 +75,7 @@
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
                                                 <Setter TargetName="ItemBd" Property="Background"
-                                                        Value="{DynamicResource BgSunkenBrush}"/>
+                                                        Value="{DynamicResource ChatSidebarHoverBrush}"/>
                                                 <Setter TargetName="DeleteBtn" Property="Visibility" Value="Visible"/>
                                                 <Trigger.EnterActions>
                                                     <BeginStoryboard>
@@ -89,7 +89,7 @@
                                             </Trigger>
                                             <Trigger Property="IsSelected" Value="True">
                                                 <Setter TargetName="ItemBd" Property="Background"
-                                                        Value="{DynamicResource BgSunkenBrush}"/>
+                                                        Value="{DynamicResource ChatSidebarActiveBrush}"/>
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
