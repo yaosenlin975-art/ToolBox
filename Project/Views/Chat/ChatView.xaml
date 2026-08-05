@@ -41,9 +41,9 @@
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="ItemBd" Background="Transparent" CornerRadius="{StaticResource RadiusSm}"
-                                                Padding="10,8" Cursor="Hand">
-                                            <Grid>
+                                        <Border x:Name="ItemBd" Background="Transparent" CornerRadius="{StaticResource RadiusXs}"
+                                                Padding="0" Cursor="Hand">
+                                            <Grid Margin="10,8,6,8">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
