@@ -187,29 +187,30 @@
                                          Style="{StaticResource PriOptionStyle}" Click="Priority_Changed"/>
                         </StackPanel>
 
-                        <!-- Due date -->
-                        <TextBlock Text="{DynamicResource Lang_Todo_DueDate}" FontSize="11" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8"/>
-                        <DatePicker x:Name="DetailDueDate" FontSize="12" Margin="0,0,0,16"
-                                    SelectedDateChanged="DetailDueDate_Changed"
-                                    Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <!-- Non-repeat fields: due date + progress -->
+                        <StackPanel x:Name="DetailNonRepeatSection">
+                            <TextBlock Text="{DynamicResource Lang_Todo_DueDate}" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                            <DatePicker x:Name="DetailDueDate" FontSize="12" Margin="0,0,0,16"
+                                        SelectedDateChanged="DetailDueDate_Changed"
+                                        Foreground="{DynamicResource TextPrimaryBrush}"/>
 
-                        <!-- Progress -->
-                        <TextBlock Text="{DynamicResource Lang_Todo_Progress}" FontSize="11" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8"/>
-                        <Grid Margin="0,0,0,16">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Slider x:Name="DetailProgress" Grid.Column="0" Minimum="0" Maximum="100"
-                                    TickFrequency="10" IsSnapToTickEnabled="True" TickPlacement="None"
-                                    ValueChanged="DetailProgress_Changed"/>
-                            <TextBlock x:Name="DetailProgressText" Grid.Column="1" Text="0%" Width="36"
-                                       TextAlignment="Right" FontSize="12" Margin="8,0,0,0"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       VerticalAlignment="Center"/>
-                        </Grid>
+                            <TextBlock Text="{DynamicResource Lang_Todo_Progress}" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider x:Name="DetailProgress" Grid.Column="0" Minimum="0" Maximum="100"
+                                        TickFrequency="10" IsSnapToTickEnabled="True" TickPlacement="None"
+                                        ValueChanged="DetailProgress_Changed"/>
+                                <TextBlock x:Name="DetailProgressText" Grid.Column="1" Text="0%" Width="36"
+                                           TextAlignment="Right" FontSize="12" Margin="8,0,0,0"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
 
                         <!-- Repeat config -->
                         <Border x:Name="DetailRepeatSection" Margin="0,0,0,16" Padding="0" BorderThickness="0"
@@ -222,6 +223,7 @@
 
                                         <TextBlock Text="{DynamicResource Lang_Todo_Frequency}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
                                         <ComboBox x:Name="DetailRepeatFreq" FontSize="12" SelectedIndex="0" Margin="0,0,0,8"
+                                                  SelectionChanged="DetailRepeatFreq_SelectionChanged"
                                                   Background="{DynamicResource BgElevatedBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}">
                                             <ComboBoxItem Content="{DynamicResource Lang_Todo_NoRepeat}"/>
@@ -231,22 +233,24 @@
                                             <ComboBoxItem Content="{DynamicResource Lang_Todo_Yearly}"/>
                                         </ComboBox>
 
-                                        <TextBlock Text="{DynamicResource Lang_Todo_ReminderTime}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
-                                        <Grid Margin="0,0,0,8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="DetailRepeatTime" Grid.Column="0" FontSize="12" Padding="6,4"
-                                                     Text="09:00"
-                                                     Background="{DynamicResource BgSunkenBrush}"
-                                                     Foreground="{DynamicResource TextPrimaryBrush}"
-                                                     BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"/>
-                                        </Grid>
+                                        <StackPanel x:Name="DetailRepeatFieldsSection">
+                                            <TextBlock Text="{DynamicResource Lang_Todo_ReminderTime}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                            <Grid Margin="0,0,0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox x:Name="DetailRepeatTime" Grid.Column="0" FontSize="12" Padding="6,4"
+                                                         Text="09:00"
+                                                         Background="{DynamicResource BgSunkenBrush}"
+                                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                                         BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"/>
+                                            </Grid>
 
-                                        <TextBlock Text="{DynamicResource Lang_Todo_EndDate}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
-                                        <DatePicker x:Name="DetailRepeatEndDate" FontSize="12" Margin="0,0,0,8"
-                                                    Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="{DynamicResource Lang_Todo_EndDate}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                            <DatePicker x:Name="DetailRepeatEndDate" FontSize="12" Margin="0,0,0,8"
+                                                        Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        </StackPanel>
 
                                         <Button x:Name="DetailRepeatSaveBtn" Content="{DynamicResource Lang_Todo_SetRepeat}"
                                                 Padding="14,6" FontSize="12"

@@ -343,6 +343,21 @@ public partial class TodoView : UserControl
             DetailRepeatTime.Text = "09:00";
             DetailRepeatEndDate.SelectedDate = null;
         }
+
+        UpdateRepeatVisibility();
+    }
+
+    private void UpdateRepeatVisibility()
+    {
+        if (DetailNonRepeatSection == null || DetailRepeatFieldsSection == null) return;
+        var isRepeating = DetailRepeatFreq.SelectedIndex > 0;
+        DetailNonRepeatSection.Visibility = isRepeating ? Visibility.Collapsed : Visibility.Visible;
+        DetailRepeatFieldsSection.Visibility = isRepeating ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void DetailRepeatFreq_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        UpdateRepeatVisibility();
     }
 
     private void HideDetail()
