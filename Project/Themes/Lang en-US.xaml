@@ -270,7 +270,7 @@
     <sys:String x:Key="Lang_Net_RepairFailed">Repair failed</sys:String>
     <sys:String x:Key="Lang_Net_RepairNeedAdmin">Administrator privileges required</sys:String>
     <sys:String x:Key="Lang_Net_RepairRestartHint">Note: some repairs (reset Winsock) only take full effect after restarting the computer.</sys:String>
-    <sys:String x:Key="Lang_Net_RepairDns">Flush and re-register DNS cache</sys:String>
+    <sys:String x:Key="Lang_Net_RepairDns">Flush DNS cache</sys:String>
     <sys:String x:Key="Lang_Net_RepairProxy">Disable system proxy</sys:String>
     <sys:String x:Key="Lang_Net_RepairWinHttp">Reset WinHTTP proxy settings</sys:String>
     <sys:String x:Key="Lang_Net_RepairAdapter">Restart network adapter "{0}"</sys:String>

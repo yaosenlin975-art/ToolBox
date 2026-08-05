@@ -270,7 +270,7 @@
     <sys:String x:Key="Lang_Net_RepairFailed">修复失败</sys:String>
     <sys:String x:Key="Lang_Net_RepairNeedAdmin">需要管理员权限</sys:String>
     <sys:String x:Key="Lang_Net_RepairRestartHint">提示：部分修复（重置 Winsock）需重启电脑后完全生效。</sys:String>
-    <sys:String x:Key="Lang_Net_RepairDns">刷新并重新注册 DNS 缓存</sys:String>
+    <sys:String x:Key="Lang_Net_RepairDns">刷新 DNS 缓存</sys:String>
     <sys:String x:Key="Lang_Net_RepairProxy">关闭系统代理</sys:String>
     <sys:String x:Key="Lang_Net_RepairWinHttp">重置 WinHTTP 代理设置</sys:String>
     <sys:String x:Key="Lang_Net_RepairAdapter">重启网络适配器「{0}」</sys:String>
