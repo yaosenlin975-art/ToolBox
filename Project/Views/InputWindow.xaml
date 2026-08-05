@@ -61,7 +61,7 @@
                 </Border>
                 <!-- 分类 + 优先级 + 截止日期 -->
                 <StackPanel x:Name="TodoExtraPanel" Grid.Row="3" Visibility="Collapsed" Margin="0,10,0,0">
-                    <TextBlock Text="分类" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                    <TextBlock Text="分类" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6"/>
                     <Grid Margin="0,0,0,12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -76,7 +76,7 @@
                                  BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
                                  SelectionChanged="CategorySuggestion_Selected"/>
                     </Grid>
-                    <TextBlock Text="紧急程度" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                    <TextBlock Text="紧急程度" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                         <RadioButton x:Name="PriLow" Content="普通" IsChecked="True" Margin="0,0,8,0"
                                      Style="{StaticResource PriOptionStyle}"/>
@@ -85,13 +85,13 @@
                         <RadioButton x:Name="PriHigh" Content="紧急"
                                      Style="{StaticResource PriOptionStyle}"/>
                     </StackPanel>
-                    <TextBlock Text="截止日期" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                    <TextBlock Text="截止日期" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6"/>
                     <DatePicker x:Name="DueDatePicker" FontSize="12"
                                 Foreground="{DynamicResource TextPrimaryBrush}"/>
-                    <TextBlock Text="重复频率" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,12,0,6"/>
+                    <TextBlock Text="重复频率" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,12,0,6"/>
                     <ComboBox x:Name="RepeatCombo" FontSize="12" SelectedIndex="0"
                               Background="{DynamicResource BgSunkenBrush}"
-                              Foreground="{DynamicResource TextPrimaryBrush}">
+                              Foreground="{DynamicResource TextPrimaryBrush}"
                               SelectionChanged="RepeatCombo_SelectionChanged">
                         <ComboBoxItem Content="不重复"/>
                         <ComboBoxItem Content="每天"/>
@@ -100,7 +100,7 @@
                         <ComboBoxItem Content="每年"/>
                     </ComboBox>
                     <StackPanel x:Name="RepeatTimePanel" Visibility="Collapsed" Margin="0,8,0,0">
-                        <TextBlock Text="提醒时间" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                        <TextBlock Text="提醒时间" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
                         <StackPanel Orientation="Horizontal">
                             <TextBox x:Name="ReminderHourInput" Width="40" FontSize="12" Padding="4,2" Text="09"
                                      Background="{DynamicResource BgSunkenBrush}" Foreground="{DynamicResource TextPrimaryBrush}"

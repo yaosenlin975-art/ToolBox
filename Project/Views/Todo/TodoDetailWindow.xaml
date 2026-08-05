@@ -36,14 +36,14 @@
                                    Foreground="{DynamicResource AccentBrush}"/>
                     </Border>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="优先级: " FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                        <TextBlock Text="优先级: " FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBlock x:Name="PriorityText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
                     <StackPanel x:Name="DueDateRow" Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="截止: " FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                        <TextBlock Text="截止: " FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBlock x:Name="DueDateText" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
-                    <TextBlock Text="进度" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="进度" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -56,7 +56,7 @@
                                    TextAlignment="Right" FontSize="11" Margin="8,0,0,0"
                                    Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                     </Grid>
-                    <TextBlock Text="描述" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="描述" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
                     <TextBox x:Name="DescriptionBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64"
                              FontSize="12" Padding="10" Margin="0,0,0,12"
                              Background="{DynamicResource BgSunkenBrush}"
@@ -64,7 +64,7 @@
                              Foreground="{DynamicResource TextPrimaryBrush}"
                              CaretBrush="{DynamicResource AccentBrush}"
                              LostFocus="Description_LostFocus"/>
-                    <TextBlock x:Name="SubTasksHeader" Text="子任务" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4" Visibility="Collapsed"/>
+                    <TextBlock x:Name="SubTasksHeader" Text="子任务" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" Visibility="Collapsed"/>
                     <StackPanel x:Name="SubTasksList" Margin="0,0,0,10"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,6">
                         <Button x:Name="AddSubBtn" Content="添加子任务" Padding="10,4" FontSize="11" Style="{StaticResource BtnPrimary}" Click="AddSub_Click"/>
