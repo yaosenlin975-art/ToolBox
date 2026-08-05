@@ -254,4 +254,31 @@ public partial class ChatView : UserControl
         InputBox.Focus();
         InputBox.CaretIndex = InputBox.Text.Length;
     }
+
+    private async void DeleteSessionBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is ChatSession session)
+        {
+            var currentIndex = SessionList.Items.IndexOf(session);
+            await ChatManager.Instance.DeleteSessionAsync(session.Id);
+
+            // 如果删除的是当前选中的会话，切换到相邻会话或清空
+            if (currentSession?.Id == session.Id)
+            {
+                currentSession = null;
+                currentAgent = null;
+                MessagePanel.Children.Clear();
+                UpdateEmptyState();
+            }
+
+            LoadSessions();
+
+            // 尝试选中相邻会话
+            if (SessionList.Items.Count > 0)
+            {
+                var newIndex = Math.Min(currentIndex, SessionList.Items.Count - 1);
+                SessionList.SelectedIndex = newIndex;
+            }
+        }
+    }
 }
