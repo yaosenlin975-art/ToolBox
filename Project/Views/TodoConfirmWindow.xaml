@@ -43,8 +43,9 @@
                                 <ComboBoxItem Content="重要"/>
                                 <ComboBoxItem Content="紧急"/>
                             </ComboBox>
-                            <Button Grid.Column="2" Content="&#x2715;" Width="24" Height="24" Margin="6,0,0,0"
-                                    FontSize="12" Background="Transparent" Foreground="{DynamicResource TextTertiaryBrush}"
+                            <Button Grid.Column="2" Content="&#xE8BB;" Width="24" Height="24" Margin="6,0,0,0"
+                                    FontSize="10" FontFamily="Segoe MDL2 Assets"
+                                    Background="Transparent" Foreground="{DynamicResource TextTertiaryBrush}"
                                     BorderThickness="0" Cursor="Hand" Click="RemoveItem_Click"/>
                         </Grid>
                     </Border>

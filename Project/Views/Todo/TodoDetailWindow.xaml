@@ -17,7 +17,8 @@
                 <Grid>
                     <TextBlock Text="任务详情" FontSize="14" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                    <Button x:Name="CloseBtn" Content="×" Width="24" Height="24" FontSize="16"
+                    <Button x:Name="CloseBtn" Content="&#xE8BB;" Width="24" Height="24" FontSize="10"
+                            FontFamily="Segoe MDL2 Assets"
                             HorizontalAlignment="Right" Background="Transparent" Foreground="{DynamicResource TextTertiaryBrush}"
                             BorderThickness="0" Cursor="Hand" Click="CloseBtn_Click"/>
                 </Grid>
