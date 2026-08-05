@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -21,6 +22,33 @@ public partial class InputWindow : Window
     public int? RepeatDay { get; private set; }
     private DispatcherTimer? dateParseDebounce;
     private DateTime? parsedDate;
+    private TaskCompletionSource<bool>? _tcs;
+
+    /// <summary>
+    /// 非模态显示（主窗口保持可点击），等待用户确认/取消后返回结果。
+    /// </summary>
+    public Task<bool> ShowNonModalAsync(Window? owner)
+    {
+        _tcs = new TaskCompletionSource<bool>();
+        Owner = owner;
+        Closed += (_, _) => _tcs?.TrySetResult(false);
+        Show();
+        return _tcs.Task;
+    }
+
+    private void Finish(bool ok)
+    {
+        if (ok) CollectResult();
+        if (_tcs is not null)
+        {
+            _tcs.TrySetResult(ok);
+            Close();
+        }
+        else
+        {
+            DialogResult = ok;
+        }
+    }
 
     public InputWindow(string title, string prompt)
     {
@@ -205,23 +233,21 @@ public partial class InputWindow : Window
     {
         if (e.Key == Key.Enter)
         {
-            CollectResult();
-            DialogResult = true;
+            Finish(true);
         }
         else if (e.Key == Key.Escape)
         {
-            DialogResult = false;
+            Finish(false);
         }
     }
 
     private void OK_Click(object sender, RoutedEventArgs e)
     {
-        CollectResult();
-        DialogResult = true;
+        Finish(true);
     }
 
-    private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
-    private void OnClose(object sender, RoutedEventArgs e) => DialogResult = false;
+    private void Cancel_Click(object sender, RoutedEventArgs e) => Finish(false);
+    private void OnClose(object sender, RoutedEventArgs e) => Finish(false);
 
     private void RepeatCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {

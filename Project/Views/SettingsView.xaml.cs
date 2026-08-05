@@ -1103,16 +1103,16 @@ public partial class SettingsView : UserControl
         _ => nodeType
     };
 
-    private void BtnAddChain_Click(object sender, RoutedEventArgs e)
+    private async void BtnAddChain_Click(object sender, RoutedEventArgs e)
     {
         var nameDialog = new InputWindow("新建动作链", "输入名称");
-        if (nameDialog.ShowDialog() == true)
+        if (await nameDialog.ShowNonModalAsync(Window.GetWindow(this)) && !string.IsNullOrWhiteSpace(nameDialog.Value))
         {
             var name = nameDialog.Value?.Trim();
             if (string.IsNullOrEmpty(name)) return;
 
             var nodeDialog = new InputWindow("选择节点", "输入节点类型 (逗号分隔)\\n可选: ocr, translate, copy, save, send_to_ai, open_editor");
-            if (nodeDialog.ShowDialog() == true)
+            if (await nodeDialog.ShowNonModalAsync(Window.GetWindow(this)) && !string.IsNullOrWhiteSpace(nodeDialog.Value))
             {
                 var nodeTypes = nodeDialog.Value?.Split(',', StringSplitOptions.RemoveEmptyEntries)
                     .Select(s => s.Trim().ToLowerInvariant())

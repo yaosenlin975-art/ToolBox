@@ -607,9 +607,8 @@ public partial class TodoView : UserControl
     {
         if (selected == null) return;
         var input = new InputWindow((string)FindResource("Lang_Todo_AddSubtaskTitle"), (string)FindResource("Lang_Todo_AddSubtaskPrompt"));
-        input.Owner = Window.GetWindow(this);
         input.ShowTodoFields();
-        if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
+        if (await input.ShowNonModalAsync(Window.GetWindow(this)) && !string.IsNullOrWhiteSpace(input.Value))
         {
             await TodoStore.Instance.AddAsync(input.Value.Trim(), priority: input.Priority,
                 category: selected.Category, dueDate: input.DueDate, parentId: selected.Id);
@@ -617,14 +616,13 @@ public partial class TodoView : UserControl
         }
     }
 
-    private void FloatingAddBtn_Click(object sender, RoutedEventArgs e)
+    private async void FloatingAddBtn_Click(object sender, RoutedEventArgs e)
     {
         try
         {
             var input = new InputWindow((string)FindResource("Lang_Todo_AddTodoTitle"), (string)FindResource("Lang_Todo_AddTodoPrompt"));
-            input.Owner = Window.GetWindow(this);
             input.ShowTodoFields();
-            if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
+            if (await input.ShowNonModalAsync(Window.GetWindow(this)) && !string.IsNullOrWhiteSpace(input.Value))
             {
                 if (input.RepeatFrequency.HasValue)
                 {

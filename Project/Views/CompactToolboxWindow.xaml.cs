@@ -375,7 +375,7 @@ public partial class CompactToolboxWindow : Window
     {
         var dlg = new TodoDetailWindow(item);
         dlg.Owner = this;
-        dlg.ShowDialog();
+        dlg.Show();
     }
     // --- Drag support via Preview events ---
 
@@ -478,10 +478,9 @@ public partial class CompactToolboxWindow : Window
             var input = new InputWindow(
                 (FindResource("Lang_QuickAddTitle") as string) ?? "\u5FEB\u901F\u6DFB\u52A0\u5F85\u529E",
                 (FindResource("Lang_QuickAddPrompt") as string) ?? "\u8BF7\u8F93\u5165\u6807\u9898:");
-            input.Owner = this;
             input.Topmost = true; // stay visible over compact window
             input.ShowTodoFields();
-            if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
+            if (await input.ShowNonModalAsync(this) && !string.IsNullOrWhiteSpace(input.Value))
             {
                 if (input.RepeatFrequency.HasValue)
                 {

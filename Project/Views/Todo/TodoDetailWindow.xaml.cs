@@ -103,7 +103,7 @@ public partial class TodoDetailWindow : Window
             if (e.OriginalSource is CheckBox) return;
             var dlg = new TodoDetailWindow(child, () => Populate());
             dlg.Owner = this;
-            dlg.ShowDialog();
+            dlg.Show();
         };
         row.MouseEnter += (s, e) => row.Background = (Brush)FindResource("BgHoverBrush");
         row.MouseLeave += (s, e) => row.Background = Brushes.Transparent;
@@ -153,9 +153,8 @@ public partial class TodoDetailWindow : Window
     private async void AddSub_Click(object sender, RoutedEventArgs e)
     {
         var input = new InputWindow("添加子任务", "请输入子任务标题:");
-        input.Owner = this;
         input.ShowTodoFields();
-        if (input.ShowDialog() == true && !string.IsNullOrWhiteSpace(input.Value))
+        if (await input.ShowNonModalAsync(this) && !string.IsNullOrWhiteSpace(input.Value))
         {
             await TodoStore.Instance.AddAsync(input.Value.Trim(), priority: input.Priority,
                 category: item.Category, dueDate: input.DueDate, parentId: item.Id);
