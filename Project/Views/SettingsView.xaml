@@ -52,12 +52,12 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
                         <Border x:Name="track" Background="{DynamicResource BorderStrongBrush}"
-                                CornerRadius="{StaticResource RadiusFull}">
+                                CornerRadius="0">
                             <Grid>
-                                <Border x:Name="thumbOff" Width="16" Height="16" CornerRadius="{StaticResource RadiusFull}"
+                                <Border x:Name="thumbOff" Width="16" Height="16" CornerRadius="0"
                                         Background="{DynamicResource TextPrimaryBrush}"
                                         HorizontalAlignment="Left" VerticalAlignment="Center" Margin="3,0,0,0"/>
-                                <Border x:Name="thumbOn" Width="16" Height="16" CornerRadius="{StaticResource RadiusFull}"
+                                <Border x:Name="thumbOn" Width="16" Height="16" CornerRadius="0"
                                         Background="White"
                                         HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,3,0"
                                         Visibility="Collapsed"/>
