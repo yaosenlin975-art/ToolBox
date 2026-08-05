@@ -3,3 +3,6 @@
 /Project/obj
 /refs
 /.trae
+/test-build/ocrtool/bin
+/test-build/ocrtool/obj
+/test-build
