@@ -115,6 +115,7 @@ public partial class CompactToolboxWindow : Window
                 ChatPanel.Visibility = Visibility.Visible;
                 TabChat.Style = (Style)FindResource("CompactTabButtonActive");
                 SessionRow.Visibility = Visibility.Visible;
+                LoadSessions();
                 break;
             case "screenshot":
             case "screenshots":
