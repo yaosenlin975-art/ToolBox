@@ -185,14 +185,15 @@ public static class DemoDiagnosisRunner
 
     private static List<DiagnosticItem> BuildItems()
     {
+        // CanRepair：T2 修复器按错误码匹配修复动作（NET-001/101/201/202/301/401 均有对应修复步骤）
         return new List<DiagnosticItem>
         {
-            new() { NameKey = "Lang_Net_Check_Adapters", CanRepair = false },
-            new() { NameKey = "Lang_Net_Check_Gateway" },
-            new() { NameKey = "Lang_Net_Check_Dns" },
-            new() { NameKey = "Lang_Net_Check_Internet" },
+            new() { NameKey = "Lang_Net_Check_Adapters", CanRepair = true },
+            new() { NameKey = "Lang_Net_Check_Gateway", CanRepair = true },
+            new() { NameKey = "Lang_Net_Check_Dns", CanRepair = true },
+            new() { NameKey = "Lang_Net_Check_Internet", CanRepair = true },
             new() { NameKey = "Lang_Net_Check_DnsConfig", CanRepair = true },
-            new() { NameKey = "Lang_Net_Check_Proxy" }
+            new() { NameKey = "Lang_Net_Check_Proxy", CanRepair = true }
         };
     }
 

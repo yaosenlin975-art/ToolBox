@@ -31,6 +31,8 @@ public partial class NetworkDiagnosisView : UserControl
 
     private readonly List<DiagnosticItem> items = new();
     private readonly List<LogEntry> logEntries = new();
+    private List<RepairStep> repairSteps = new();
+    private bool repairNeedsRestart;
     private DiagnosisSessionStatus sessionStatus = DiagnosisSessionStatus.Idle;
     private CancellationTokenSource? runCts;
     private RepairUiState repairState = RepairUiState.Hidden;
@@ -111,11 +113,13 @@ public partial class NetworkDiagnosisView : UserControl
 
             if (sessionStatus == DiagnosisSessionStatus.IssuesFound)
             {
-                var repairable = result.Where(i => i.CanRepair && i.Status == DiagnosisItemStatus.Fail).ToList();
-                if (repairable.Count > 0)
+                // T2 修复器：按失败/警告项的 NET 错误码匹配修复动作（NET-201/202→DNS，NET-401→代理，NET-101/001→适配器，NET-301→Winsock）
+                repairSteps = NetworkRepairService.BuildPlan(result);
+                repairNeedsRestart = repairSteps.Any(s => s.Id == "winsock");
+                if (repairSteps.Count > 0)
                 {
                     repairState = RepairUiState.Ready;
-                    repairCount = repairable.Count;
+                    repairCount = repairSteps.Count;
                     ApplyRepairUi();
                 }
             }
@@ -142,41 +146,73 @@ public partial class NetworkDiagnosisView : UserControl
         }
     }
 
-    /// <summary>修复占位（T2 修复器 + 确认弹窗 + 单次批处理提权落地后替换）。</summary>
+    /// <summary>执行修复（T2 修复器）：确认弹窗 → 按错误码匹配的动作逐项执行（UAC 单次批处理提权），过程/结果进修复区与日志区。</summary>
     private async void BtnRepair_Click(object sender, RoutedEventArgs e)
     {
+        if (repairSteps.Count == 0) return;
+
+        var confirm = new RepairConfirmWindow(repairSteps) { Owner = Window.GetWindow(this) };
+        if (confirm.ShowDialog() != true)
+        {
+            AddLogEntry("Lang_Net_LogRepairCancelled");
+            return;
+        }
+
         repairState = RepairUiState.Executing;
         ApplyRepairUi();
+        BtnDiagnose.IsEnabled = false;
+        BtnRetest.IsEnabled = false;
+        AddLogEntry("Lang_Net_LogRepairStart", repairSteps.Count);
+
+        var progress = new Progress<RepairStep>(step =>
+        {
+            if (Dispatcher.HasShutdownStarted) return;
+            RenderPlan();
+            if (step.Status == RepairStepStatus.Pass)
+                AddLogEntry("Lang_Net_LogRepairStepDone", step.Title);
+            else if (step.Status == RepairStepStatus.Fail)
+                AddLogEntry("Lang_Net_LogRepairStepFailed", step.Title);
+            else if (step.Status == RepairStepStatus.Skipped)
+                AddLogEntry("Lang_Net_LogRepairStepSkipped", step.Title);
+        });
+
+        RepairSummary summary;
         try
         {
-            // 演示修复：刷新 DNS 缓存（无需管理员权限，无配置变更）
-            await Task.Run(() =>
-            {
-                using var p = new Process
-                {
-                    StartInfo = new ProcessStartInfo("ipconfig", "/flushdns")
-                    {
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true
-                    }
-                };
-                p.Start();
-                p.WaitForExit(10000);
-            });
-            AddLogEntry("Lang_Net_LogRepairDone");
+            summary = await Task.Run(() => NetworkRepairService.ExecuteAsync(repairSteps, progress, CancellationToken.None));
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[ToolBox] Repair failed: {ex.Message}");
-            AddLogEntry("Lang_Net_LogRepairError");
-        }
-        finally
-        {
+            AddLogEntry("Lang_Net_LogRepairError", ex.Message);
             repairState = RepairUiState.Done;
             ApplyRepairUi();
+            BtnDiagnose.IsEnabled = true;
+            BtnRetest.IsEnabled = true;
+            return;
         }
+
+        if (summary.ElevationCancelled || summary.ElevationFailed)
+        {
+            var affected = string.Join(", ", repairSteps
+                .Where(s => s.Status == RepairStepStatus.Skipped)
+                .Select(s => s.Title));
+            MessageWindow.Show(
+                L("Lang_Net_UacErrorTitle"),
+                string.Format(L(summary.ElevationCancelled ? "Lang_Net_UacCancelled" : "Lang_Net_UacFailed"), affected),
+                Window.GetWindow(this));
+            AddLogEntry(summary.ElevationCancelled ? "Lang_Net_LogRepairUacCancel" : "Lang_Net_LogRepairUacFail");
+        }
+
+        if (summary.Failed + summary.Skipped == 0)
+            AddLogEntry("Lang_Net_LogRepairAllDone", summary.Succeeded, repairSteps.Count);
+        else
+            AddLogEntry("Lang_Net_LogRepairPartial", summary.Succeeded, repairSteps.Count, summary.Failed + summary.Skipped);
+
+        repairState = RepairUiState.Done;
+        ApplyRepairUi();
+        BtnDiagnose.IsEnabled = true;
+        BtnRetest.IsEnabled = true;
     }
 
     /// <summary>稍后处理：隐藏修复区（AC-08 分支，T2 落地日志记录）。</summary>
@@ -199,12 +235,14 @@ public partial class NetworkDiagnosisView : UserControl
                 RepairTitle.Text = L("Lang_Net_RepairExecuting");
                 BtnRepair.IsEnabled = false;
                 BtnLater.IsEnabled = false;
+                RenderPlan();
                 break;
             case RepairUiState.Done:
                 RepairSection.Visibility = Visibility.Visible;
-                RepairTitle.Text = L("Lang_Net_RepairDone");
+                RepairTitle.Text = RepairSummaryTitle();
                 BtnRepair.IsEnabled = true;
                 BtnLater.IsEnabled = true;
+                RenderPlan();
                 break;
             default:
                 RepairSection.Visibility = Visibility.Visible;
@@ -212,8 +250,116 @@ public partial class NetworkDiagnosisView : UserControl
                 RepairImpact.Text = L("Lang_Net_RepairImpact");
                 BtnRepair.IsEnabled = true;
                 BtnLater.IsEnabled = true;
+                RenderPlan();
                 break;
         }
+        RepairRestartHint.Visibility = repairNeedsRestart && repairState != RepairUiState.Hidden
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        if (repairNeedsRestart && repairState != RepairUiState.Hidden)
+            RepairRestartHint.Text = L("Lang_Net_RepairRestartHint");
+    }
+
+    /// <summary>修复完成后修复区标题（成功/部分成功/失败）。</summary>
+    private string RepairSummaryTitle()
+    {
+        var pass = repairSteps.Count(s => s.Status == RepairStepStatus.Pass);
+        if (pass > 0 && pass == repairSteps.Count) return L("Lang_Net_RepairDone");
+        if (pass > 0) return L("Lang_Net_RepairPartial");
+        return L("Lang_Net_RepairFailed");
+    }
+
+    /// <summary>渲染修复计划列表（状态图标 + 步骤名 + 错误码/提权标记）。</summary>
+    private void RenderPlan()
+    {
+        RepairPlanList.Children.Clear();
+        foreach (var step in repairSteps)
+            RepairPlanList.Children.Add(BuildPlanRow(step));
+    }
+
+    private Grid BuildPlanRow(RepairStep step)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 4, 0, 4) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        UIElement icon;
+        if (step.Status == RepairStepStatus.Running)
+        {
+            icon = new ProgressBar
+            {
+                IsIndeterminate = true,
+                Width = 16,
+                Height = 4,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+        }
+        else
+        {
+            var (glyph, brushKey) = step.Status switch
+            {
+                RepairStepStatus.Pass => ("\uE73E", "SuccessBrush"),
+                RepairStepStatus.Fail => ("\uE711", "ErrorBrush"),
+                _ => ("\u25CB", "TextTertiaryBrush")
+            };
+            var glyphBlock = new TextBlock
+            {
+                Text = glyph,
+                FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                FontSize = 14,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            glyphBlock.SetResourceReference(TextBlock.ForegroundProperty, brushKey);
+            icon = glyphBlock;
+        }
+        Grid.SetColumn(icon, 0);
+        grid.Children.Add(icon);
+
+        var title = new TextBlock
+        {
+            Text = step.Title,
+            FontSize = 13,
+            Margin = new Thickness(10, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap
+        };
+        title.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+        Grid.SetColumn(title, 1);
+        grid.Children.Add(title);
+
+        var chips = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        if (step.ErrorCodes.Length > 0)
+            chips.Children.Add(BuildChip(string.Join("/", step.ErrorCodes), "ErrorBrush", mono: true));
+        if (step.RequiresElevation)
+            chips.Children.Add(BuildChip(L("Lang_Net_RepairNeedAdmin"), "WarningBrush", mono: false));
+        Grid.SetColumn(chips, 2);
+        grid.Children.Add(chips);
+
+        return grid;
+    }
+
+    private Border BuildChip(string text, string foregroundKey, bool mono)
+    {
+        var chip = new Border
+        {
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(6, 1, 6, 1),
+            Margin = new Thickness(6, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = new TextBlock
+            {
+                Text = text,
+                FontSize = 11,
+                FontFamily = mono ? (FontFamily)FindResource("FontMono") : (FontFamily)FindResource("FontSans"),
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        chip.SetResourceReference(BackgroundProperty, "BgElevatedBrush");
+        chip.SetResourceReference(BorderBrushProperty, "BorderDefaultBrush");
+        ((TextBlock)chip.Child).SetResourceReference(TextBlock.ForegroundProperty, foregroundKey);
+        return chip;
     }
 
     // ── 会话状态渲染 ──
