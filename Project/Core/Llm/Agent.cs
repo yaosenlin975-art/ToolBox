@@ -175,7 +175,7 @@ public class Agent
                 result = tools.Execute(toolCall.Name, args);
             toolCall.Result = result?.Length > 3000 ? result[..3000] + "...[截断]" : result;
             toolCall.IsError = false;
-            Core.Memory.MemoryStore.Instance.Save(session.Id, "tool", toolCall.Name + ": " + (result ?? ""), 0, 0.3);
+            Core.Memory.MemoryStore.Instance.Save(session.Id, "tool", toolCall.Name + ": " + (toolCall.Result ?? ""), 0, 0.3);
             return toolCall.Result;
         }
         catch (Exception ex)

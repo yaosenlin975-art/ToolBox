@@ -69,7 +69,16 @@ public class OllamaProvider : IProvider, ILlmProvider
         var request = new OllamaChatRequest
         {
             Model = model.ModelId,
-            Messages = messages.Select(m => new OllamaMessage { Role = m.Role, Content = m.Content }).ToList(),
+            Messages = messages.Select(m =>
+            {
+                var ollamaMsg = new OllamaMessage { Role = m.Role, Content = m.Content };
+                if (!string.IsNullOrEmpty(m.ImagePath) && File.Exists(m.ImagePath))
+                {
+                    var base64 = Convert.ToBase64String(File.ReadAllBytes(m.ImagePath));
+                    ollamaMsg.Images = [base64];
+                }
+                return ollamaMsg;
+            }).ToList(),
             Stream = true
         };
 
@@ -131,6 +140,8 @@ internal class OllamaMessage
     public string Role { get; set; } = "";
     [System.Text.Json.Serialization.JsonPropertyName("content")]
     public string Content { get; set; } = "";
+    [System.Text.Json.Serialization.JsonPropertyName("images")]
+    public List<string>? Images { get; set; }
 }
 
 internal class OllamaStreamChunk

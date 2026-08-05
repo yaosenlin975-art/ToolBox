@@ -41,11 +41,10 @@ public class AnthropicProvider : IProvider, ILlmProvider
     {
         try
         {
-            httpClient.DefaultRequestHeaders.Remove("x-api-key");
-            httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
-            httpClient.DefaultRequestHeaders.Remove("anthropic-version");
-            httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
-            var response = await httpClient.GetAsync($"{baseUrl}/v1/models", ct);
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/v1/models");
+            request.Headers.Add("x-api-key", apiKey);
+            request.Headers.Add("anthropic-version", "2023-06-01");
+            var response = await httpClient.SendAsync(request, ct);
             return response.IsSuccessStatusCode;
         }
         catch { return false; }
@@ -99,12 +98,12 @@ public class AnthropicProvider : IProvider, ILlmProvider
             new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower });
         var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
 
-        httpClient.DefaultRequestHeaders.Remove("x-api-key");
-        httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
-        httpClient.DefaultRequestHeaders.Remove("anthropic-version");
-        httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/v1/messages")
+        { Content = httpContent };
+        request.Headers.Add("x-api-key", apiKey);
+        request.Headers.Add("anthropic-version", "2023-06-01");
 
-        using var response = await httpClient.PostAsync($"{baseUrl}/v1/messages", httpContent, ct);
+        using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();
 
         using var stream = await response.Content.ReadAsStreamAsync(ct);
@@ -254,6 +253,34 @@ public class AnthropicProvider : IProvider, ILlmProvider
             {
                 ["role"] = "assistant",
                 ["content"] = blocks
+            };
+        }
+
+        // 带图片的消息
+        if (!string.IsNullOrEmpty(msg.ImagePath) && File.Exists(msg.ImagePath))
+        {
+            var base64 = Convert.ToBase64String(File.ReadAllBytes(msg.ImagePath));
+            return new Dictionary<string, object>
+            {
+                ["role"] = msg.Role,
+                ["content"] = new object[]
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["type"] = "text",
+                        ["text"] = msg.Content ?? ""
+                    },
+                    new Dictionary<string, object>
+                    {
+                        ["type"] = "image",
+                        ["source"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "base64",
+                            ["media_type"] = "image/png",
+                            ["data"] = base64
+                        }
+                    }
+                }
             };
         }
 

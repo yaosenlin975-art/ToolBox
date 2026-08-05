@@ -35,9 +35,10 @@ public class OpenAiProvider : IProvider, ILlmProvider
     {
         try
         {
-            httpClient.DefaultRequestHeaders.Authorization =
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/models");
+            request.Headers.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-            var response = await httpClient.GetAsync($"{baseUrl}/models", ct);
+            var response = await httpClient.SendAsync(request, ct);
             return response.IsSuccessStatusCode;
         }
         catch { return false; }
@@ -47,10 +48,14 @@ public class OpenAiProvider : IProvider, ILlmProvider
     {
         try
         {
-            httpClient.DefaultRequestHeaders.Authorization =
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/models");
+            request.Headers.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-            var response = await httpClient.GetFromJsonAsync<JsonElement>($"{baseUrl}/models", ct);
-            var data = response.GetProperty("data");
+            var response = await httpClient.SendAsync(request, ct);
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync(ct);
+            var doc = System.Text.Json.JsonDocument.Parse(json);
+            var data = doc.RootElement.GetProperty("data");
             var models = new List<ModelInfo>();
             foreach (var item in data.EnumerateArray())
             {
@@ -75,15 +80,14 @@ public class OpenAiProvider : IProvider, ILlmProvider
         IReadOnlyList<ToolInfo>? tools = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        httpClient.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-
         var requestBody = BuildRequestBody(messages, tools);
         var content = new StringContent(
             JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/chat/completions")
         { Content = content };
+        request.Headers.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
 
         using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();

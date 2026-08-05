@@ -1,3 +1,5 @@
+using ToolBox.Core.Llm;
+
 namespace ToolBox.Core.ActionChain.Nodes;
 
 public class TranslateTextNode : IActionNode
@@ -6,23 +8,54 @@ public class TranslateTextNode : IActionNode
     public string NodeType => "TranslateText";
     public string NodeIcon => "🌐";
 
-    public Task<ActionNodeResult> ExecuteAsync(ActionNodeContext context)
+    public async Task<ActionNodeResult> ExecuteAsync(ActionNodeContext context)
     {
         var text = context.PreviousOutput as string;
         if (string.IsNullOrEmpty(text))
-            return Task.FromResult(new ActionNodeResult { IsSuccess = false, ErrorMessage = "无文本数据" });
+            return new ActionNodeResult { IsSuccess = false, ErrorMessage = "无文本数据" };
 
-        // TODO: 集成 LLM 翻译能力（需要 Agent API 支持直接文本请求）
-        // 当前返回原文并提示用户手动翻译
-        return Task.FromResult(new ActionNodeResult
+        try
         {
-            IsSuccess = true,
-            Output = text,
-            Metadata = new()
+            var translated = await LlmTranslationService.TranslateAsync(
+                text,
+                targetLanguage: "English",
+                ct: context.CancellationToken);
+
+            return new ActionNodeResult
             {
-                ["needsTranslation"] = true,
-                ["hint"] = "请将文本发送到 AI 助手进行翻译"
-            }
-        });
+                IsSuccess = true,
+                Output = translated,
+                Metadata = new()
+                {
+                    ["translated"] = true,
+                    ["sourceLength"] = text.Length,
+                    ["targetLength"] = translated.Length
+                }
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ActionNodeResult
+            {
+                IsSuccess = false,
+                ErrorMessage = $"翻译失败: {ex.Message}"
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            return new ActionNodeResult
+            {
+                IsSuccess = false,
+                ErrorMessage = "翻译操作已取消"
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ActionNodeResult
+            {
+                IsSuccess = false,
+                ErrorMessage = $"翻译异常: {ex.Message}"
+            };
+        }
     }
 }
