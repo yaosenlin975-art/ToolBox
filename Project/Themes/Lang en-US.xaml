@@ -138,6 +138,30 @@
     <sys:String x:Key="Lang_SummaryTime">Summary time</sys:String>
     <sys:String x:Key="Lang_SummaryTimeHint">Format: HH:mm, e.g. 18:00</sys:String>
 
+    <!-- Settings: Scheduled Shutdown (CSH-11) -->
+    <sys:String x:Key="Lang_Settings_Shutdown">Scheduled Shutdown</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownHint">Schedule an automatic shutdown; a cancel prompt appears at the bottom-right of the screen 1 minute before</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownMode">Shutdown mode</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownModeHint">Shut down at a specific time or after a countdown</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownModeAtTime">At a specific time</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownModeCountdown">Countdown</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownTimeLabel">Shutdown time</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownTimeHint">Format HH:mm, e.g. 23:30</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownMinutesLabel">Countdown minutes</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownMinutesHint">Choose 30/60/90/120 minutes or enter a custom value</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownMinutesUnit">min</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownBtnStart">Start</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownBtnCancel">Cancel shutdown</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownStatusIdle">No scheduled shutdown</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownStatusRunning">Will shut down at {0}, {1} remaining</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownStatusHint">A cancel prompt appears at the bottom-right of the screen 1 minute before</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownInvalidTime">Enter a valid time (HH:mm)</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownInvalidMinutes">Enter valid countdown minutes (1-1440)</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownToastTitle">Scheduled Shutdown</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownToastMessage">The system will shut down in 1 minute</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownToastRemaining">{0} remaining</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownToastCancel">Cancel shutdown</sys:String>
+
     <sys:String x:Key="Lang_InterfaceLanguage">Interface language</sys:String>
     <sys:String x:Key="Lang_Zh">Chinese</sys:String>
     <sys:String x:Key="Lang_AppInfo">App info</sys:String>

@@ -8,6 +8,8 @@ using ToolBox.Core.ActionChain;
 
 using ToolBox.Core.Providers;
 
+using ToolBox.Core.Scheduling;
+
 using ToolBox.Core.Theming;
 
 using ToolBox.Core.Todo;
@@ -38,7 +40,9 @@ public partial class SettingsView : UserControl
 
         InitializeComponent();
 
-        Loaded += (s, e) => LoadSettings();
+        Loaded += (s, e) => { LoadSettings(); ShutdownScheduler.Instance.Changed += OnShutdownSchedulerChanged; };
+
+        Unloaded += (s, e) => ShutdownScheduler.Instance.Changed -= OnShutdownSchedulerChanged;
 
     }
 
@@ -186,6 +190,13 @@ public partial class SettingsView : UserControl
         LoadCategories();
         LoadActionChains();
 
+        // 定时关机（CSH-11）: 恢复选择 + 已设置的倒计时状态
+        rdoShutdownAtTime.IsChecked = true;
+        cmbShutdownMinutes.Text = string.IsNullOrWhiteSpace(cmbShutdownMinutes.Text) ? "30" : cmbShutdownMinutes.Text;
+        ShutdownTimeRow.Visibility = rdoShutdownAtTime.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        ShutdownMinutesRow.Visibility = rdoShutdownCountdown.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        UpdateShutdownStatus();
+
         isLoading = false;
 
     }
@@ -227,6 +238,8 @@ public partial class SettingsView : UserControl
         SectionLlm.Visibility = NavLlm.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
         SectionSchedule.Visibility = NavSchedule.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+        SectionShutdown.Visibility = NavShutdown.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
         SectionClipboard.Visibility = NavClipboard.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
@@ -1128,6 +1141,69 @@ public partial class SettingsView : UserControl
             defaultChain.StopOnError = chkContinueOnError.IsChecked != true;
             store.Update(defaultChain);
         }
+    }
+
+    // ===== 定时关机（CSH-11） =====
+
+    private void OnShutdownModeChanged(object sender, RoutedEventArgs e)
+    {
+        if (isLoading) return;
+        ShutdownTimeRow.Visibility = rdoShutdownAtTime.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        ShutdownMinutesRow.Visibility = rdoShutdownCountdown.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnShutdownSchedulerChanged() => UpdateShutdownStatus();
+
+    private void UpdateShutdownStatus()
+    {
+        if (!IsLoaded) return;
+        var sched = ShutdownScheduler.Instance;
+        var remaining = sched.GetRemaining();
+        txtShutdownStatus.Text = remaining != null && sched.TargetTime != null
+            ? string.Format((FindResource("Lang_Settings_ShutdownStatusRunning") as string) ?? "将于 {0} 关机，剩余 {1}",
+                sched.TargetTime.Value.ToString("HH:mm"), ShutdownScheduler.FormatRemaining(remaining.Value))
+            : (FindResource("Lang_Settings_ShutdownStatusIdle") as string) ?? "未设置定时关机";
+        btnShutdownStart.IsEnabled = sched.State != ShutdownScheduler.ShutdownState.Running;
+        btnShutdownCancel.IsEnabled = sched.State == ShutdownScheduler.ShutdownState.Running;
+    }
+
+    private void BtnShutdownStart_Click(object sender, RoutedEventArgs e)
+    {
+        DateTime target;
+        if (rdoShutdownAtTime.IsChecked == true)
+        {
+            if (!TimeSpan.TryParseExact(txtShutdownTime.Text.Trim(), @"hh\:mm", System.Globalization.CultureInfo.InvariantCulture, out var span))
+            {
+                MessageWindow.Show(
+                    (FindResource("Lang_Settings_Shutdown") as string) ?? "定时关机",
+                    (FindResource("Lang_Settings_ShutdownInvalidTime") as string) ?? "请输入有效时刻（格式 HH:mm）",
+                    GetOwner());
+                return;
+            }
+            target = DateTime.Today.Add(span);
+            if (target <= DateTime.Now)
+                target = target.AddDays(1);
+        }
+        else
+        {
+            if (!int.TryParse(cmbShutdownMinutes.Text.Trim(), out var minutes) || minutes < 1 || minutes > 1440)
+            {
+                MessageWindow.Show(
+                    (FindResource("Lang_Settings_Shutdown") as string) ?? "定时关机",
+                    (FindResource("Lang_Settings_ShutdownInvalidMinutes") as string) ?? "请输入有效的倒计时分钟数（1-1440）",
+                    GetOwner());
+                return;
+            }
+            target = DateTime.Now.AddMinutes(minutes);
+        }
+
+        ShutdownScheduler.Instance.ScheduleAt(target);
+        UpdateShutdownStatus();
+    }
+
+    private void BtnShutdownCancel_Click(object sender, RoutedEventArgs e)
+    {
+        ShutdownScheduler.Instance.CancelAndAbort();
     }
 
 }

@@ -138,6 +138,30 @@
     <sys:String x:Key="Lang_SummaryTime">总结时间</sys:String>
     <sys:String x:Key="Lang_SummaryTimeHint">格式: HH:mm，例 18:00</sys:String>
 
+    <!-- Settings: 定时关机（CSH-11） -->
+    <sys:String x:Key="Lang_Settings_Shutdown">定时关机</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownHint">设定时间后系统将自动关机，关机前 1 分钟会在屏幕右下角弹窗提示，可取消</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownMode">关机方式</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownModeHint">选择按指定时刻或倒计时执行关机</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownModeAtTime">指定时刻</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownModeCountdown">倒计时</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownTimeLabel">关机时刻</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownTimeHint">格式 HH:mm，例 23:30</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownMinutesLabel">倒计时分钟数</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownMinutesHint">可选 30/60/90/120 分钟或输入自定义值</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownMinutesUnit">分钟</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownBtnStart">开始定时</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownBtnCancel">取消关机</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownStatusIdle">未设置定时关机</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownStatusRunning">将于 {0} 关机，剩余 {1}</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownStatusHint">关机前 1 分钟将在屏幕右下角弹窗提示，可取消</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownInvalidTime">请输入有效时刻（格式 HH:mm）</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownInvalidMinutes">请输入有效的倒计时分钟数（1-1440）</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownToastTitle">定时关机</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownToastMessage">系统将在 1 分钟后关机</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownToastRemaining">剩余 {0}</sys:String>
+    <sys:String x:Key="Lang_Settings_ShutdownToastCancel">取消关机</sys:String>
+
     <sys:String x:Key="Lang_InterfaceLanguage">界面语言</sys:String>
     <sys:String x:Key="Lang_Zh">中文</sys:String>
     <sys:String x:Key="Lang_AppInfo">应用信息</sys:String>

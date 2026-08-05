@@ -71,6 +71,10 @@ public partial class App : Application
         // 初始化定时调度（自动截图 + 每日总结）
         Core.Scheduling.ScheduleManager.ApplyCurrent();
 
+        // 定时关机（CSH-11）：剩余 1 分钟时右下角弹窗提示，可取消
+        Core.Scheduling.ShutdownScheduler.Instance.WarningTriggered += () =>
+            Views.Shutdown.ShutdownToast.Instance.ShowToast();
+
         // 接线活动记录：前台窗口切换时记录到 ScreenshotTracker
         Core.Windows.WindowManager.Instance.WindowActived += (_, info) =>
             Core.Scheduling.ScreenshotTracker.Instance.RecordWindowSwitch(info.ClassName, info.TitleName);
@@ -162,6 +166,9 @@ public partial class App : Application
     {
         // 退出时释放剪贴板链,避免破坏系统剪贴板链
         try { Core.ClipboardHistory.ClipboardMonitor.Instance.Dispose(); }
+        catch { /* best-effort */ }
+        // 退出时自动取消定时关机，避免用户不知情关机（CSH-11）
+        try { Core.Scheduling.ShutdownScheduler.Instance.Cancel(); }
         catch { /* best-effort */ }
         base.OnExit(e);
     }

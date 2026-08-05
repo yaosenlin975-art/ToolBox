@@ -1,0 +1,40 @@
+<Window x:Class="ToolBox.Views.Shutdown.ShutdownToast"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ShutdownToast" Width="360" SizeToContent="Height"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Background="Transparent"
+        Topmost="True">
+    <Border Background="{DynamicResource BgElevatedBrush}"
+            BorderBrush="{DynamicResource BorderDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource RadiusMd}"
+            Padding="16,14"
+            Effect="{StaticResource ShadowMd}">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <Border Width="40" Height="40" CornerRadius="{StaticResource RadiusFull}"
+                        Background="{DynamicResource AccentSoftBrush}" VerticalAlignment="Top">
+                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="18"
+                               Text="&#xE7E8;" Foreground="{DynamicResource AccentBrush}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Margin="12,0,0,0">
+                    <TextBlock x:Name="TitleText" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock x:Name="MessageText" FontSize="13"
+                               Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+                    <TextBlock x:Name="CountdownText" FontSize="12" FontFamily="{StaticResource FontMono}"
+                               Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,3,0,0"/>
+                </StackPanel>
+            </StackPanel>
+            <Button x:Name="BtnCancel" Content="{DynamicResource Lang_Settings_ShutdownToastCancel}"
+                    Style="{StaticResource BtnPrimary}" Margin="0,14,0,0"
+                    Padding="16,8" FontSize="13" Click="BtnCancel_Click"/>
+        </StackPanel>
+    </Border>
+</Window>

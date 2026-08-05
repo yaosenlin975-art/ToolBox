@@ -164,6 +164,8 @@
                                      Style="{StaticResource SettingsNavItem}" Tag="&#xE8BD;" Content="LLM" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavSchedule" GroupName="SettingsNav"
                                      Style="{StaticResource SettingsNavItem}" Tag="&#xE823;" Content="{DynamicResource Lang_Schedule}" Checked="OnNavChecked"/>
+                        <RadioButton x:Name="NavShutdown" GroupName="SettingsNav"
+                                     Style="{StaticResource SettingsNavItem}" Tag="&#xE7E8;" Content="{DynamicResource Lang_Settings_Shutdown}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavClipboard" GroupName="SettingsNav"
                                      Style="{StaticResource SettingsNavItem}" Tag="&#xE77F;" Content="{DynamicResource Lang_Clipboard}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavOcr" GroupName="SettingsNav"
@@ -704,6 +706,104 @@
                                         <TextBlock Text="{DynamicResource Lang_SummaryTimeHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <TextBox x:Name="txtDailyReportTime" Grid.Column="1" Width="120" HorizontalAlignment="Right" Style="{StaticResource InputField}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ── Section: 定时关机 ── -->
+                    <StackPanel x:Name="SectionShutdown" Visibility="Collapsed" Margin="0,0,0,8">
+                        <TextBlock Text="{DynamicResource Lang_Settings_Shutdown}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{DynamicResource Lang_Settings_ShutdownHint}" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
+
+                        <Border Style="{StaticResource SettingsSection}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="{DynamicResource AccentBrush}"
+                                               Text="&#xE7E8;" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="{DynamicResource Lang_Settings_Shutdown}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </StackPanel>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{DynamicResource Lang_Settings_ShutdownMode}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_Settings_ShutdownModeHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <RadioButton x:Name="rdoShutdownAtTime" GroupName="ShutdownMode" Style="{StaticResource RadioCard}"
+                                                     Checked="OnShutdownModeChanged">
+                                            <TextBlock Text="{DynamicResource Lang_Settings_ShutdownModeAtTime}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        </RadioButton>
+                                        <RadioButton x:Name="rdoShutdownCountdown" GroupName="ShutdownMode" Style="{StaticResource RadioCard}"
+                                                     Checked="OnShutdownModeChanged">
+                                            <TextBlock Text="{DynamicResource Lang_Settings_ShutdownModeCountdown}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        </RadioButton>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <Grid x:Name="ShutdownTimeRow" Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{DynamicResource Lang_Settings_ShutdownTimeLabel}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_Settings_ShutdownTimeHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="txtShutdownTime" Grid.Column="1" Width="140" HorizontalAlignment="Right"
+                                             Style="{StaticResource InputField}" FontFamily="{StaticResource FontMono}"/>
+                                </Grid>
+
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <Grid x:Name="ShutdownMinutesRow" Style="{StaticResource SettingRow}" Visibility="Collapsed">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{DynamicResource Lang_Settings_ShutdownMinutesLabel}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_Settings_ShutdownMinutesHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <ComboBox x:Name="cmbShutdownMinutes" Width="140" IsEditable="True"
+                                                  FontFamily="{StaticResource FontMono}" FontSize="13" Text="30">
+                                            <ComboBoxItem Content="30"/>
+                                            <ComboBoxItem Content="60"/>
+                                            <ComboBoxItem Content="90"/>
+                                            <ComboBoxItem Content="120"/>
+                                        </ComboBox>
+                                        <TextBlock Text="{DynamicResource Lang_Settings_ShutdownMinutesUnit}" FontSize="13"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock x:Name="txtShutdownStatus" FontSize="13" FontWeight="Medium"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{DynamicResource Lang_Settings_ShutdownStatusHint}" FontSize="11"
+                                                   Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button x:Name="btnShutdownStart" Content="{DynamicResource Lang_Settings_ShutdownBtnStart}"
+                                                Style="{StaticResource BtnPrimary}" Padding="16,8" FontSize="13" Click="BtnShutdownStart_Click"/>
+                                        <Button x:Name="btnShutdownCancel" Content="{DynamicResource Lang_Settings_ShutdownBtnCancel}"
+                                                Style="{StaticResource OutlineButton}" Padding="16,8" FontSize="13" Margin="8,0,0,0"
+                                                IsEnabled="False" Click="BtnShutdownCancel_Click"/>
+                                    </StackPanel>
                                 </Grid>
                             </StackPanel>
                         </Border>
