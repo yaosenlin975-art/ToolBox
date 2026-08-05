@@ -1038,7 +1038,7 @@
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Margin="0,4">
                                     <TextBlock Text="{DynamicResource Lang_ProjectUrl}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                    <TextBlock Text="github.com/lin/ToolBox" FontSize="13" FontFamily="{StaticResource FontMono}" Foreground="{DynamicResource AccentBrush}"/>
+                                    <TextBlock Text="github.com/yaosenlin975-art/ToolBox" FontSize="13" FontFamily="{StaticResource FontMono}" Foreground="{DynamicResource AccentBrush}"/>
                                 </StackPanel>
                                 <TextBlock Text="{DynamicResource Lang_AboutDesc}"
                                            FontSize="12" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,8,0,0" TextWrapping="Wrap"/>
