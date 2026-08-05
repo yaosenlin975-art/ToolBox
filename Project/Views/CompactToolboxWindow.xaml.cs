@@ -46,6 +46,7 @@ public partial class CompactToolboxWindow : Window
         TodoStore.Instance.ItemsChanged += () => Dispatcher.BeginInvoke(LoadTodos);
         ChatManager.Instance.SessionsChanged += () => Dispatcher.Invoke(LoadSessions);
         CacheManager.Instance.OnScrapCached += (_, _) => Dispatcher.Invoke(LoadScreenshots);
+        Core.Theming.ThemeManager.Instance.ThemeChanged += (_, _) => Dispatcher.BeginInvoke(LoadTodos);
     }
 
     public void ApplyCompactOpacity(int opacityPercent)
@@ -309,19 +310,20 @@ public partial class CompactToolboxWindow : Window
         }
         if (item.Priority > 0 && !item.IsCompleted)
         {
-            var priColor = item.Priority == 2 ? "#E74C3C" : "#F5A623";
             var priText = item.Priority == 2 ? "\u7D27\u6025" : "\u91CD\u8981";
+            var priBrushKey = item.Priority == 2 ? "ErrorBrush" : "WarningBrush";
+            var priSoftBrushKey = item.Priority == 2 ? "ErrorSoftBrush" : "WarningSoftBrush";
             var badge = new Border
             {
                 CornerRadius = new CornerRadius(3), Padding = new Thickness(3, 0, 3, 0),
                 Margin = new Thickness(0, 0, 4, 0),
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(priColor + "40"))
             };
+            badge.SetResourceReference(Border.BackgroundProperty, priSoftBrushKey);
             var badgeText = new TextBlock
             {
                 Text = priText, FontSize = 9, FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(priColor))
             };
+            badgeText.SetResourceReference(TextBlock.ForegroundProperty, priBrushKey);
             badge.Child = badgeText;
             rightStack.Children.Add(badge);
         }
