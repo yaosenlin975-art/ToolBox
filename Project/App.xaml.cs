@@ -73,7 +73,7 @@ public partial class App : Application
 
         // 定时关机（CSH-11）：剩余 1 分钟时右下角弹窗提示，可取消
         Core.Scheduling.ShutdownScheduler.Instance.WarningTriggered += () =>
-            Views.Shutdown.ShutdownToast.Instance.ShowToast();
+            Views.Shutdown.ShutdownToast.ShowToast();
 
         // 接线活动记录：前台窗口切换时记录到 ScreenshotTracker
         Core.Windows.WindowManager.Instance.WindowActived += (_, info) =>

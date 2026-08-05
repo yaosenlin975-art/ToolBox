@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Windows;
 
@@ -162,9 +163,11 @@ public sealed class ShutdownScheduler
                 CreateNoWindow = true
             };
             using var process = Process.Start(psi);
+            Log($"execute shutdown /s /t 0 at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         }
         catch (Exception ex)
         {
+            Log($"execute shutdown FAILED: {ex.Message}");
             Debug.WriteLine($"[ToolBox] Shutdown execute failed: {ex.Message}");
         }
     }
@@ -179,10 +182,29 @@ public sealed class ShutdownScheduler
                 CreateNoWindow = true
             };
             using var process = Process.Start(psi);
+            Log($"abort shutdown /a at {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         }
         catch (Exception ex)
         {
+            Log($"abort shutdown FAILED: {ex.Message}");
             Debug.WriteLine($"[ToolBox] Shutdown abort failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>轻量文件日志（%LOCALAPPDATA%\ToolBox\Logs\shutdown.log），便于事后排查。</summary>
+    private static void Log(string message)
+    {
+        try
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ToolBox", "Logs");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(Path.Combine(dir, "shutdown.log"), $"[{DateTime.Now:HH:mm:ss.fff}] {message}\r\n");
+        }
+        catch
+        {
+            // 日志失败不影响主流程
         }
     }
 }

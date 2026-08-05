@@ -6,16 +6,24 @@ namespace ToolBox.Views.Shutdown;
 
 public partial class ShutdownToast : Window
 {
-    public static ShutdownToast Instance { get; } = new();
+    private static ShutdownToast? current;
+
+    /// <summary>弹出提示（每次触发新建实例，避免已关闭窗口再次 Show 崩溃），定位到工作区右下角偏移 20px。</summary>
+    public static void ShowToast()
+    {
+        current?.Close();
+        current = new ShutdownToast();
+        current.ShowPopup();
+    }
 
     private ShutdownToast()
     {
         InitializeComponent();
+        Closed += (_, _) => ShutdownScheduler.Instance.Changed -= OnSchedulerChanged;
         ShutdownScheduler.Instance.Changed += OnSchedulerChanged;
     }
 
-    /// <summary>弹出提示（已有实例则复用并更新文案），定位到工作区右下角偏移 20px。</summary>
-    public void ShowToast()
+    private void ShowPopup()
     {
         TitleText.Text = (FindResource("Lang_Settings_ShutdownToastTitle") as string) ?? "定时关机";
         MessageText.Text = (FindResource("Lang_Settings_ShutdownToastMessage") as string) ?? "系统将在 1 分钟后关机";
@@ -32,7 +40,7 @@ public partial class ShutdownToast : Window
         Left = workArea.Right - Width - 20;
         Top = workArea.Bottom - height - 20;
 
-        if (!IsVisible) Show();
+        Show();
     }
 
     private void OnSchedulerChanged()

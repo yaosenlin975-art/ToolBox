@@ -40,9 +40,18 @@ public partial class SettingsView : UserControl
 
         InitializeComponent();
 
-        Loaded += (s, e) => { LoadSettings(); ShutdownScheduler.Instance.Changed += OnShutdownSchedulerChanged; };
+        Loaded += (s, e) =>
+        {
+            LoadSettings();
+            ShutdownScheduler.Instance.Changed += OnShutdownSchedulerChanged;
+            App.LanguageChanged += OnShutdownSchedulerChanged;
+        };
 
-        Unloaded += (s, e) => ShutdownScheduler.Instance.Changed -= OnShutdownSchedulerChanged;
+        Unloaded += (s, e) =>
+        {
+            ShutdownScheduler.Instance.Changed -= OnShutdownSchedulerChanged;
+            App.LanguageChanged -= OnShutdownSchedulerChanged;
+        };
 
     }
 
