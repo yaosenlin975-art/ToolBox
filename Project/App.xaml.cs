@@ -71,6 +71,9 @@ public partial class App : Application
         // 初始化定时调度（自动截图 + 每日总结）
         Core.Scheduling.ScheduleManager.ApplyCurrent();
 
+        // 定时提醒（CSH-28）：注册所有已启用的提醒，到点弹右下角通知
+        Core.Reminder.ReminderScheduler.Instance.ApplyAll();
+
         // 定时关机（CSH-11）：剩余 1 分钟时右下角弹窗提示，可取消
         Core.Scheduling.ShutdownScheduler.Instance.WarningTriggered += () =>
             Views.Shutdown.ShutdownToast.ShowToast();

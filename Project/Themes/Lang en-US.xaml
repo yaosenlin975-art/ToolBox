@@ -430,4 +430,34 @@
     <sys:String x:Key="Lang_CategoryManageHint">Manage todo categories, displayed as drawers in the list</sys:String>
     <sys:String x:Key="Lang_CategoryAdd">Add Category</sys:String>
 
+    <!-- Settings: Reminders (CSH-28) -->
+    <sys:String x:Key="Lang_Reminder">Reminders</sys:String>
+    <sys:String x:Key="Lang_ReminderHint">Add custom reminders; a notification pops up at the bottom-right when triggered</sys:String>
+    <sys:String x:Key="Lang_ReminderManage">Reminder Manager</sys:String>
+    <sys:String x:Key="Lang_ReminderAdd">+ Add Reminder</sys:String>
+    <sys:String x:Key="Lang_ReminderEmpty">No reminders yet. Click &quot;+ Add Reminder&quot; to create your first one</sys:String>
+    <sys:String x:Key="Lang_ReminderType">Reminder type</sys:String>
+    <sys:String x:Key="Lang_ReminderTypeOnce">Once</sys:String>
+    <sys:String x:Key="Lang_ReminderTypeRecurring">Recurring</sys:String>
+    <sys:String x:Key="Lang_ReminderTitle">Title</sys:String>
+    <sys:String x:Key="Lang_ReminderMessage">Message (optional)</sys:String>
+    <sys:String x:Key="Lang_ReminderTime">Trigger time</sys:String>
+    <sys:String x:Key="Lang_ReminderCron">Cron expression</sys:String>
+    <sys:String x:Key="Lang_ReminderCronPresets">Common presets</sys:String>
+    <sys:String x:Key="Lang_ReminderPresetHourly">Every hour</sys:String>
+    <sys:String x:Key="Lang_ReminderPresetDaily9">Daily 9:00</sys:String>
+    <sys:String x:Key="Lang_ReminderPresetDaily18">Daily 18:00</sys:String>
+    <sys:String x:Key="Lang_ReminderPresetWeekly">Monday 9:00</sys:String>
+    <sys:String x:Key="Lang_ReminderPresetMonthly">1st of month 9:00</sys:String>
+    <sys:String x:Key="Lang_ReminderEnabled">Enabled</sys:String>
+    <sys:String x:Key="Lang_ReminderAddTitle">Add Reminder</sys:String>
+    <sys:String x:Key="Lang_ReminderEditTitle">Edit Reminder</sys:String>
+    <sys:String x:Key="Lang_ReminderInvalidTitle">Please enter a reminder title</sys:String>
+    <sys:String x:Key="Lang_ReminderInvalidTime">Choose a valid trigger time (must not be in the past)</sys:String>
+    <sys:String x:Key="Lang_ReminderInvalidCron">Invalid Cron expression</sys:String>
+    <sys:String x:Key="Lang_ReminderNext">Next {0}</sys:String>
+    <sys:String x:Key="Lang_ReminderExpired">Expired</sys:String>
+    <sys:String x:Key="Lang_ReminderDelete">Delete</sys:String>
+    <sys:String x:Key="Lang_ReminderToastClose">Close</sys:String>
+
 </ResourceDictionary>

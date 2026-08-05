@@ -433,6 +433,11 @@ public partial class MainWindow : Window
         todoItem.Click += (s, e) => ShowTodoWindow();
         menu.Items.Add(todoItem);
 
+        // 定时提醒(CSH-28): 打开工作台设置页并定位到提醒 Section
+        var reminderItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_ReminderManage") as string) ?? "提醒管理" };
+        reminderItem.Click += (s, e) => ShowReminderWindow();
+        menu.Items.Add(reminderItem);
+
         // 网络诊断(PRD F1): 打开主窗口并跳转到该视图
         var networkItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_Tray_Network") as string) ?? "网络诊断" };
         networkItem.Click += (s, e) => ShowNetworkWindow();
@@ -641,6 +646,16 @@ public partial class MainWindow : Window
     private void ShowTodoWindow()
     {
         OpenWorkbench("todos");
+    }
+
+    /// <summary>托盘「提醒管理」入口：打开工作台设置页并定位到提醒 Section（CSH-28）。</summary>
+    private void ShowReminderWindow()
+    {
+        var wb = App.Workbench;
+        if (wb == null) return;
+        wb.Show();
+        wb.Activate();
+        wb.OpenSettingsReminder();
     }
 
     private void OpenWorkbench(string tab)

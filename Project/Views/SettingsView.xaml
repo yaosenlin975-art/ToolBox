@@ -164,6 +164,8 @@
                                      Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconChat}" Content="LLM" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavSchedule" GroupName="SettingsNav"
                                      Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconSchedule}" Content="{DynamicResource Lang_Schedule}" Checked="OnNavChecked"/>
+                        <RadioButton x:Name="NavReminder" GroupName="SettingsNav"
+                                     Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconBell}" Content="{DynamicResource Lang_Reminder}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavShutdown" GroupName="SettingsNav"
                                      Style="{StaticResource SettingsNavItem}" Tag="{StaticResource IconPower}" Content="{DynamicResource Lang_Settings_Shutdown}" Checked="OnNavChecked"/>
                         <RadioButton x:Name="NavClipboard" GroupName="SettingsNav"
@@ -707,6 +709,36 @@
                                     </StackPanel>
                                     <TextBox x:Name="txtDailyReportTime" Grid.Column="1" Width="120" HorizontalAlignment="Right" Style="{StaticResource InputField}"/>
                                 </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ── Section: 定时提醒 ── -->
+                    <StackPanel x:Name="SectionReminder" Visibility="Collapsed" Margin="0,0,0,8">
+                        <TextBlock Text="{DynamicResource Lang_Reminder}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{DynamicResource Lang_ReminderHint}" FontSize="13" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,4,0,20"/>
+
+                        <Border Style="{StaticResource SettingsSection}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                    <Path Data="{StaticResource IconBell}" Fill="{DynamicResource AccentBrush}" Width="16" Height="16" Stretch="Uniform"
+                                          VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="{DynamicResource Lang_ReminderManage}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <Button x:Name="btnAddReminder" Content="{DynamicResource Lang_ReminderAdd}"
+                                            Style="{StaticResource BtnPrimary}" Padding="12,4" FontSize="12"
+                                            HorizontalAlignment="Right" Margin="16,0,0,0"
+                                            Click="BtnAddReminder_Click"/>
+                                </StackPanel>
+
+                                <!-- 空状态 -->
+                                <StackPanel x:Name="ReminderEmpty" Visibility="Collapsed" Margin="0,8,0,8">
+                                    <TextBlock Text="⏰" FontSize="28" HorizontalAlignment="Center" Margin="0,8,0,4"/>
+                                    <TextBlock Text="{DynamicResource Lang_ReminderEmpty}" FontSize="13"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" TextAlignment="Center"/>
+                                </StackPanel>
+
+                                <!-- 提醒卡片列表 -->
+                                <StackPanel x:Name="ReminderCards"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

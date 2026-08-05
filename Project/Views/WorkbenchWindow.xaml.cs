@@ -94,6 +94,13 @@ public partial class WorkbenchWindow : Window
         return settingsView;
     }
 
+    /// <summary>打开设置页并定位到定时提醒 Section（托盘「提醒管理」入口，CSH-28）。</summary>
+    public void OpenSettingsReminder()
+    {
+        LoadPage("settings");
+        settingsView?.NavigateToReminderSection();
+    }
+
     private DashboardView GetDashboard()
     {
         if (dashboardView == null)

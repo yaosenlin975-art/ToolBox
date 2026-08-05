@@ -4,9 +4,13 @@ using System.Windows.Controls;
 
 using System.Windows.Input;
 
+using System.Windows.Shapes;
+
 using ToolBox.Core.ActionChain;
 
 using ToolBox.Core.Providers;
+
+using ToolBox.Core.Reminder;
 
 using ToolBox.Core.Scheduling;
 
@@ -45,12 +49,14 @@ public partial class SettingsView : UserControl
             LoadSettings();
             ShutdownScheduler.Instance.Changed += OnShutdownSchedulerChanged;
             App.LanguageChanged += OnShutdownSchedulerChanged;
+            ReminderStore.Instance.ItemsChanged += RefreshReminders;
         };
 
         Unloaded += (s, e) =>
         {
             ShutdownScheduler.Instance.Changed -= OnShutdownSchedulerChanged;
             App.LanguageChanged -= OnShutdownSchedulerChanged;
+            ReminderStore.Instance.ItemsChanged -= RefreshReminders;
         };
 
     }
@@ -206,6 +212,12 @@ public partial class SettingsView : UserControl
         ShutdownMinutesRow.Visibility = rdoShutdownCountdown.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         UpdateShutdownStatus();
 
+        // 定时提醒（CSH-28）
+        RenderReminderCards();
+
+        // 同步各导航 Section 的可见性（首次加载时导航 Checked 事件早于 Loaded 触发，需补一次）
+        OnNavChecked(null, null!);
+
         isLoading = false;
 
     }
@@ -247,6 +259,8 @@ public partial class SettingsView : UserControl
         SectionLlm.Visibility = NavLlm.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
         SectionSchedule.Visibility = NavSchedule.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+        SectionReminder.Visibility = NavReminder.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
         SectionShutdown.Visibility = NavShutdown.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
@@ -1213,6 +1227,223 @@ public partial class SettingsView : UserControl
     private void BtnShutdownCancel_Click(object sender, RoutedEventArgs e)
     {
         ShutdownScheduler.Instance.CancelAndAbort();
+    }
+
+    // ===== 定时提醒（CSH-28） =====
+
+    /// <summary>托盘「提醒管理」入口：切换到设置页并定位到提醒 Section。</summary>
+    public void NavigateToReminderSection()
+    {
+        NavReminder.IsChecked = true;
+        if (!IsLoaded) return;
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
+        {
+            if (SectionReminder != null) SectionReminder.BringIntoView();
+        }));
+    }
+
+    /// <summary>提醒数据变更（含 Cron 后台线程触发）后刷新列表，统一编组到 UI 线程。</summary>
+    private void RefreshReminders()
+    {
+        var disp = Dispatcher;
+        if (disp == null) return;
+        disp.BeginInvoke(new Action(RenderReminderCards));
+    }
+
+    private void RenderReminderCards()
+    {
+        if (ReminderCards == null) return;
+        ReminderCards.Children.Clear();
+
+        var items = ReminderStore.Instance.GetAll()
+            .OrderBy(r => r.GetNextFireLocal() ?? DateTime.MaxValue)
+            .ToList();
+        ReminderEmpty.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        foreach (var item in items)
+            ReminderCards.Children.Add(BuildReminderCard(item));
+    }
+
+    private Border BuildReminderCard(ReminderItem item)
+    {
+        var card = new Border
+        {
+            Background = (Brush)FindResource("BgSunkenBrush"),
+            BorderBrush = (Brush)FindResource("BorderDefaultBrush"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(12),
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+
+        var root = new Grid();
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        // 左侧类型图标
+        var iconBorder = new Border
+        {
+            Background = (Brush)FindResource("AccentSoftBrush"),
+            CornerRadius = new CornerRadius(9999),
+            Width = 36, Height = 36,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 12, 0)
+        };
+        iconBorder.Child = new Path
+        {
+            Data = (Geometry)FindResource(item.Type == ReminderType.Once ? "IconSchedule" : "IconRepeat"),
+            Fill = (Brush)FindResource("AccentBrush"),
+            Width = 16, Height = 16,
+            Stretch = Stretch.Uniform,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetRow(iconBorder, 0);
+        Grid.SetColumn(iconBorder, 0);
+        root.Children.Add(iconBorder);
+
+        // 中间：标题 + 下次触发时间
+        var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        info.Children.Add(new TextBlock
+        {
+            Text = item.Title,
+            FontSize = 13, FontWeight = FontWeights.Medium,
+            Foreground = (Brush)FindResource("TextPrimaryBrush"),
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+
+        var next = item.GetNextFireLocal();
+        string nextText;
+        if (next != null)
+            nextText = string.Format((FindResource("Lang_ReminderNext") as string) ?? "下次 {0}",
+                next.Value.ToString("yyyy-MM-dd HH:mm"));
+        else if (item.Type == ReminderType.Once)
+            nextText = (FindResource("Lang_ReminderExpired") as string) ?? "已过期";
+        else
+            nextText = "-";
+        info.Children.Add(new TextBlock
+        {
+            Text = nextText,
+            FontSize = 11, FontFamily = (FontFamily)FindResource("FontMono"),
+            Foreground = (Brush)FindResource("TextTertiaryBrush"),
+            Margin = new Thickness(0, 2, 0, 0)
+        });
+        Grid.SetRow(info, 0);
+        Grid.SetColumn(info, 1);
+        root.Children.Add(info);
+
+        // 右侧启用开关
+        var toggle = new CheckBox
+        {
+            Style = (Style)FindResource("ToggleSwitch"),
+            IsChecked = item.IsEnabled,
+            Tag = item,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        toggle.Checked += OnReminderToggleChanged;
+        toggle.Unchecked += OnReminderToggleChanged;
+        Grid.SetRow(toggle, 0);
+        Grid.SetColumn(toggle, 2);
+        root.Children.Add(toggle);
+
+        // 底行：类型标签 + 编辑/删除
+        var bottom = new Grid { Margin = new Thickness(0, 8, 0, 0) };
+        bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var typeLabel = new TextBlock
+        {
+            Text = item.Type == ReminderType.Once
+                ? (FindResource("Lang_ReminderTypeOnce") as string) ?? "一次性"
+                : (FindResource("Lang_ReminderTypeRecurring") as string) ?? "重复",
+            FontSize = 11,
+            Foreground = (Brush)FindResource("TextTertiaryBrush"),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(typeLabel, 0);
+        bottom.Children.Add(typeLabel);
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal };
+
+        var editBtn = new Button
+        {
+            Style = (Style)FindResource("IconButton"),
+            Width = 26, Height = 26, Margin = new Thickness(4, 0, 0, 0), Tag = item,
+            ToolTip = (FindResource("Lang_Edit") as string) ?? "编辑"
+        };
+        editBtn.Content = new Path
+        {
+            Data = (Geometry)FindResource("IconEdit"),
+            Width = 12, Height = 12, Stretch = Stretch.Uniform,
+            Fill = (Brush)FindResource("TextSecondaryBrush")
+        };
+        editBtn.Click += OnEditReminder_Click;
+        buttons.Children.Add(editBtn);
+
+        var deleteBtn = new Button
+        {
+            Style = (Style)FindResource("IconButton"),
+            Width = 26, Height = 26, Margin = new Thickness(4, 0, 0, 0), Tag = item,
+            ToolTip = (FindResource("Lang_ReminderDelete") as string) ?? "删除"
+        };
+        deleteBtn.Content = new Path
+        {
+            Data = (Geometry)FindResource("IconDelete"),
+            Width = 12, Height = 12, Stretch = Stretch.Uniform,
+            Fill = (Brush)FindResource("TextSecondaryBrush")
+        };
+        deleteBtn.Click += OnDeleteReminder_Click;
+        buttons.Children.Add(deleteBtn);
+
+        Grid.SetColumn(buttons, 1);
+        bottom.Children.Add(buttons);
+
+        Grid.SetRow(bottom, 1);
+        Grid.SetColumnSpan(bottom, 3);
+        root.Children.Add(bottom);
+
+        card.Child = root;
+        return card;
+    }
+
+    private async void OnReminderToggleChanged(object sender, RoutedEventArgs e)
+    {
+        if (sender is CheckBox cb && cb.Tag is ReminderItem item)
+        {
+            await ReminderStore.Instance.SetEnabledAsync(item.Id, cb.IsChecked == true);
+            ReminderScheduler.Instance.ApplyItem(item);
+        }
+    }
+
+    private async void OnEditReminder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not ReminderItem item) return;
+        var dialog = new Reminder.ReminderDialog(item) { Owner = Window.GetWindow(this) };
+        if (dialog.ShowDialog() == true && dialog.Result != null)
+        {
+            await ReminderStore.Instance.UpdateAsync(dialog.Result);
+            ReminderScheduler.Instance.ApplyItem(dialog.Result);
+        }
+    }
+
+    private async void OnDeleteReminder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not ReminderItem item) return;
+        await ReminderStore.Instance.DeleteAsync(item.Id);
+        ReminderScheduler.Instance.Unregister(item.Id);
+    }
+
+    private async void BtnAddReminder_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Reminder.ReminderDialog { Owner = Window.GetWindow(this) };
+        if (dialog.ShowDialog() == true && dialog.Result != null)
+        {
+            await ReminderStore.Instance.AddAsync(dialog.Result);
+            ReminderScheduler.Instance.ApplyItem(dialog.Result);
+        }
     }
 
 }
