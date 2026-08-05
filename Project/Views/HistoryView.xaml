@@ -128,7 +128,7 @@
         <!-- 空状态：居中显示 -->
         <Border x:Name="HistoryEmptyState" Grid.Row="3"
                 Background="{DynamicResource BgSecondaryBrush}"
-                CornerRadius="8" Margin="32" Padding="32"
+                CornerRadius="{StaticResource RadiusLg}" Margin="32" Padding="32"
                 HorizontalAlignment="Stretch" VerticalAlignment="Center"
                 Visibility="Collapsed">
             <StackPanel HorizontalAlignment="Center">

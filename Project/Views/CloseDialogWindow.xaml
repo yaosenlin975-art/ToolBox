@@ -18,6 +18,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
+            <!-- 合法例外：仅顶部圆角（8,8,0,0），底部与窗口边框贴合 -->
             <Border Grid.Row="0" Background="{DynamicResource BgElevatedBrush}" CornerRadius="8,8,0,0"
                     BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,0,0,1"
                     MouseLeftButtonDown="OnTitleBarMouseDown">

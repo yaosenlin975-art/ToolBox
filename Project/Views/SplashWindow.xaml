@@ -43,9 +43,9 @@
 
                 <!-- Loading Bar -->
                 <Grid Width="220" Margin="0,32,0,8">
-                    <Border Height="4" CornerRadius="2"
+                    <Border Height="4" CornerRadius="{StaticResource RadiusXs}"
                             Background="{DynamicResource BgSunkenBrush}"/>
-                    <Border x:Name="LoadingFill" Height="4" CornerRadius="2"
+                    <Border x:Name="LoadingFill" Height="4" CornerRadius="{StaticResource RadiusXs}"
                             HorizontalAlignment="Left" Width="0"
                             Background="{DynamicResource AccentBrush}"/>
                 </Grid>

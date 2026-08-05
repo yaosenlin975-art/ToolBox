@@ -18,6 +18,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
+                        <!-- 合法例外：紧凑模式标签按钮直角设计，与紧凑窗口整体直角风格一致 -->
                         <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="0" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
@@ -46,6 +47,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
+                        <!-- 合法例外：紧凑模式图标按钮直角设计 -->
                         <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="0">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
@@ -66,8 +68,8 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
-                        <Border CornerRadius="2" Background="#33FFFFFF" Width="24" Height="4" ClipToBounds="True">
-                            <Border x:Name="Fill" CornerRadius="2" HorizontalAlignment="Left" Background="#4CAF50" Height="4"/>
+                        <Border CornerRadius="{StaticResource RadiusXs}" Background="#33FFFFFF" Width="24" Height="4" ClipToBounds="True">
+                            <Border x:Name="Fill" CornerRadius="{StaticResource RadiusXs}" HorizontalAlignment="Left" Background="#4CAF50" Height="4"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <DataTrigger Binding="{Binding Value, RelativeSource={RelativeSource Self}}" Value="0">
@@ -132,6 +134,7 @@
             </Setter>
         </Style>
     </Window.Resources>
+    <!-- 合法例外：紧凑模式窗口整体直角设计（非圆角浮窗） -->
     <Border x:Name="RootBorder" Background="{DynamicResource BgElevatedBrush}" CornerRadius="0" BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1" PreviewMouseLeftButtonDown="RootBorder_PreviewMouseLeftButtonDown" PreviewMouseMove="RootBorder_PreviewMouseMove">
         <Grid>
             <Grid.RowDefinitions>
@@ -140,6 +143,7 @@
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
+            <!-- 合法例外：紧凑模式顶栏直角，与窗口直角风格一致 -->
             <Border x:Name="TopBar" Grid.Row="0" Padding="8,4" Background="Transparent" CornerRadius="0" BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,0,0,1">
                 <Grid>
                     <Grid.ColumnDefinitions>

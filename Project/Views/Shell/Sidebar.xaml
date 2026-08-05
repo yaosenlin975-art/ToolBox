@@ -13,7 +13,7 @@
                     <ControlTemplate TargetType="RadioButton">
                         <Grid>
                             <Border x:Name="activeBar" Width="3" HorizontalAlignment="Left"
-                                    Background="Transparent" CornerRadius="2" Margin="-8,0,0,0"/>
+                                    Background="Transparent" CornerRadius="{StaticResource RadiusXs}" Margin="-8,0,0,0"/>
                             <Border x:Name="bg" Background="Transparent" CornerRadius="{StaticResource RadiusSm}">
                                 <Grid>
                                     <TextBlock x:Name="icon" FontFamily="Segoe MDL2 Assets" FontSize="18"

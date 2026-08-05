@@ -54,10 +54,10 @@
                         <Border x:Name="track" Background="{DynamicResource BorderStrongBrush}"
                                 CornerRadius="{StaticResource RadiusFull}">
                             <Grid>
-                                <Border x:Name="thumbOff" Width="16" Height="16" CornerRadius="8"
+                                <Border x:Name="thumbOff" Width="16" Height="16" CornerRadius="{StaticResource RadiusFull}"
                                         Background="{DynamicResource TextPrimaryBrush}"
                                         HorizontalAlignment="Left" VerticalAlignment="Center" Margin="3,0,0,0"/>
-                                <Border x:Name="thumbOn" Width="16" Height="16" CornerRadius="8"
+                                <Border x:Name="thumbOn" Width="16" Height="16" CornerRadius="{StaticResource RadiusFull}"
                                         Background="White"
                                         HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,3,0"
                                         Visibility="Collapsed"/>
@@ -88,7 +88,7 @@
                                 BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
                                 CornerRadius="{StaticResource RadiusMd}" Padding="16,8">
                             <StackPanel Orientation="Horizontal">
-                                <Border x:Name="dot" Width="16" Height="16" CornerRadius="8"
+                                <Border x:Name="dot" Width="16" Height="16" CornerRadius="{StaticResource RadiusFull}"
                                         BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="2"
                                         Background="Transparent" VerticalAlignment="Center" Margin="0,0,10,0">
                                     <Ellipse x:Name="dotFill" Width="6" Height="6" Fill="{DynamicResource AccentBrush}"

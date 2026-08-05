@@ -204,7 +204,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
                     <StackPanel Orientation="Horizontal">
-                        <Border x:Name="radioBorder" Width="16" Height="16" CornerRadius="8"
+                        <Border x:Name="radioBorder" Width="16" Height="16" CornerRadius="{StaticResource RadiusFull}"
                                 BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="1.5"
                                 Background="Transparent" VerticalAlignment="Center" Margin="0,0,8,0">
                             <Ellipse x:Name="radioDot" Width="8" Height="8" Fill="{DynamicResource AccentBrush}"
@@ -443,7 +443,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Slider">
                     <Grid>
-                        <Border Height="4" CornerRadius="2" Background="{DynamicResource BorderDefaultBrush}" VerticalAlignment="Center"/>
+                        <Border Height="4" CornerRadius="{StaticResource RadiusXs}" Background="{DynamicResource BorderDefaultBrush}" VerticalAlignment="Center"/>
                         <Track x:Name="PART_Track">
                             <Track.Thumb>
                                 <Thumb>

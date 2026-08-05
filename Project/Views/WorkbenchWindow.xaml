@@ -7,6 +7,7 @@
         WindowStyle="None" AllowsTransparency="True"
         WindowStartupLocation="CenterScreen" Background="Transparent"
         ShowInTaskbar="True">
+    <!-- 合法例外：全屏工作台窗口直角设计（非圆角浮窗） -->
     <Border Background="{DynamicResource BgBrush}"
             BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
             CornerRadius="0">
