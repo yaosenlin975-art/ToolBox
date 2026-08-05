@@ -247,6 +247,48 @@
                                                          BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"/>
                                             </Grid>
 
+                                            <!-- 每周：选择星期几 -->
+                                            <StackPanel x:Name="DetailWeeklyPanel" Visibility="Collapsed" Margin="0,0,0,8">
+                                                <TextBlock Text="{DynamicResource Lang_Todo_SelectDayOfWeek}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                                <ComboBox x:Name="DetailRepeatDayOfWeek" FontSize="12"
+                                                          Background="{DynamicResource BgElevatedBrush}"
+                                                          Foreground="{DynamicResource TextPrimaryBrush}">
+                                                    <ComboBoxItem Content="{DynamicResource Lang_Todo_Monday}"/>
+                                                    <ComboBoxItem Content="{DynamicResource Lang_Todo_Tuesday}"/>
+                                                    <ComboBoxItem Content="{DynamicResource Lang_Todo_Wednesday}"/>
+                                                    <ComboBoxItem Content="{DynamicResource Lang_Todo_Thursday}"/>
+                                                    <ComboBoxItem Content="{DynamicResource Lang_Todo_Friday}"/>
+                                                    <ComboBoxItem Content="{DynamicResource Lang_Todo_Saturday}"/>
+                                                    <ComboBoxItem Content="{DynamicResource Lang_Todo_Sunday}"/>
+                                                </ComboBox>
+                                            </StackPanel>
+
+                                            <!-- 每月：选择几号 -->
+                                            <StackPanel x:Name="DetailMonthlyPanel" Visibility="Collapsed" Margin="0,0,0,8">
+                                                <TextBlock Text="{DynamicResource Lang_Todo_SelectDayOfMonth}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                                <ComboBox x:Name="DetailRepeatDayOfMonth" FontSize="12"
+                                                          Background="{DynamicResource BgElevatedBrush}"
+                                                          Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            </StackPanel>
+
+                                            <!-- 每年：选择月日 -->
+                                            <StackPanel x:Name="DetailYearlyPanel" Visibility="Collapsed" Margin="0,0,0,8">
+                                                <TextBlock Text="{DynamicResource Lang_Todo_SelectYearDate}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                                <Grid Margin="0,0,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="8"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <ComboBox x:Name="DetailRepeatMonth" Grid.Column="0" FontSize="12"
+                                                              Background="{DynamicResource BgElevatedBrush}"
+                                                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                    <ComboBox x:Name="DetailRepeatDay" Grid.Column="2" FontSize="12"
+                                                              Background="{DynamicResource BgElevatedBrush}"
+                                                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                </Grid>
+                                            </StackPanel>
+
                                             <TextBlock Text="{DynamicResource Lang_Todo_EndDate}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
                                             <DatePicker x:Name="DetailRepeatEndDate" FontSize="12" Margin="0,0,0,8"
                                                         Foreground="{DynamicResource TextPrimaryBrush}"/>

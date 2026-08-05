@@ -15,8 +15,42 @@ public partial class TodoView : UserControl
     public TodoView()
     {
         InitializeComponent();
+        InitializeRepeatComboBoxes();
         TodoStore.Instance.ItemsChanged += () => Dispatcher.BeginInvoke(LoadTodos);
         LoadTodos();
+    }
+
+    private void InitializeRepeatComboBoxes()
+    {
+        // 每月：1~31号
+        for (int i = 1; i <= 31; i++)
+            DetailRepeatDayOfMonth.Items.Add(new ComboBoxItem { Content = i.ToString() });
+
+        // 每年：月份
+        var monthNames = new[] { "1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月" };
+        foreach (var name in monthNames)
+            DetailRepeatMonth.Items.Add(new ComboBoxItem { Content = name });
+
+        // 每年：日期（动态，跟随月份变化）
+        RefreshYearlyDayItems();
+        DetailRepeatMonth.SelectionChanged += (_, _) => RefreshYearlyDayItems();
+    }
+
+    private void RefreshYearlyDayItems()
+    {
+        int month = DetailRepeatMonth.SelectedIndex + 1;
+        if (month < 1 || month > 12) month = 1;
+        int maxDay = DateTime.DaysInMonth(DateTime.Now.Year, month);
+        int prevSelected = DetailRepeatDay.SelectedIndex + 1;
+
+        DetailRepeatDay.Items.Clear();
+        for (int i = 1; i <= maxDay; i++)
+            DetailRepeatDay.Items.Add(new ComboBoxItem { Content = i.ToString() });
+
+        if (prevSelected > 0 && prevSelected <= maxDay)
+            DetailRepeatDay.SelectedIndex = prevSelected - 1;
+        else
+            DetailRepeatDay.SelectedIndex = maxDay - 1;
     }
 
     private void LoadTodos()
@@ -353,6 +387,29 @@ public partial class TodoView : UserControl
             DetailRepeatFreq.SelectedIndex = (int)item.RepeatConfig.Frequency + 1;
             DetailRepeatTime.Text = $"{item.RepeatConfig.ReminderHour:D2}:{item.RepeatConfig.ReminderMinute:D2}";
             DetailRepeatEndDate.SelectedDate = item.RepeatConfig.EndDate?.Date;
+
+            // 填充具体日选择
+            var config = item.RepeatConfig;
+            if (config.RepeatDayOfWeek.HasValue && config.RepeatDayOfWeek.Value >= 1 && config.RepeatDayOfWeek.Value <= 7)
+                DetailRepeatDayOfWeek.SelectedIndex = config.RepeatDayOfWeek.Value - 1;
+            else
+                DetailRepeatDayOfWeek.SelectedIndex = 0;
+
+            if (config.RepeatDayOfMonth.HasValue && config.RepeatDayOfMonth.Value >= 1 && config.RepeatDayOfMonth.Value <= 31)
+                DetailRepeatDayOfMonth.SelectedIndex = config.RepeatDayOfMonth.Value - 1;
+            else
+                DetailRepeatDayOfMonth.SelectedIndex = 0;
+
+            if (config.RepeatMonth.HasValue && config.RepeatMonth.Value >= 1 && config.RepeatMonth.Value <= 12)
+                DetailRepeatMonth.SelectedIndex = config.RepeatMonth.Value - 1;
+            else
+                DetailRepeatMonth.SelectedIndex = 0;
+
+            RefreshYearlyDayItems();
+            if (config.RepeatDay.HasValue && config.RepeatDay.Value >= 1 && config.RepeatDay.Value <= DetailRepeatDay.Items.Count)
+                DetailRepeatDay.SelectedIndex = config.RepeatDay.Value - 1;
+            else
+                DetailRepeatDay.SelectedIndex = 0;
         }
         else
         {
@@ -360,6 +417,11 @@ public partial class TodoView : UserControl
             DetailRepeatFreq.SelectedIndex = 0;
             DetailRepeatTime.Text = "09:00";
             DetailRepeatEndDate.SelectedDate = null;
+            DetailRepeatDayOfWeek.SelectedIndex = 0;
+            DetailRepeatDayOfMonth.SelectedIndex = 0;
+            DetailRepeatMonth.SelectedIndex = 0;
+            RefreshYearlyDayItems();
+            DetailRepeatDay.SelectedIndex = 0;
         }
 
         UpdateRepeatVisibility();
@@ -371,6 +433,12 @@ public partial class TodoView : UserControl
         var isRepeating = DetailRepeatFreq.SelectedIndex > 0;
         DetailNonRepeatSection.Visibility = isRepeating ? Visibility.Collapsed : Visibility.Visible;
         DetailRepeatFieldsSection.Visibility = isRepeating ? Visibility.Visible : Visibility.Collapsed;
+
+        // 根据频率显示对应的选择面板
+        int freqIdx = DetailRepeatFreq.SelectedIndex;
+        DetailWeeklyPanel.Visibility = freqIdx == 2 ? Visibility.Visible : Visibility.Collapsed;
+        DetailMonthlyPanel.Visibility = freqIdx == 3 ? Visibility.Visible : Visibility.Collapsed;
+        DetailYearlyPanel.Visibility = freqIdx == 4 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void DetailRepeatFreq_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -460,6 +528,21 @@ public partial class TodoView : UserControl
                 ReminderHour = Math.Clamp(hour, 0, 23),
                 ReminderMinute = Math.Clamp(minute, 0, 59),
             };
+
+            // 根据频率读取具体日选择
+            switch (frequency)
+            {
+                case ERepeatFrequency.Weekly:
+                    config.RepeatDayOfWeek = DetailRepeatDayOfWeek.SelectedIndex + 1;
+                    break;
+                case ERepeatFrequency.Monthly:
+                    config.RepeatDayOfMonth = DetailRepeatDayOfMonth.SelectedIndex + 1;
+                    break;
+                case ERepeatFrequency.Yearly:
+                    config.RepeatMonth = DetailRepeatMonth.SelectedIndex + 1;
+                    config.RepeatDay = DetailRepeatDay.SelectedIndex + 1;
+                    break;
+            }
 
             await TodoStore.Instance.SetRepeatConfigAsync(selected.Id, config);
         }
@@ -552,7 +635,11 @@ public partial class TodoView : UserControl
                         category: input.Category,
                         dueDate: input.DueDate,
                         reminderHour: input.ReminderHour,
-                        reminderMinute: input.ReminderMinute);
+                        reminderMinute: input.ReminderMinute,
+                        repeatDayOfWeek: input.RepeatDayOfWeek,
+                        repeatDayOfMonth: input.RepeatDayOfMonth,
+                        repeatMonth: input.RepeatMonth,
+                        repeatDay: input.RepeatDay);
                 }
                 else
                 {

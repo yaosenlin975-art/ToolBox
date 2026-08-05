@@ -114,6 +114,48 @@
                                      HorizontalContentAlignment="Center" MaxLength="2"/>
                         </StackPanel>
                     </StackPanel>
+
+                    <!-- 每周：选择星期几 -->
+                    <StackPanel x:Name="WeeklyDayPanel" Visibility="Collapsed" Margin="0,8,0,0">
+                        <TextBlock Text="选择星期" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="WeeklyDayCombo" FontSize="12"
+                                  Background="{DynamicResource BgSunkenBrush}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}">
+                            <ComboBoxItem Content="周一"/>
+                            <ComboBoxItem Content="周二"/>
+                            <ComboBoxItem Content="周三"/>
+                            <ComboBoxItem Content="周四"/>
+                            <ComboBoxItem Content="周五"/>
+                            <ComboBoxItem Content="周六"/>
+                            <ComboBoxItem Content="周日"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- 每月：选择几号 -->
+                    <StackPanel x:Name="MonthlyDayPanel" Visibility="Collapsed" Margin="0,8,0,0">
+                        <TextBlock Text="选择日期" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="MonthlyDayCombo" FontSize="12"
+                                  Background="{DynamicResource BgSunkenBrush}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </StackPanel>
+
+                    <!-- 每年：选择月日 -->
+                    <StackPanel x:Name="YearlyDatePanel" Visibility="Collapsed" Margin="0,8,0,0">
+                        <TextBlock Text="选择日期" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="YearlyMonthCombo" Grid.Column="0" FontSize="12"
+                                      Background="{DynamicResource BgSunkenBrush}"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <ComboBox x:Name="YearlyDayCombo" Grid.Column="2" FontSize="12"
+                                      Background="{DynamicResource BgSunkenBrush}"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </Grid>
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
                     <Button Content="取消" Width="72" Margin="0,0,8,0"

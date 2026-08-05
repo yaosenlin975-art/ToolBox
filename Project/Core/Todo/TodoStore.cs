@@ -169,7 +169,11 @@ public class TodoStore
         DateTime? dueDate = null,
         DateTime? endDate = null,
         int reminderHour = 9,
-        int reminderMinute = 0)
+        int reminderMinute = 0,
+        int? repeatDayOfWeek = null,
+        int? repeatDayOfMonth = null,
+        int? repeatMonth = null,
+        int? repeatDay = null)
     {
         await stateLock.WaitAsync();
         try
@@ -191,6 +195,10 @@ public class TodoStore
                     EndDate = endDateUtc,
                     ReminderHour = reminderHour,
                     ReminderMinute = reminderMinute,
+                    RepeatDayOfWeek = repeatDayOfWeek,
+                    RepeatDayOfMonth = repeatDayOfMonth,
+                    RepeatMonth = repeatMonth,
+                    RepeatDay = repeatDay,
                 },
                 LastResetAt = DateTime.UtcNow,
             };
@@ -257,7 +265,7 @@ public class TodoStore
                 if (!item.IsCompleted) continue;
                 var lastReset = item.LastResetAt ?? config.StartDate;
                 var nextReset = RepeatCalculator.CalculateNextResetTime(
-                    lastReset, config.Frequency, config.ReminderHour, config.ReminderMinute);
+                    lastReset, config.Frequency, config.ReminderHour, config.ReminderMinute, config);
                 if (DateTime.UtcNow >= nextReset)
                 {
                     item.IsCompleted = false;
@@ -298,7 +306,7 @@ public class TodoStore
 
         var anchor = item.LastResetAt ?? config.StartDate;
         var next = RepeatCalculator.GetNextOccurrence(
-            anchor, config.Frequency, DateTime.UtcNow, config.ReminderHour, config.ReminderMinute);
+            anchor, config.Frequency, DateTime.UtcNow, config.ReminderHour, config.ReminderMinute, config);
 
         var cronId = "repeat_" + item.Id;
         CronExpressionr.Instance.Unregister(cronId);

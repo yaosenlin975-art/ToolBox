@@ -15,6 +15,10 @@ public partial class InputWindow : Window
     public ERepeatFrequency? RepeatFrequency { get; private set; }
     public int ReminderHour { get; private set; } = 9;
     public int ReminderMinute { get; private set; } = 0;
+    public int? RepeatDayOfWeek { get; private set; }
+    public int? RepeatDayOfMonth { get; private set; }
+    public int? RepeatMonth { get; private set; }
+    public int? RepeatDay { get; private set; }
     private DispatcherTimer? dateParseDebounce;
     private DateTime? parsedDate;
 
@@ -25,6 +29,7 @@ public partial class InputWindow : Window
         TitleDisplay.Text = title;
         Prompt.Text = prompt;
         Input.Focus();
+        InitializeRepeatComboBoxes();
 
         dateParseDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         dateParseDebounce.Tick += (s, e) =>
@@ -32,6 +37,39 @@ public partial class InputWindow : Window
             dateParseDebounce.Stop();
             ParseDateFromInput();
         };
+    }
+
+    private void InitializeRepeatComboBoxes()
+    {
+        // 每月：1~31号
+        for (int i = 1; i <= 31; i++)
+            MonthlyDayCombo.Items.Add(new ComboBoxItem { Content = i.ToString() });
+
+        // 每年：月份
+        var monthNames = new[] { "1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月" };
+        foreach (var name in monthNames)
+            YearlyMonthCombo.Items.Add(new ComboBoxItem { Content = name });
+
+        // 每年：日期（动态，跟随月份变化）
+        RefreshYearlyDayItems();
+        YearlyMonthCombo.SelectionChanged += (_, _) => RefreshYearlyDayItems();
+    }
+
+    private void RefreshYearlyDayItems()
+    {
+        int month = YearlyMonthCombo.SelectedIndex + 1;
+        if (month < 1 || month > 12) month = 1;
+        int maxDay = DateTime.DaysInMonth(DateTime.Now.Year, month);
+        int prevSelected = YearlyDayCombo.SelectedIndex + 1;
+
+        YearlyDayCombo.Items.Clear();
+        for (int i = 1; i <= maxDay; i++)
+            YearlyDayCombo.Items.Add(new ComboBoxItem { Content = i.ToString() });
+
+        if (prevSelected > 0 && prevSelected <= maxDay)
+            YearlyDayCombo.SelectedIndex = prevSelected - 1;
+        else
+            YearlyDayCombo.SelectedIndex = maxDay - 1;
     }
 
     public void ShowTodoFields()
@@ -142,6 +180,25 @@ public partial class InputWindow : Window
             ReminderHour = Math.Clamp(h, 0, 23);
             ReminderMinute = Math.Clamp(m, 0, 59);
         }
+
+        // Read specific day selections
+        if (RepeatFrequency == ERepeatFrequency.Weekly)
+        {
+            int dow = WeeklyDayCombo.SelectedIndex + 1;
+            RepeatDayOfWeek = dow >= 1 && dow <= 7 ? dow : null;
+        }
+        if (RepeatFrequency == ERepeatFrequency.Monthly)
+        {
+            int dom = MonthlyDayCombo.SelectedIndex + 1;
+            RepeatDayOfMonth = dom >= 1 && dom <= 31 ? dom : null;
+        }
+        if (RepeatFrequency == ERepeatFrequency.Yearly)
+        {
+            int m = YearlyMonthCombo.SelectedIndex + 1;
+            int d = YearlyDayCombo.SelectedIndex + 1;
+            RepeatMonth = m >= 1 && m <= 12 ? m : null;
+            RepeatDay = d >= 1 && d <= 31 ? d : null;
+        }
     }
 
     private void Input_KeyDown(object sender, KeyEventArgs e)
@@ -170,5 +227,11 @@ public partial class InputWindow : Window
     {
         if (RepeatTimePanel != null)
             RepeatTimePanel.Visibility = RepeatCombo.SelectedIndex > 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (WeeklyDayPanel != null)
+            WeeklyDayPanel.Visibility = RepeatCombo.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
+        if (MonthlyDayPanel != null)
+            MonthlyDayPanel.Visibility = RepeatCombo.SelectedIndex == 3 ? Visibility.Visible : Visibility.Collapsed;
+        if (YearlyDatePanel != null)
+            YearlyDatePanel.Visibility = RepeatCombo.SelectedIndex == 4 ? Visibility.Visible : Visibility.Collapsed;
     }
 }

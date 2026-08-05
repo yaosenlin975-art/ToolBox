@@ -386,6 +386,16 @@
     <sys:String x:Key="Lang_Todo_AddTodoTitle">添加待办</sys:String>
     <sys:String x:Key="Lang_Todo_AddTodoPrompt">请输入待办标题:</sys:String>
     <sys:String x:Key="Lang_Todo_DefaultCategory">默认</sys:String>
+    <sys:String x:Key="Lang_Todo_SelectDayOfWeek">选择星期</sys:String>
+    <sys:String x:Key="Lang_Todo_SelectDayOfMonth">选择日期</sys:String>
+    <sys:String x:Key="Lang_Todo_SelectYearDate">选择日期</sys:String>
+    <sys:String x:Key="Lang_Todo_Monday">周一</sys:String>
+    <sys:String x:Key="Lang_Todo_Tuesday">周二</sys:String>
+    <sys:String x:Key="Lang_Todo_Wednesday">周三</sys:String>
+    <sys:String x:Key="Lang_Todo_Thursday">周四</sys:String>
+    <sys:String x:Key="Lang_Todo_Friday">周五</sys:String>
+    <sys:String x:Key="Lang_Todo_Saturday">周六</sys:String>
+    <sys:String x:Key="Lang_Todo_Sunday">周日</sys:String>
 
     <!-- Settings: Action Chains -->
     <sys:String x:Key="Lang_ActionChains">截图动作链</sys:String>

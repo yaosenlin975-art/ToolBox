@@ -386,6 +386,16 @@
     <sys:String x:Key="Lang_Todo_AddTodoTitle">Add Todo</sys:String>
     <sys:String x:Key="Lang_Todo_AddTodoPrompt">Enter todo title:</sys:String>
     <sys:String x:Key="Lang_Todo_DefaultCategory">Default</sys:String>
+    <sys:String x:Key="Lang_Todo_SelectDayOfWeek">Select Day of Week</sys:String>
+    <sys:String x:Key="Lang_Todo_SelectDayOfMonth">Select Day of Month</sys:String>
+    <sys:String x:Key="Lang_Todo_SelectYearDate">Select Date</sys:String>
+    <sys:String x:Key="Lang_Todo_Monday">Monday</sys:String>
+    <sys:String x:Key="Lang_Todo_Tuesday">Tuesday</sys:String>
+    <sys:String x:Key="Lang_Todo_Wednesday">Wednesday</sys:String>
+    <sys:String x:Key="Lang_Todo_Thursday">Thursday</sys:String>
+    <sys:String x:Key="Lang_Todo_Friday">Friday</sys:String>
+    <sys:String x:Key="Lang_Todo_Saturday">Saturday</sys:String>
+    <sys:String x:Key="Lang_Todo_Sunday">Sunday</sys:String>
 
     <!-- Settings: Action Chains -->
     <sys:String x:Key="Lang_ActionChains">Screenshot Action Chains</sys:String>
