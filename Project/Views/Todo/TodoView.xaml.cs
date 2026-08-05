@@ -24,19 +24,20 @@ public partial class TodoView : UserControl
         if (DrawerContainer == null) return;
         DrawerContainer.Children.Clear();
 
+        var sortByCompletion = currentFilter == "all";
         var grouped = currentFilter switch
         {
             "pending" => TodoStore.Instance.GetGroupedTree(pendingOnly: true),
             "completed" => GetGroupedCompleted(),
             "trashed" => GetGroupedTrashed(),
             "repeating" => GetGroupedRepeating(),
-            _ => TodoStore.Instance.GetGroupedTree()
+            _ => SortGroupedByCompletion(TodoStore.Instance.GetGroupedTree())
         };
 
         foreach (var (category, roots) in grouped)
         {
         var display = category == (string)FindResource("Lang_Todo_DefaultCategory") ? (string)FindResource("Lang_Todo_Uncategorized") : category;
-            var drawer = CreateDrawer(display, roots, category);
+            var drawer = CreateDrawer(display, roots, category, sortByCompletion);
             DrawerContainer.Children.Add(drawer);
         }
 
@@ -44,6 +45,21 @@ public partial class TodoView : UserControl
             ? Visibility.Visible
             : Visibility.Collapsed;
     }
+
+    private static Dictionary<string, List<TodoItem>> SortGroupedByCompletion(Dictionary<string, List<TodoItem>> grouped)
+    {
+        var result = new Dictionary<string, List<TodoItem>>(grouped.Count);
+        foreach (var (category, roots) in grouped)
+            result[category] = OrderByCompletion(roots);
+        return result;
+    }
+
+    // 同级内未完成在前、已完成在后；各组内部保持"优先级 → 截止日期"现有顺序
+    private static List<TodoItem> OrderByCompletion(List<TodoItem> items)
+        => items.OrderBy(t => t.IsCompleted)
+                .ThenBy(t => t.Priority == 0 ? 3 : t.Priority)
+                .ThenBy(t => t.DueDate ?? DateTime.MaxValue)
+                .ToList();
 
     private Dictionary<string, List<TodoItem>> GetGroupedCompleted()
     {
@@ -93,7 +109,7 @@ public partial class TodoView : UserControl
         return result;
     }
 
-    private Expander CreateDrawer(string display, List<TodoItem> roots, string storeCategory)
+    private Expander CreateDrawer(string display, List<TodoItem> roots, string storeCategory, bool sortByCompletion)
     {
         var expander = new Expander
         {
@@ -124,7 +140,7 @@ public partial class TodoView : UserControl
 
         var panel = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
         foreach (var item in roots)
-            AddItemAndChildren(panel, item, 0);
+            AddItemAndChildren(panel, item, 0, sortByCompletion);
         expander.Content = panel;
         return expander;
     }
@@ -148,11 +164,13 @@ public partial class TodoView : UserControl
         e.Handled = true;
     }
 
-    private void AddItemAndChildren(StackPanel panel, TodoItem item, int depth)
+    private void AddItemAndChildren(StackPanel panel, TodoItem item, int depth, bool sortByCompletion)
     {
         panel.Children.Add(CreateItemRow(item, depth));
-        foreach (var child in TodoStore.Instance.GetChildren(item.Id))
-            AddItemAndChildren(panel, child, depth + 1);
+        var children = TodoStore.Instance.GetChildren(item.Id);
+        if (sortByCompletion) children = OrderByCompletion(children);
+        foreach (var child in children)
+            AddItemAndChildren(panel, child, depth + 1, sortByCompletion);
     }
 
     private Border CreateItemRow(TodoItem item, int depth = 0)
