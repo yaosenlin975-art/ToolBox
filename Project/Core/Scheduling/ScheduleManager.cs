@@ -1,5 +1,5 @@
 using System.IO;
-using System.Windows;
+using ToolBox.Core.Native;
 using ToolBox.Models;
 
 namespace ToolBox.Core.Scheduling;
@@ -66,11 +66,21 @@ public static class ScheduleManager
 
     private static void CaptureFullScreen()
     {
-        // 虚拟屏幕覆盖所有显示器，含非主屏区域
-        var left = (int)SystemParameters.VirtualScreenLeft;
-        var top = (int)SystemParameters.VirtualScreenTop;
-        var width = (int)SystemParameters.VirtualScreenWidth;
-        var height = (int)SystemParameters.VirtualScreenHeight;
+        // 虚拟屏幕覆盖所有显示器（含非主屏，可为负坐标）。
+        // GetSystemMetrics(SM_*VIRTUALSCREEN) 返回物理像素尺寸，不受 DPI 虚拟化影响；
+        // 配合进程 DPI 感知（App 启动时 SetProcessDPIAware），CopyFromScreen 使用物理坐标，
+        // 125%/150%/200% 缩放下截图尺寸与分辨率均正确。模式与 CaptureWindow.cs 一致。
+        var left = NativeMethods.GetSystemMetrics(NativeMethods.SM_XVIRTUALSCREEN);
+        var top = NativeMethods.GetSystemMetrics(NativeMethods.SM_YVIRTUALSCREEN);
+        var width = NativeMethods.GetSystemMetrics(NativeMethods.SM_CXVIRTUALSCREEN);
+        var height = NativeMethods.GetSystemMetrics(NativeMethods.SM_CYVIRTUALSCREEN);
+        if (width <= 0 || height <= 0)
+        {
+            left = 0;
+            top = 0;
+            width = NativeMethods.GetSystemMetrics(NativeMethods.SM_CXSCREEN);
+            height = NativeMethods.GetSystemMetrics(NativeMethods.SM_CYSCREEN);
+        }
 
         using var bitmap = new System.Drawing.Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
         using var g = System.Drawing.Graphics.FromImage(bitmap);

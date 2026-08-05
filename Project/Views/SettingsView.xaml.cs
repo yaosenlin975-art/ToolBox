@@ -887,20 +887,20 @@ public partial class SettingsView : UserControl
         CategoryList.ItemsSource = TodoStore.Instance.Categories.ToList();
     }
 
-    private void AddCategory_Click(object sender, RoutedEventArgs e)
+    private async void AddCategory_Click(object sender, RoutedEventArgs e)
     {
         var name = NewCategoryInput.Text.Trim();
         if (string.IsNullOrEmpty(name)) return;
-        TodoStore.Instance.AddCategory(name);
+        await TodoStore.Instance.AddCategory(name);
         NewCategoryInput.Text = "";
         LoadCategories();
     }
 
-    private void DeleteCategory_Click(object sender, RoutedEventArgs e)
+    private async void DeleteCategory_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string name)
         {
-            TodoStore.Instance.RemoveCategory(name);
+            await TodoStore.Instance.RemoveCategory(name);
             LoadCategories();
         }
     }

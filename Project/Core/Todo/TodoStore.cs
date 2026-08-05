@@ -66,9 +66,9 @@ public class TodoStore
         return result;
     }
 
-    public void AddCategory(string name)
+    public async Task AddCategory(string name)
     {
-        stateLock.Wait();
+        await stateLock.WaitAsync();
         try
         {
             if (string.IsNullOrWhiteSpace(name)) return;
@@ -76,23 +76,23 @@ public class TodoStore
             if (!categories.Contains(trimmed))
             {
                 categories.Add(trimmed);
-                _ = SaveAsync();
+                await SaveAsync();
                 NotifyChanged();
             }
         }
         finally { stateLock.Release(); }
     }
 
-    public void RemoveCategory(string name)
+    public async Task RemoveCategory(string name)
     {
         if (name == "默认") return;
-        stateLock.Wait();
+        await stateLock.WaitAsync();
         try
         {
             categories.Remove(name);
             foreach (var item in items.Where(t => t.Category == name))
                 item.Category = "默认";
-            _ = SaveAsync();
+            await SaveAsync();
             NotifyChanged();
         }
         finally { stateLock.Release(); }
