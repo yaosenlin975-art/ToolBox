@@ -132,7 +132,7 @@
                 <StackPanel x:Name="MessagePanel" Orientation="Vertical"/>
             </ScrollViewer>
 
-            <Border Grid.Row="1" Padding="16,12"
+            <Border x:Name="InputAreaBorder" Grid.Row="1" Padding="16,12"
                     Background="{DynamicResource BgBrush}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
                 <Grid>

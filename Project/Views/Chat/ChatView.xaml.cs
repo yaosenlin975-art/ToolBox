@@ -31,6 +31,24 @@ public partial class ChatView : UserControl
         var isCompact = (bool)e.NewValue;
         view.SidebarColumn.Width = isCompact ? new GridLength(0) : new GridLength(220);
         view.SidebarBorder.Visibility = isCompact ? Visibility.Collapsed : Visibility.Visible;
+
+        view.MessageScroller.Padding = isCompact ? new Thickness(8, 4, 8, 4) : new Thickness(24, 16, 24, 8);
+        view.InputAreaBorder.Padding = isCompact ? new Thickness(8, 6, 8, 6) : new Thickness(16, 12, 16, 12);
+        view.InputBox.Padding = isCompact ? new Thickness(8, 6, 8, 6) : new Thickness(12, 10, 12, 10);
+        view.SendBtn.Padding = isCompact ? new Thickness(12, 4, 12, 4) : new Thickness(18, 8, 18, 8);
+
+        foreach (var child in view.MessagePanel.Children)
+        {
+            switch (child)
+            {
+                case MessageBubble bubble:
+                    bubble.IsCompactMode = isCompact;
+                    break;
+                case ToolCallCard card:
+                    card.IsCompactMode = isCompact;
+                    break;
+            }
+        }
     }
 
     public ChatView()
@@ -140,6 +158,7 @@ public partial class ChatView : UserControl
     private void AddMessageBubble(string role, string content, IList<ToolCallInfo>? toolCalls = null)
     {
         var bubble = new MessageBubble();
+        bubble.IsCompactMode = IsCompactMode;
         bubble.SetMessage(role, content);
         bubble.QuoteRequested += OnQuoteRequested;
         MessagePanel.Children.Add(bubble);
@@ -148,6 +167,7 @@ public partial class ChatView : UserControl
             foreach (var tc in toolCalls)
             {
                 var card = new ToolCallCard();
+                card.IsCompactMode = IsCompactMode;
                 card.SetToolCall(tc.Name, tc.Arguments, tc.Result, tc.IsError);
                 MessagePanel.Children.Add(card);
             }
@@ -188,6 +208,7 @@ public partial class ChatView : UserControl
         StatusText.Text = (string)FindResource("LLM.ChatWindow.Thinking");
 
         var assistantBubble = new MessageBubble();
+        assistantBubble.IsCompactMode = IsCompactMode;
         assistantBubble.SetMessage("assistant", "");
         assistantBubble.SetStreaming(true);
         MessagePanel.Children.Add(assistantBubble);
@@ -201,6 +222,7 @@ public partial class ChatView : UserControl
                 if (chunk.ToolCall != null)
                 {
                     var card = new ToolCallCard();
+                    card.IsCompactMode = IsCompactMode;
                     card.SetToolCall(chunk.ToolCall.Name, chunk.ToolCall.Arguments, null, false);
                     MessagePanel.Children.Add(card);
                 }

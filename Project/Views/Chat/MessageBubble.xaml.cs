@@ -8,8 +8,39 @@ namespace ToolBox.Views.Chat;
 public partial class MessageBubble : UserControl
 {
     private string _rawText = "";
+    private string _role = "assistant";
     private bool _needsRender;
     private int cachedChatFontSize = -1;
+
+    public static readonly DependencyProperty IsCompactModeProperty =
+        DependencyProperty.Register(nameof(IsCompactMode), typeof(bool), typeof(MessageBubble),
+            new PropertyMetadata(false, OnIsCompactModeChanged));
+
+    public bool IsCompactMode
+    {
+        get => (bool)GetValue(IsCompactModeProperty);
+        set => SetValue(IsCompactModeProperty, value);
+    }
+
+    private static void OnIsCompactModeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is MessageBubble bubble)
+            bubble.ApplyCompactStyles();
+    }
+
+    private void ApplyCompactStyles()
+    {
+        var compact = IsCompactMode;
+        BubbleBorder.Padding = compact ? new Thickness(8, 6, 8, 6) : new Thickness(12, 10, 12, 10);
+        BubbleBorder.MaxWidth = compact ? double.PositiveInfinity : 500;
+        RoleLabel.FontSize = compact ? 10 : 11;
+        StreamingDot.FontSize = compact ? 9 : 10;
+        Margin = _role == "assistant"
+            ? new Thickness(compact ? 8 : 16, 2, compact ? 8 : 16, 2)
+            : new Thickness(compact ? 8 : 16, compact ? 2 : 4, compact ? 8 : 16, compact ? 2 : 4);
+        if (cachedChatFontSize >= 0)
+            ContentDocument.FontSize = GetEffectiveFontSize();
+    }
 
     public MessageBubble()
     {
@@ -46,6 +77,7 @@ public partial class MessageBubble : UserControl
     public void SetMessage(string role, string content, bool showRole = false)
     {
         _rawText = content ?? "";
+        _role = role;
         _needsRender = false;
         RoleLabel.Text = role switch
         {
@@ -94,7 +126,7 @@ public partial class MessageBubble : UserControl
         RoleLabel.Foreground = fg;
         HorizontalAlignment = align;
         ContentDocument.Foreground = fg;
-        Margin = role == "assistant" ? new Thickness(16, 2, 16, 2) : new Thickness(16, 4, 16, 4);
+        ApplyCompactStyles();
 
         RenderMarkdown();
     }
@@ -132,8 +164,13 @@ public partial class MessageBubble : UserControl
 
         if (cachedChatFontSize < 0)
             cachedChatFontSize = ToolBox.Models.ToolBoxOption.Load().Data.ChatFontSize;
-        if (cachedChatFontSize > 0)
-            ContentDocument.FontSize = cachedChatFontSize;
+        ContentDocument.FontSize = GetEffectiveFontSize();
+    }
+
+    private double GetEffectiveFontSize()
+    {
+        var baseSize = cachedChatFontSize > 0 ? cachedChatFontSize : 13;
+        return IsCompactMode ? Math.Max(baseSize - 1, 10) : baseSize;
     }
 }
 
