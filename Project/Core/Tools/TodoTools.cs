@@ -31,8 +31,7 @@ public static class TodoTools
             if (parsed.HasDate) due = parsed.ParsedDate;
         }
 
-        if (!string.IsNullOrWhiteSpace(repeat)
-            && Enum.TryParse<ERepeatFrequency>(repeat, true, out var freq))
+        if (TryParseRepeatFrequency(repeat, out var freq))
         {
             var item = await TodoStore.Instance.AddRepeatingAsync(title, freq, description, priority, tags: tagList, dueDate: due);
             return $"已添加重复 Todo [{item.Id}]: {item.Title} ({freq})";
@@ -41,6 +40,27 @@ public static class TodoTools
         var normal = await TodoStore.Instance.AddAsync(title, description, priority, tags: tagList, dueDate: due);
         var dueInfo = due.HasValue ? $", 截止 {due:yyyy-MM-dd HH:mm}" : "";
         return $"已添加 Todo [{normal.Id}]: {normal.Title}{dueInfo}";
+    }
+
+    /// <summary>识别重复频率：支持英文枚举名（daily/weekly/...）与中文表达（每天/每周/每月/每年）</summary>
+    private static bool TryParseRepeatFrequency(string? repeat, out ERepeatFrequency frequency)
+    {
+        frequency = ERepeatFrequency.Daily;
+        if (string.IsNullOrWhiteSpace(repeat)) return false;
+        return repeat.Trim().ToLowerInvariant() switch
+        {
+            "每天" or "每日" or "daily" => Set(ERepeatFrequency.Daily, out frequency),
+            "每周" or "weekly" => Set(ERepeatFrequency.Weekly, out frequency),
+            "每月" or "monthly" => Set(ERepeatFrequency.Monthly, out frequency),
+            "每年" or "yearly" => Set(ERepeatFrequency.Yearly, out frequency),
+            _ => Enum.TryParse(repeat, true, out frequency)
+        };
+
+        static bool Set(ERepeatFrequency value, out ERepeatFrequency result)
+        {
+            result = value;
+            return true;
+        }
     }
 
     [Tool("list_todos", "查询 Todo 列表")]

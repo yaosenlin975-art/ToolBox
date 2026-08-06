@@ -492,7 +492,11 @@ public partial class CompactToolboxWindow : Window
                         category: input.Category,
                         dueDate: input.DueDate,
                         reminderHour: input.ReminderHour,
-                        reminderMinute: input.ReminderMinute);
+                        reminderMinute: input.ReminderMinute,
+                        repeatDayOfWeek: input.RepeatDayOfWeek,
+                        repeatDayOfMonth: input.RepeatDayOfMonth,
+                        repeatMonth: input.RepeatMonth,
+                        repeatDay: input.RepeatDay);
                 }
                 else
                 {

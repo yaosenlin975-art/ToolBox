@@ -81,6 +81,37 @@ public static class RepeatCalculator
             config.RepeatMonth, config.RepeatDay);
     }
 
+    /// <summary>
+    /// 判断某天是否为该重复配置的发生日（如"每周一""每月5号"只在对应日子发生），
+    /// 用于"今日重复"等按日聚合的显示，避免每周/每月/每年待办被当作每日任务展示。
+    /// </summary>
+    public static bool IsOccurrenceDay(DateTime day, RepeatConfig config, DateTime anchor)
+    {
+        var localDay = day.ToLocalTime().Date;
+        var localAnchor = anchor.ToLocalTime();
+
+        return config.Frequency switch
+        {
+            ERepeatFrequency.Daily => true,
+            ERepeatFrequency.Weekly => WeekdayOf(localDay) == (config.RepeatDayOfWeek ?? WeekdayOf(localAnchor)),
+            ERepeatFrequency.Monthly => localDay.Day == ClampDay(config.RepeatDayOfMonth ?? localAnchor.Day, localDay.Year, localDay.Month),
+            ERepeatFrequency.Yearly => localDay.Month == (config.RepeatMonth ?? localAnchor.Month)
+                                       && localDay.Day == ClampDay(config.RepeatDay ?? localAnchor.Day, localDay.Year, localDay.Month),
+            _ => true
+        };
+    }
+
+    /// <summary>超出当月天数时 clamp（与 NextMonthDay/NextYearDate 的重置语义一致，如 31 号 → 2 月 28 号）</summary>
+    private static int ClampDay(int day, int year, int month)
+        => Math.Min(day, DateTime.DaysInMonth(year, month));
+
+    /// <summary>1=周一 ~ 7=周日（与 RepeatConfig.RepeatDayOfWeek 语义一致）</summary>
+    private static int WeekdayOf(DateTime date)
+    {
+        var dow = (int)date.DayOfWeek; // .NET: Sunday=0 ~ Saturday=6
+        return dow == 0 ? 7 : dow;
+    }
+
     private static DateTime NextWeekday(DateTime anchor, int? targetDayOfWeek)
     {
         if (!targetDayOfWeek.HasValue)

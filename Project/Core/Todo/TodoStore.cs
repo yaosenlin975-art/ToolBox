@@ -215,15 +215,16 @@ public class TodoStore
     public List<TodoItem> GetRepeating()
         => items.Where(t => t.RepeatConfig != null && !t.IsTrashed).ToList();
 
-    /// <summary>获取今日应显示的重复待办（仅未完成项）</summary>
+    /// <summary>获取今日应显示的重复待办（仅未完成项，且今天为该待办的发生日，避免每周/每月待办被当作每日任务）</summary>
     public List<TodoItem> GetDueRepeating()
     {
-        var now = DateTime.UtcNow.Date;
+        var now = DateTime.UtcNow;
         return items.Where(t =>
                 t.RepeatConfig != null
                 && !t.IsTrashed
                 && !t.IsCompleted
-                && (t.RepeatConfig.EndDate == null || now <= t.RepeatConfig.EndDate.Value.Date))
+                && (t.RepeatConfig.EndDate == null || now.Date <= t.RepeatConfig.EndDate.Value.Date)
+                && RepeatCalculator.IsOccurrenceDay(now, t.RepeatConfig, t.LastResetAt ?? t.RepeatConfig.StartDate))
             .OrderBy(t => t.DueDate ?? DateTime.MaxValue)
             .ToList();
     }
