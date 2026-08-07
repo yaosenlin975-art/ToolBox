@@ -1,0 +1,44 @@
+<Window x:Class="ToolBox.Views.Todo.TodoRepeatToast"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="待办提醒" Width="360" SizeToContent="Height"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Background="Transparent"
+        Topmost="True">
+    <Border Background="{DynamicResource BgElevatedBrush}"
+            BorderBrush="{DynamicResource BorderDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource RadiusMd}"
+            Padding="16,14"
+            Effect="{StaticResource ShadowMd}">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="{StaticResource RadiusFull}"
+                    Background="{DynamicResource AccentSoftBrush}" VerticalAlignment="Top">
+                <Path Data="{StaticResource IconRepeat}" Width="18" Height="18" Stretch="Uniform"
+                      Fill="{DynamicResource AccentBrush}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                <TextBlock x:Name="TitleText" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <TextBlock x:Name="MessageText" FontSize="13" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+            </StackPanel>
+            <Button Grid.Column="2" Width="24" Height="24" Margin="8,0,0,0"
+                    VerticalAlignment="Top" Style="{StaticResource IconButton}"
+                    Click="OnClose">
+                <Path Data="{StaticResource IconClose}" Width="10" Height="10" Stretch="Uniform"
+                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+            </Button>
+        </Grid>
+    </Border>
+</Window>

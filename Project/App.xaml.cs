@@ -109,19 +109,18 @@ public partial class App : Application
         // 可重复待办：补齐 + 通知 + 注册提醒
         TodoStore.Instance.RepeatReminderTriggered += (item, wasReset) =>
         {
-            // 事件可能由 Cron 后台线程触发，编组到 UI 线程执行托盘通知
+            // 事件可能由 Cron 后台线程触发，编组到 UI 线程执行通知弹窗
             var disp = Dispatcher;
             if (disp == null) return;
             disp.BeginInvoke(new Action(() =>
             {
-                var tray = MainWindow?.TrayIcon;
-                if (tray == null) return;
                 try
                 {
-                    if (wasReset)
-                        tray.ShowBalloon("🔄 " + item.Title, $"{item.Title} 已重置，记得完成哦");
-                    else
-                        tray.ShowBalloon(item.Title, $"{item.Title} 今天还没有完成哦");
+                    var title = wasReset ? "🔄 " + item.Title : item.Title;
+                    var message = string.Format(
+                        (FindResource(wasReset ? "Lang_TodoRepeatReset" : "Lang_TodoRepeatPending") as string) ?? "{0}",
+                        item.Title);
+                    Views.Todo.TodoRepeatToast.ShowToast(title, message);
                 }
                 catch { /* best-effort */ }
             }));

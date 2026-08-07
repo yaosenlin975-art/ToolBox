@@ -396,6 +396,8 @@
     <sys:String x:Key="Lang_Todo_Friday">周五</sys:String>
     <sys:String x:Key="Lang_Todo_Saturday">周六</sys:String>
     <sys:String x:Key="Lang_Todo_Sunday">周日</sys:String>
+    <sys:String x:Key="Lang_TodoRepeatReset">{0} 已重置，记得完成哦</sys:String>
+    <sys:String x:Key="Lang_TodoRepeatPending">{0} 今天还没有完成哦</sys:String>
 
     <!-- Settings: Action Chains -->
     <sys:String x:Key="Lang_ActionChains">截图动作链</sys:String>
