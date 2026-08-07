@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿# ToolBox 设计文档
+﻿# ToolBox 设计文档
 
 ## 项目概述
 
@@ -108,6 +108,7 @@ Project/
 │   │   └── BoolToVisibilityConverter.cs
 │   ├── Todo/
 │   │   ├── TodoView.xaml/.cs          # 待办视图（嵌入工作台 todos 页，65/35 双栏）
+│   │   ├── TodoRepeatToast.xaml/.cs   # 重复待办提醒弹窗（应用风格通知卡片）
 │   ├── SettingsView.xaml/.cs          # 设置视图（嵌入工作台 settings 页）
 │   ├── HotkeyInputWindow.xaml/.cs     # 快捷键录入
 │   ├── Paint/                         # 绘图工具
@@ -236,10 +237,12 @@ Agent 在对话循环中最多执行 10 轮工具调用，每轮最多 3 次重�
 ### 待办管理
 
 - **数据模型扩展** — `TodoItem` 新增字段：
-  - `Progress`（int, 0-100, 默认 0；拖动条调节；`Progress=100` 自动同步 `IsDone=true`，反之 `IsDone=true` 时 `Progress` 强制为 100）
+  - `Progress`（int, 0-100, 默认 0）
+    - **叶子节点**（无子任务）：手动拖动条调节；`IsCompleted=true` 时自动置 100
+    - **父节点**（有子任务）：自动计算，不可手动修改；公式：`round(所有子任务的进度百分比之和 / 子任务数量)`；递归生效（子任务若有自己的子任务，同样按此规则聚合）
   - `StartDate`（DateTime?, 可空, 默认创建当天）
   - `DueDate`（DateTime?, 可空, 即截止日期）
-  - `Children`（List<TodoItem>, 子任务列表, 支持多层递归嵌套；父任务进度可由子任务聚合：`Parent.Progress = Σ(子 Progress * 子权重) / Σ(子权重)`，权重按子任务是否已完成归一化）
+  - `Children`（List<TodoItem>, 子任务列表, 支持多层递归嵌套；父节点进度由子节点聚合，规则见 Progress 字段说明）
   - `RepeatConfig`（RepeatConfig?, 可空, 有值则代表该待办为重复待办；配置频率/提醒时间/结束日期等；空 = 普通待办）
   - `LastResetAt`（DateTime?, 可空, 重复待办最近一次重置时间，用于补齐判断；普通待办为 null）
 - **迷你窗口** — 仅显示未完成项（`IsDone=false`），按 `DueDate` 升序，无 `DueDate` 排末尾；checkbox 切换状态 + 快速添加；不显示子任务层级（仅顶层项）
@@ -247,11 +250,17 @@ Agent 在对话循环中最多执行 10 轮工具调用，每轮最多 3 次重�
 - **LLM 集成** — `TodoTools` 允许 LLM 增删改查（add/list/complete/delete/update）
 - **同级排序** — "全部"视图中，已完成待办项自动下沉至同级未完成项下方（层级关系不变，仅调整显示顺序）
 - **详情面板联动** — 按"重复频率"下拉值联动显隐字段：频率=不重复时显示截止日期与完成进度；频率≠不重复时显示提醒时间与结束日期
+- **进度与完成 toggle 交互约束**：
+  - 有子任务的待办项：Progress 进度条**禁用**（只读），值由子任务完成情况自动计算；完成 toggle 在 Progress < 100 时**禁用**（不可点击），Progress = 100 时**启用**（用户手动点击标记完成；Progress = 100 不自动触发完成，因为可能后续新增子任务）
+  - 无子任务的叶子待办项：Progress 进度条**可用**（手动调节）；完成 toggle **可用**（无约束）；勾选完成时自动将 Progress 置为 100
+  - 递归：若子任务自身也有子任务，上述规则对子任务同样成立
+  - 子任务增删时，父级 Progress 实时重算并反映在 UI 上
 
-> **注意**: 上述 `Progress`、`StartDate`、`Children` 字段在当前代码中均未实现（`TodoItem.cs` 仅有基础字段）。这些是设计目标，待后续迭代补齐。
+> **注意**: `Progress` 字段已存在于 `TodoItem.cs`，但当前为纯手动设置，无自动计算与交互约束逻辑；`Children` 通过 `ParentId` 外键实现，`TodoStore.GetChildren()` 可获取子任务列表；`StartDate` 未实现。以上设计目标待后续迭代补齐。
 
 
 - **可重复待办（重置模型）** — 同一 TodoItem 按周期重置状态：`TodoItem.RepeatConfig` 定义重复规则（Daily/Weekly/Monthly/Yearly），到提醒时间（Cron 触发）自动将 `IsCompleted` 改回 `false` 并弹通知；完成重复项时行为与普通项一致（只标记完成）；启动时 `CatchUpRepeatingAsync` 遍历已完成且已过重置时间的项，重置为未完成（一次）；迷你窗口按「今日重复 / 普通待办」分组显示；详见 `Docs/recurring-todo-design.md`
+- **重复待办提醒弹窗（TodoRepeatToast）** — 系统托盘气球替换为应用风格通知卡片：BgElevatedBrush 卡片 + BorderDefaultBrush 边框 + RadiusMd 圆角 + ShadowMd 阴影 + AccentSoftBrush 圆底 IconRepeat 强调图标 + X 关闭按钮；右下角堆叠定位（间距 8px）、10 秒自动关闭、关闭后其余弹窗补位；与 ReminderToast 范式一致，全部走设计令牌，Light/Dark 双主题自适应；位于 `Project/Views/Todo/TodoRepeatToast.xaml(.cs)`
 ### 设置
 
 - 通过迷你窗口 `☰` 按钮或托盘菜单打开 WorkbenchWindow，导航至 `settings` 页
