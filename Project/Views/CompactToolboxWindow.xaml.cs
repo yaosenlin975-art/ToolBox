@@ -238,23 +238,14 @@ public partial class CompactToolboxWindow : Window
             foreach (var item in roots)
             {
                 if (repeatingIds.Contains(item.Id)) continue;
-                AddCompactItemAndChildren(panel, item, 0);
+                // 迷你窗口不显示子任务层级，仅渲染顶层项（父任务进度由子任务自动聚合展示）
+                panel.Children.Add(CreateCompactItemRow(item, 0));
             }
             drawer.Content = panel;
             TodoItemsPanel.Children.Add(drawer);
         }
 
         FitTodoHeight();
-    }
-
-    private void AddCompactItemAndChildren(StackPanel panel, TodoItem item, int depth)
-    {
-        panel.Children.Add(CreateCompactItemRow(item, depth));
-        foreach (var child in TodoStore.Instance.GetChildren(item.Id))
-        {
-            if (child.IsCompleted) continue;
-            AddCompactItemAndChildren(panel, child, depth + 1);
-        }
     }
 
     private Border CreateCompactItemRow(TodoItem item, int depth)
