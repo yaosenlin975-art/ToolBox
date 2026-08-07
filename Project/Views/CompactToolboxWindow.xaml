@@ -68,12 +68,12 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
-                        <Border CornerRadius="{StaticResource RadiusXs}" Background="#33FFFFFF" Width="24" Height="4" ClipToBounds="True">
-                            <Border x:Name="Fill" CornerRadius="{StaticResource RadiusXs}" HorizontalAlignment="Left" Background="#4CAF50" Height="4"/>
+                        <Border x:Name="PART_Track" CornerRadius="{StaticResource RadiusXs}" Background="#33FFFFFF" Width="24" Height="4" ClipToBounds="True">
+                            <Border x:Name="PART_Indicator" CornerRadius="{StaticResource RadiusXs}" HorizontalAlignment="Left" Background="#4CAF50" Height="4"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <DataTrigger Binding="{Binding Value, RelativeSource={RelativeSource Self}}" Value="0">
-                                <Setter TargetName="Fill" Property="Visibility" Value="Collapsed"/>
+                                <Setter TargetName="PART_Indicator" Property="Visibility" Value="Collapsed"/>
                             </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

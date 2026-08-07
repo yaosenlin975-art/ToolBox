@@ -615,11 +615,14 @@ public class TodoStore
                 .ToList();
 
     // --- Tree structure ---
-    public List<TodoItem> GetChildren(string parentId)
-        => items.Where(t => t.ParentId == parentId && !t.IsTrashed)
-                .OrderBy(t => t.Priority == 0 ? 3 : t.Priority)
-                .ThenBy(t => t.DueDate ?? DateTime.MaxValue)
-                .ToList();
+    public List<TodoItem> GetChildren(string parentId, bool pendingOnly = false)
+    {
+        var query = items.Where(t => t.ParentId == parentId && !t.IsTrashed);
+        if (pendingOnly) query = query.Where(t => !t.IsCompleted);
+        return query.OrderBy(t => t.Priority == 0 ? 3 : t.Priority)
+                    .ThenBy(t => t.DueDate ?? DateTime.MaxValue)
+                    .ToList();
+    }
 
     public List<TodoItem> GetRoots(string category, bool pendingOnly = false)
     {

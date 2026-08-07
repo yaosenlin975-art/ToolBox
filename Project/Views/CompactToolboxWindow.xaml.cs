@@ -250,7 +250,7 @@ public partial class CompactToolboxWindow : Window
     private void AddCompactItemAndChildren(StackPanel panel, TodoItem item, int depth)
     {
         panel.Children.Add(CreateCompactItemRow(item, depth));
-        var children = TodoStore.Instance.GetChildren(item.Id);
+        var children = TodoStore.Instance.GetChildren(item.Id, pendingOnly: true);
         foreach (var child in children)
             AddCompactItemAndChildren(panel, child, depth + 1);
     }
@@ -298,16 +298,6 @@ public partial class CompactToolboxWindow : Window
         grid.Children.Add(title);
 
         var rightStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
-        if (item.Progress > 0)
-        {
-            var pbar = new ProgressBar
-            {
-                Value = item.Progress, Width = 24, Height = 4,
-                Margin = new Thickness(0, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center
-            };
-            pbar.SetResourceReference(StyleProperty, "HealthBar");
-            rightStack.Children.Add(pbar);
-        }
         if (item.Priority > 0 && !item.IsCompleted)
         {
             var priText = item.Priority == 2 ? "\u7D27\u6025" : "\u91CD\u8981";
@@ -326,6 +316,16 @@ public partial class CompactToolboxWindow : Window
             badgeText.SetResourceReference(TextBlock.ForegroundProperty, priBrushKey);
             badge.Child = badgeText;
             rightStack.Children.Add(badge);
+        }
+        if (item.Progress > 0)
+        {
+            var pbar = new ProgressBar
+            {
+                Value = item.Progress, Width = 24, Height = 4,
+                Margin = new Thickness(0, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center
+            };
+            pbar.SetResourceReference(StyleProperty, "HealthBar");
+            rightStack.Children.Add(pbar);
         }
         if (item.DueDate.HasValue)
         {
