@@ -30,6 +30,16 @@
 - **LLM流式输出** (CSH-14)：Agent流式直出chunk+ChatView落盘LLM回复
 - **右键菜单主题适配**：新增全局ContextMenu/MenuItem/Separator样式，清理托盘菜单硬编码样式
 
+## [2026-08-07] 待办进度自动计算 + 迷你窗口子任务递归 + 提醒弹窗风格统一
+
+### 新功能
+- **待办进度自动计算** (CSH-37)：TodoStore 新增 RecalculateProgress 递归聚合（round(Σ 子任务.Progress / 子任务数量)），Complete/Uncomplete/Add/Trash/Restore/DeletePermanently 后自动重算父级；叶子完成自动置100/取消保持；UpdateAsync 禁止父节点手动写进度；TodoDetailWindow 与 TodoView 详情面板父节点滑块禁用+进度文本淡化+toggle 仅 Progress>=100 可点；ModernSlider 补禁用态透明度
+- **迷你窗口子任务递归显示** (CSH-38)：CompactToolboxWindow 改为 AddCompactItemAndChildren 递归渲染，子任务 depth×16px 缩进；GetChildren 支持 pendingOnly 过滤已完成子任务；rightStack 顺序改为紧急标签→进度条→截止日期；HealthBar 模板改用 PART_Indicator 使进度填充实际渲染
+- **迷你窗口父任务 toggle 禁用** (CSH-36)：主视图与迷你窗口 checkbox IsEnabled 增加 hasChildren 检查（有子任务且 Progress<100 时禁用），与 TodoDetailWindow 约束一致
+
+### 修复
+- **重复待办提醒弹窗风格统一** (CSH-35)：替换系统托盘气球为 TodoRepeatToast（设计令牌样式，右下角堆叠，10秒自动关闭），通知文案本地化
+
 ## [2026-XX-XX] 可重复待办并发安全加固
 
 ### 变更内容
