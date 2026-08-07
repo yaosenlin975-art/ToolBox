@@ -266,7 +266,8 @@ public partial class CompactToolboxWindow : Window
         var cb = new CheckBox
         {
             IsChecked = item.IsCompleted, Margin = new Thickness(0, 0, 6, 0),
-            VerticalAlignment = VerticalAlignment.Center, DataContext = item
+            VerticalAlignment = VerticalAlignment.Center, DataContext = item,
+            IsEnabled = !item.IsTrashed && !(TodoStore.Instance.GetChildren(item.Id).Count > 0 && item.Progress < 100)
         };
         cb.SetResourceReference(StyleProperty, "ModernCheckBox");
         cb.Checked += CompactTodoCheck_Changed;

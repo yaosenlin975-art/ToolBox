@@ -219,7 +219,7 @@ public partial class TodoView : UserControl
         {
             IsChecked = item.IsCompleted, Margin = new Thickness(0, 0, 10, 0),
             VerticalAlignment = VerticalAlignment.Center, DataContext = item,
-            IsEnabled = !item.IsTrashed
+            IsEnabled = !item.IsTrashed && !(TodoStore.Instance.GetChildren(item.Id).Count > 0 && item.Progress < 100)
         };
         cb.SetResourceReference(StyleProperty, "ModernCheckBox");
         cb.Checked += DoneCheck_Changed;
