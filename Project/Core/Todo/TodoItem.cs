@@ -23,5 +23,7 @@ public class TodoItem
 
     public bool IsRepeating => RepeatConfig != null;
 
+    public bool HasChildren => false; // 实际由 TodoStore 判断，此处仅为标记意图
+
     public string StatusText => IsCompleted ? "✅ 已完成" : "○ 待办";
 }

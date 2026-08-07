@@ -350,9 +350,27 @@ public partial class TodoView : UserControl
                     await TodoStore.Instance.CompleteAsync(item.Id);
                 else
                     await TodoStore.Instance.UncompleteAsync(item.Id);
+                RefreshDetailProgressIfAffected(item.Id);
             }
         }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
+    }
+
+    // 勾选/取消勾选后，若详情面板选中的是该待办或其祖先，同步自动计算出的进度
+    private void RefreshDetailProgressIfAffected(string changedId)
+    {
+        if (selected == null || DetailProgress == null) return;
+        var cur = TodoStore.Instance.Items.FirstOrDefault(t => t.Id == changedId);
+        while (cur != null)
+        {
+            if (cur.Id == selected.Id)
+            {
+                DetailProgress.Value = selected.Progress;
+                DetailProgressText.Text = selected.Progress + "%";
+                return;
+            }
+            cur = TodoStore.Instance.Items.FirstOrDefault(t => t.Id == cur.ParentId);
+        }
     }
 
     private void ShowDetail(TodoItem item)
@@ -373,6 +391,12 @@ public partial class TodoView : UserControl
         DetailDueDate.SelectedDate = item.DueDate?.ToLocalTime();
         DetailProgress.Value = item.Progress;
         DetailProgressText.Text = item.Progress + "%";
+        // 父节点进度由子任务聚合：滑块只读 + 文本淡化
+        bool hasChildren = TodoStore.Instance.GetChildren(item.Id).Count > 0;
+        DetailProgress.IsEnabled = !hasChildren;
+        DetailProgressText.Foreground = hasChildren
+            ? (Brush)FindResource("TextTertiaryBrush")
+            : (Brush)FindResource("TextSecondaryBrush");
         DetailCategory.Text = item.Category == (string)FindResource("Lang_Todo_DefaultCategory") ? "" : item.Category;
 
         // Trash/Restore button visibility
@@ -488,6 +512,8 @@ public partial class TodoView : UserControl
         if (selected == null || DetailProgressText == null) return;
         int val = (int)e.NewValue;
         DetailProgressText.Text = val + "%";
+        // 父节点进度由子任务聚合，禁止手动写入
+        if (TodoStore.Instance.GetChildren(selected.Id).Count > 0) return;
         if (val != selected.Progress)
             await TodoStore.Instance.UpdateAsync(selected.Id, progress: val);
     }

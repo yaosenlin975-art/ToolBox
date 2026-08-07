@@ -45,11 +45,20 @@ public partial class TodoDetailWindow : Window
         ProgressSlider.Value = item.Progress;
         ProgressText.Text = item.Progress + "%";
 
+        // 交互约束：有子任务的父节点进度由子任务聚合——滑块只读、进度文本淡化；
+        // 完成 toggle 仅当进度 = 100 时可点击（防止完成后再加子任务导致状态矛盾）
+        var children = TodoStore.Instance.GetChildren(item.Id);
+        bool hasChildren = children.Count > 0;
+        ProgressSlider.IsEnabled = !hasChildren;
+        IsCompleted.IsEnabled = hasChildren ? item.Progress >= 100 : true;
+        ProgressText.Foreground = hasChildren
+            ? (Brush)FindResource("TextTertiaryBrush")
+            : (Brush)FindResource("TextSecondaryBrush");
+
         DescriptionBox.Text = item.Description;
 
         // Subtasks
         SubTasksList.Children.Clear();
-        var children = TodoStore.Instance.GetChildren(item.Id);
         SubTasksHeader.Visibility = children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var child in children)
             SubTasksList.Children.Add(CreateSubtaskRow(child));
@@ -118,15 +127,18 @@ public partial class TodoDetailWindow : Window
                 await TodoStore.Instance.CompleteAsync(ci.Id);
             else
                 await TodoStore.Instance.UncompleteAsync(ci.Id);
+            Populate(); // 刷新父任务自动进度/滑块/toggle 状态
         }
     }
 
     private async void Completed_Changed(object sender, RoutedEventArgs e)
     {
+        if (IsCompleted.IsChecked == item.IsCompleted) return; // Populate 回填，非用户操作
         if (IsCompleted.IsChecked == true)
             await TodoStore.Instance.CompleteAsync(item.Id);
         else
             await TodoStore.Instance.UncompleteAsync(item.Id);
+        Populate();
     }
 
     private async void DeleteBtn_Click(object sender, RoutedEventArgs e)

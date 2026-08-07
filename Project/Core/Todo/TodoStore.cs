@@ -116,6 +116,7 @@ public class TodoStore
                 SessionId = sessionId
             };
             items.Add(item);
+            if (parentId != null) RecalculateAndAncestorsCore(parentId);
             await SaveAsync();
             NotifyChanged();
             return item;
@@ -132,6 +133,9 @@ public class TodoStore
             if (item == null) return false;
             item.IsCompleted = true;
             item.CompletedAt = DateTime.UtcNow;
+            // 叶子节点勾选完成自动置进度 100；父节点进度由子任务聚合，不在此修改
+            if (!HasChildren(id)) item.Progress = 100;
+            RecalculateAndAncestorsCore(id);
             await SaveAsync();
             NotifyChanged();
             return true;
@@ -148,11 +152,78 @@ public class TodoStore
             if (item == null) return false;
             item.IsCompleted = false;
             item.CompletedAt = null;
+            // 取消完成不重置进度（保持当前值，用户可手动调回）
+            RecalculateAndAncestorsCore(id);
             await SaveAsync();
             NotifyChanged();
             return true;
         }
         finally { stateLock.Release(); }
+    }
+
+    // ─── 进度自动计算 ────────────────────────────────────────────────
+
+    /// <summary>重算指定待办的自动进度：仅对含子任务的父节点生效（叶子节点保持手动设置），递归先更新各子任务自身进度</summary>
+    public async Task RecalculateProgress(string todoId)
+    {
+        await stateLock.WaitAsync();
+        try
+        {
+            if (RecalculateProgressCore(todoId))
+            {
+                await SaveAsync();
+                NotifyChanged();
+            }
+        }
+        finally { stateLock.Release(); }
+    }
+
+    /// <summary>递归重算 todoId 的进度（须在 stateLock 内调用）：先对各子任务自身递归重算，再按已完成子任务占比聚合；叶子节点不修改，返回是否发生变更</summary>
+    private bool RecalculateProgressCore(string todoId)
+    {
+        var item = items.FirstOrDefault(t => t.Id == todoId);
+        if (item == null || item.IsTrashed) return false;
+        var children = GetChildren(todoId);
+        if (children.Count == 0) return false;
+
+        bool changed = false;
+        foreach (var child in children)
+            changed |= RecalculateProgressCore(child.Id);
+
+        int completed = children.Count(c => c.IsCompleted);
+        int progress = (int)Math.Round(completed * 100.0 / children.Count, MidpointRounding.AwayFromZero);
+        if (item.Progress != progress)
+        {
+            item.Progress = progress;
+            changed = true;
+        }
+        return changed;
+    }
+
+    /// <summary>从 id 向上逐级重算所有祖先的进度（须在 stateLock 内调用）；返回是否发生变更</summary>
+    private bool RecalculateAncestorsCore(string id)
+    {
+        var parentId = items.FirstOrDefault(t => t.Id == id)?.ParentId;
+        bool changed = false;
+        while (parentId != null)
+        {
+            changed |= RecalculateProgressCore(parentId);
+            parentId = items.FirstOrDefault(t => t.Id == parentId)?.ParentId;
+        }
+        return changed;
+    }
+
+    /// <summary>重算 id 自身（若为父节点）及其所有祖先的进度（须在 stateLock 内调用）；返回是否发生变更</summary>
+    private bool RecalculateAndAncestorsCore(string id)
+    {
+        bool changed = RecalculateProgressCore(id);
+        var parentId = items.FirstOrDefault(t => t.Id == id)?.ParentId;
+        while (parentId != null)
+        {
+            changed |= RecalculateProgressCore(parentId);
+            parentId = items.FirstOrDefault(t => t.Id == parentId)?.ParentId;
+        }
+        return changed;
     }
 
     // ─── 重复待办 ────────────────────────────────────────────────
@@ -428,7 +499,8 @@ public class TodoStore
             }
             if (tags != null) item.Tags = tags;
             if (dueDate.HasValue) item.DueDate = dueDate;
-            if (progress.HasValue) item.Progress = progress.Value;
+            // 父节点进度由子任务聚合，禁止手动覆盖
+            if (progress.HasValue && !HasChildren(id)) item.Progress = progress.Value;
             await SaveAsync();
             NotifyChanged();
             return true;
@@ -440,7 +512,18 @@ public class TodoStore
     public async Task<bool> TrashAsync(string id)
     {
         await stateLock.WaitAsync();
-        try { await TrashCoreAsync(id); return true; }
+        try
+        {
+            var item = items.FirstOrDefault(t => t.Id == id);
+            if (item == null) return false;
+            await TrashCoreAsync(id);
+            if (RecalculateAncestorsCore(id))
+            {
+                await SaveAsync();
+                NotifyChanged();
+            }
+            return true;
+        }
         finally { stateLock.Release(); }
     }
 
@@ -465,7 +548,18 @@ public class TodoStore
     public async Task<bool> RestoreAsync(string id)
     {
         await stateLock.WaitAsync();
-        try { await RestoreCoreAsync(id); return true; }
+        try
+        {
+            var item = items.FirstOrDefault(t => t.Id == id);
+            if (item == null) return false;
+            await RestoreCoreAsync(id);
+            if (RecalculateAndAncestorsCore(id))
+            {
+                await SaveAsync();
+                NotifyChanged();
+            }
+            return true;
+        }
         finally { stateLock.Release(); }
     }
 
@@ -486,7 +580,18 @@ public class TodoStore
     public async Task<bool> DeletePermanentlyAsync(string id)
     {
         await stateLock.WaitAsync();
-        try { return await DeletePermanentlyCoreAsync(id); }
+        try
+        {
+            // 先记录父级 id：删除后该 item 已不在列表中，无法再向上查找
+            var parentId = items.FirstOrDefault(t => t.Id == id)?.ParentId;
+            var result = await DeletePermanentlyCoreAsync(id);
+            if (parentId != null && RecalculateAndAncestorsCore(parentId))
+            {
+                await SaveAsync();
+                NotifyChanged();
+            }
+            return result;
+        }
         finally { stateLock.Release(); }
     }
 
