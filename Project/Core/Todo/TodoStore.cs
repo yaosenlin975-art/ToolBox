@@ -178,7 +178,7 @@ public class TodoStore
         finally { stateLock.Release(); }
     }
 
-    /// <summary>递归重算 todoId 的进度（须在 stateLock 内调用）：先对各子任务自身递归重算，再按已完成子任务占比聚合；叶子节点不修改，返回是否发生变更</summary>
+    /// <summary>递归重算 todoId 的进度（须在 stateLock 内调用）：先对各子任务自身递归重算，再取子任务进度百分比的平均值（四舍五入）；叶子节点不修改，返回是否发生变更</summary>
     private bool RecalculateProgressCore(string todoId)
     {
         var item = items.FirstOrDefault(t => t.Id == todoId);
@@ -190,8 +190,8 @@ public class TodoStore
         foreach (var child in children)
             changed |= RecalculateProgressCore(child.Id);
 
-        int completed = children.Count(c => c.IsCompleted);
-        int progress = (int)Math.Round(completed * 100.0 / children.Count, MidpointRounding.AwayFromZero);
+        double avg = children.Average(c => c.Progress);
+        int progress = (int)Math.Round(avg, MidpointRounding.AwayFromZero);
         if (item.Progress != progress)
         {
             item.Progress = progress;
@@ -499,8 +499,12 @@ public class TodoStore
             }
             if (tags != null) item.Tags = tags;
             if (dueDate.HasValue) item.DueDate = dueDate;
-            // 父节点进度由子任务聚合，禁止手动覆盖
-            if (progress.HasValue && !HasChildren(id)) item.Progress = progress.Value;
+            // 父节点进度由子任务聚合，禁止手动覆盖；叶子手动进度需向上传播（父级为子进度平均值）
+            if (progress.HasValue && !HasChildren(id))
+            {
+                item.Progress = progress.Value;
+                RecalculateAndAncestorsCore(id);
+            }
             await SaveAsync();
             NotifyChanged();
             return true;
