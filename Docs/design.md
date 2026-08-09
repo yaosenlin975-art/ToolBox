@@ -256,7 +256,7 @@ Agent 在对话循环中最多执行 10 轮工具调用，每轮最多 3 次重�
   - 递归：若子任务自身也有子任务，上述规则对子任务同样成立
   - 子任务增删时，父级 Progress 实时重算并反映在 UI 上
 
-> **注意**: `Progress` 字段已存在于 `TodoItem.cs`，但当前为纯手动设置，无自动计算与交互约束逻辑；`Children` 通过 `ParentId` 外键实现，`TodoStore.GetChildren()` 可获取子任务列表；`StartDate` 未实现。以上设计目标待后续迭代补齐。
+> **已完成**: `Progress` 自动计算与交互约束逻辑已实现（CSH-37），`Children` 通过 `ParentId` 外键 + `TodoStore.GetChildren()` 实现递归聚合。
 
 
 - **可重复待办（重置模型）** — 同一 TodoItem 按周期重置状态：`TodoItem.RepeatConfig` 定义重复规则（Daily/Weekly/Monthly/Yearly），到提醒时间（Cron 触发）自动将 `IsCompleted` 改回 `false` 并弹通知；完成重复项时行为与普通项一致（只标记完成）；启动时 `CatchUpRepeatingAsync` 遍历已完成且已过重置时间的项，重置为未完成（一次）；迷你窗口按「今日重复 / 普通待办」分组显示；详见 `Docs/recurring-todo-design.md`
