@@ -52,3 +52,11 @@
 
 ### 背景
 Cron 定时器在后台线程触发 `ResetRepeatingAsync`/`CatchUpRepeatingAsync`，与 UI 线程的 `CompleteAsync` 等操作并发读写同一 `items` 集合。原 `writeLock` 仅保护持久化，数据读改写未加锁，存在竞态。启动兜底（`CatchUpRepeatingAsync`）虽能弥补漏重置，但彻底串行化数据操作可消除隐患。
+
+## [2026-08-17] 待办模块 Bug 修复
+
+### 修复
+- **TodoDetailWindow 标题栏拖拽** (CSH-40)：无边框窗口标题栏 Border 添加 `MouseLeftButtonDown` 事件处理器 + `DragMove()` 逻辑，与项目中其他 7 个无边框窗口实现保持一致
+- **子任务完成后父任务勾选框不可用** (CSH-41)：历史数据中已完成但 Progress<100 的叶子导致父节点均值计算永达不到 100；修复：`RecalculateProgressCore` 已完成子任务按 100 计 + `Load()` 启动时自愈重算 + 三处视图勾选框判定改为「无子任务或所有子任务已完成」
+- **CloseDialogWindow 文字遮挡** (CSH-42)：移除 `BtnMinimize` 固定 `Width="130"`，改为内容自适应 + 显式 `Padding="16,8"`
+- **待办类别分组 Expander 头部未显示类别名称** (CSH-44)：`DrawerExpander` 样式中 `ToggleButton` 增加 `Content="{TemplateBinding Header}"`、头部 `ContentPresenter` 增加 `ContentSource="Content"`、移除多余的 `<ContentPresenter/>`（影响 TodoView + CompactToolboxWindow）
