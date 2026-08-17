@@ -188,6 +188,11 @@ public partial class TodoDetailWindow : Window
             await TodoStore.Instance.UpdateAsync(item.Id, description: DescriptionBox.Text);
     }
 
+    private void OnTitleBarMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left) DragMove();
+    }
+
     private void CloseBtn_Click(object sender, RoutedEventArgs e) => Close();
 
     protected override void OnClosed(EventArgs e)

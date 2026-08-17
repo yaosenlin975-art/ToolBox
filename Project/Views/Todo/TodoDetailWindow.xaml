@@ -13,7 +13,8 @@
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <Border Grid.Row="0" Padding="16,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+            <Border Grid.Row="0" Padding="16,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+                    MouseLeftButtonDown="OnTitleBarMouseDown">
                 <Grid>
                     <TextBlock Text="任务详情" FontSize="14" FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
