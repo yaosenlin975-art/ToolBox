@@ -178,7 +178,7 @@ public class TodoStore
         finally { stateLock.Release(); }
     }
 
-    /// <summary>递归重算 todoId 的进度（须在 stateLock 内调用）：先对各子任务自身递归重算，再取子任务进度百分比的平均值（四舍五入）；叶子节点不修改，返回是否发生变更</summary>
+    /// <summary>递归重算 todoId 的进度（须在 stateLock 内调用）：先对各子任务自身递归重算，再取子任务进度百分比的平均值（四舍五入，已完成子任务按 100 计，兼容历史数据"已完成但进度<100"）；叶子节点不修改，返回是否发生变更</summary>
     private bool RecalculateProgressCore(string todoId)
     {
         var item = items.FirstOrDefault(t => t.Id == todoId);
@@ -190,7 +190,7 @@ public class TodoStore
         foreach (var child in children)
             changed |= RecalculateProgressCore(child.Id);
 
-        double avg = children.Average(c => c.Progress);
+        double avg = children.Average(c => c.IsCompleted ? 100 : c.Progress);
         int progress = (int)Math.Round(avg, MidpointRounding.AwayFromZero);
         if (item.Progress != progress)
         {
@@ -673,6 +673,10 @@ public class TodoStore
                     categories.AddRange(data.Categories);
                 }
             }
+            // 自愈：历史数据可能存在"已完成但进度<100"的叶子（CSH-37 之前完成），
+            // 加载后按"已完成=100"的规则重算所有父节点，保证聚合进度与完成状态一致
+            foreach (var root in items.Where(t => t.ParentId == null).ToList())
+                RecalculateAndAncestorsCore(root.Id);
         }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
     }

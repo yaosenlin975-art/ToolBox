@@ -263,11 +263,12 @@ public partial class CompactToolboxWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
+        var children = TodoStore.Instance.GetChildren(item.Id);
         var cb = new CheckBox
         {
             IsChecked = item.IsCompleted, Margin = new Thickness(0, 0, 6, 0),
             VerticalAlignment = VerticalAlignment.Center, DataContext = item,
-            IsEnabled = !item.IsTrashed && !(TodoStore.Instance.GetChildren(item.Id).Count > 0 && item.Progress < 100)
+            IsEnabled = !item.IsTrashed && (children.Count == 0 || children.All(c => c.IsCompleted))
         };
         cb.SetResourceReference(StyleProperty, "ModernCheckBox");
         cb.Checked += CompactTodoCheck_Changed;

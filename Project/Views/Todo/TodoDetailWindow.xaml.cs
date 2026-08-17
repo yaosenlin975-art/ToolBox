@@ -46,11 +46,11 @@ public partial class TodoDetailWindow : Window
         ProgressText.Text = item.Progress + "%";
 
         // 交互约束：有子任务的父节点进度由子任务聚合——滑块只读、进度文本淡化；
-        // 完成 toggle 仅当进度 = 100 时可点击（防止完成后再加子任务导致状态矛盾）
+        // 完成 toggle 仅当所有子任务均已完成时可点击（防止完成后再加子任务导致状态矛盾）
         var children = TodoStore.Instance.GetChildren(item.Id);
         bool hasChildren = children.Count > 0;
         ProgressSlider.IsEnabled = !hasChildren;
-        IsCompleted.IsEnabled = hasChildren ? item.Progress >= 100 : true;
+        IsCompleted.IsEnabled = !hasChildren || children.All(c => c.IsCompleted);
         ProgressText.Foreground = hasChildren
             ? (Brush)FindResource("TextTertiaryBrush")
             : (Brush)FindResource("TextSecondaryBrush");
