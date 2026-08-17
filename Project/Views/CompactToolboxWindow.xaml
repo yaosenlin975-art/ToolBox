@@ -90,7 +90,7 @@
                     <ControlTemplate TargetType="Expander">
                         <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,0,3">
                             <DockPanel>
-                                <ToggleButton x:Name="Toggle" DockPanel.Dock="Top" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}" Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="8,6">
+                                <ToggleButton x:Name="Toggle" DockPanel.Dock="Top" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}" Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="8,6" Content="{TemplateBinding Header}">
                                     <ToggleButton.Template>
                                         <ControlTemplate TargetType="ToggleButton">
                                             <Border Background="Transparent" Padding="8,6">
@@ -102,7 +102,7 @@
                                                     <TextBlock x:Name="Arrow" Text="&#x25BC;" FontSize="9" Margin="0,0,6,0" Foreground="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
                                                         <TextBlock.RenderTransform><RotateTransform Angle="0"/></TextBlock.RenderTransform>
                                                     </TextBlock>
-                                                    <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+                                                    <ContentPresenter Grid.Column="1" VerticalAlignment="Center" ContentSource="Content"/>
                                                 </Grid>
                                             </Border>
                                             <ControlTemplate.Triggers>
@@ -117,7 +117,6 @@
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
                                     </ToggleButton.Template>
-                                    <ContentPresenter/>
                                 </ToggleButton>
                                 <Border x:Name="Content" DockPanel.Dock="Bottom" Padding="6,0,6,6">
                                     <ContentPresenter ContentSource="Content"/>
