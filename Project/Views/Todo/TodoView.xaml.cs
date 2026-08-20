@@ -15,42 +15,8 @@ public partial class TodoView : UserControl
     public TodoView()
     {
         InitializeComponent();
-        InitializeRepeatComboBoxes();
         TodoStore.Instance.ItemsChanged += () => Dispatcher.BeginInvoke(LoadTodos);
         LoadTodos();
-    }
-
-    private void InitializeRepeatComboBoxes()
-    {
-        // 每月：1~31号
-        for (int i = 1; i <= 31; i++)
-            DetailRepeatDayOfMonth.Items.Add(new ComboBoxItem { Content = i.ToString() });
-
-        // 每年：月份
-        var monthNames = new[] { "1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月" };
-        foreach (var name in monthNames)
-            DetailRepeatMonth.Items.Add(new ComboBoxItem { Content = name });
-
-        // 每年：日期（动态，跟随月份变化）
-        RefreshYearlyDayItems();
-        DetailRepeatMonth.SelectionChanged += (_, _) => RefreshYearlyDayItems();
-    }
-
-    private void RefreshYearlyDayItems()
-    {
-        int month = DetailRepeatMonth.SelectedIndex + 1;
-        if (month < 1 || month > 12) month = 1;
-        int maxDay = DateTime.DaysInMonth(DateTime.Now.Year, month);
-        int prevSelected = DetailRepeatDay.SelectedIndex + 1;
-
-        DetailRepeatDay.Items.Clear();
-        for (int i = 1; i <= maxDay; i++)
-            DetailRepeatDay.Items.Add(new ComboBoxItem { Content = i.ToString() });
-
-        if (prevSelected > 0 && prevSelected <= maxDay)
-            DetailRepeatDay.SelectedIndex = prevSelected - 1;
-        else
-            DetailRepeatDay.SelectedIndex = maxDay - 1;
     }
 
     private void LoadTodos()
@@ -360,14 +326,14 @@ public partial class TodoView : UserControl
     // 勾选/取消勾选后，若详情面板选中的是该待办或其祖先，同步自动计算出的进度
     private void RefreshDetailProgressIfAffected(string changedId)
     {
-        if (selected == null || DetailProgress == null) return;
+        if (selected == null) return;
         var cur = TodoStore.Instance.Items.FirstOrDefault(t => t.Id == changedId);
         while (cur != null)
         {
             if (cur.Id == selected.Id)
             {
-                DetailProgress.Value = selected.Progress;
-                DetailProgressText.Text = selected.Progress + "%";
+                // 刷新共享详情面板的进度显示
+                DetailPanel.ShowDetail(selected);
                 return;
             }
             cur = TodoStore.Instance.Items.FirstOrDefault(t => t.Id == cur.ParentId);
@@ -378,269 +344,14 @@ public partial class TodoView : UserControl
     {
         EmptyHint.Visibility = Visibility.Collapsed;
         DetailPanel.Visibility = Visibility.Visible;
-
-        DetailTitle.Text = item.Title;
-        DetailDesc.Text = item.Description;
-        DetailStatusText.Text = item.IsCompleted ? (string)FindResource("Lang_Todo_StatusCompleted") : (item.IsTrashed ? (string)FindResource("Lang_Todo_StatusTrashed") : (string)FindResource("Lang_Todo_StatusPending"));
-        DetailCreated.Text = item.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
-        DetailCompleted.Text = item.CompletedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—";
-
-        PriLow.IsChecked = item.Priority == 0;
-        PriMid.IsChecked = item.Priority == 1;
-        PriHigh.IsChecked = item.Priority == 2;
-
-        DetailDueDate.SelectedDate = item.DueDate?.ToLocalTime();
-        DetailProgress.Value = item.Progress;
-        DetailProgressText.Text = item.Progress + "%";
-        // 父节点进度由子任务聚合：滑块只读 + 文本淡化
-        bool hasChildren = TodoStore.Instance.GetChildren(item.Id).Count > 0;
-        DetailProgress.IsEnabled = !hasChildren;
-        DetailProgressText.Foreground = hasChildren
-            ? (Brush)FindResource("TextTertiaryBrush")
-            : (Brush)FindResource("TextSecondaryBrush");
-        DetailCategory.Text = item.Category == (string)FindResource("Lang_Todo_DefaultCategory") ? "" : item.Category;
-
-        // Trash/Restore button visibility
-        var isTrashed = item.IsTrashed;
-        DetailTrashBtn.Visibility = isTrashed ? Visibility.Collapsed : Visibility.Visible;
-        DetailRestoreBtn.Visibility = isTrashed ? Visibility.Visible : Visibility.Collapsed;
-
-        // Repeat config section
-        if (item.RepeatConfig != null)
-        {
-            DetailRepeatSection.Visibility = Visibility.Visible;
-            DetailRepeatFreq.SelectedIndex = (int)item.RepeatConfig.Frequency + 1;
-            DetailRepeatTime.Text = $"{item.RepeatConfig.ReminderHour:D2}:{item.RepeatConfig.ReminderMinute:D2}";
-            DetailRepeatEndDate.SelectedDate = item.RepeatConfig.EndDate?.Date;
-
-            // 填充具体日选择
-            var config = item.RepeatConfig;
-            if (config.RepeatDayOfWeek.HasValue && config.RepeatDayOfWeek.Value >= 1 && config.RepeatDayOfWeek.Value <= 7)
-                DetailRepeatDayOfWeek.SelectedIndex = config.RepeatDayOfWeek.Value - 1;
-            else
-                DetailRepeatDayOfWeek.SelectedIndex = 0;
-
-            if (config.RepeatDayOfMonth.HasValue && config.RepeatDayOfMonth.Value >= 1 && config.RepeatDayOfMonth.Value <= 31)
-                DetailRepeatDayOfMonth.SelectedIndex = config.RepeatDayOfMonth.Value - 1;
-            else
-                DetailRepeatDayOfMonth.SelectedIndex = 0;
-
-            if (config.RepeatMonth.HasValue && config.RepeatMonth.Value >= 1 && config.RepeatMonth.Value <= 12)
-                DetailRepeatMonth.SelectedIndex = config.RepeatMonth.Value - 1;
-            else
-                DetailRepeatMonth.SelectedIndex = 0;
-
-            RefreshYearlyDayItems();
-            if (config.RepeatDay.HasValue && config.RepeatDay.Value >= 1 && config.RepeatDay.Value <= DetailRepeatDay.Items.Count)
-                DetailRepeatDay.SelectedIndex = config.RepeatDay.Value - 1;
-            else
-                DetailRepeatDay.SelectedIndex = 0;
-        }
-        else
-        {
-            DetailRepeatSection.Visibility = Visibility.Visible; // 仍然显示，用于首次设置
-            DetailRepeatFreq.SelectedIndex = 0;
-            DetailRepeatTime.Text = "09:00";
-            DetailRepeatEndDate.SelectedDate = null;
-            DetailRepeatDayOfWeek.SelectedIndex = 0;
-            DetailRepeatDayOfMonth.SelectedIndex = 0;
-            DetailRepeatMonth.SelectedIndex = 0;
-            RefreshYearlyDayItems();
-            DetailRepeatDay.SelectedIndex = 0;
-        }
-
-        UpdateRepeatVisibility();
-    }
-
-    private void UpdateRepeatVisibility()
-    {
-        if (DetailNonRepeatSection == null || DetailRepeatFieldsSection == null) return;
-        var isRepeating = DetailRepeatFreq.SelectedIndex > 0;
-        DetailNonRepeatSection.Visibility = isRepeating ? Visibility.Collapsed : Visibility.Visible;
-        DetailRepeatFieldsSection.Visibility = isRepeating ? Visibility.Visible : Visibility.Collapsed;
-
-        // 根据频率显示对应的选择面板
-        int freqIdx = DetailRepeatFreq.SelectedIndex;
-        DetailWeeklyPanel.Visibility = freqIdx == 2 ? Visibility.Visible : Visibility.Collapsed;
-        DetailMonthlyPanel.Visibility = freqIdx == 3 ? Visibility.Visible : Visibility.Collapsed;
-        DetailYearlyPanel.Visibility = freqIdx == 4 ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private void DetailRepeatFreq_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        UpdateRepeatVisibility();
+        DetailPanel.ShowDetail(item);
     }
 
     private void HideDetail()
     {
         EmptyHint.Visibility = Visibility.Visible;
         DetailPanel.Visibility = Visibility.Collapsed;
-    }
-
-    private async void DetailTitle_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (selected == null) return;
-        var t = DetailTitle.Text.Trim();
-        if (!string.IsNullOrEmpty(t) && t != selected.Title)
-            await TodoStore.Instance.UpdateAsync(selected.Id, title: t);
-    }
-
-    private async void DetailDesc_LostFocus(object sender, RoutedEventArgs e)
-    {
-        if (selected == null) return;
-        if (DetailDesc.Text != selected.Description)
-            await TodoStore.Instance.UpdateAsync(selected.Id, description: DetailDesc.Text);
-    }
-
-    private async void Priority_Changed(object sender, RoutedEventArgs e)
-    {
-        if (selected == null) return;
-        int p = PriHigh.IsChecked == true ? 2 : PriMid.IsChecked == true ? 1 : 0;
-        if (p != selected.Priority)
-            await TodoStore.Instance.UpdateAsync(selected.Id, priority: p);
-    }
-
-    private async void DetailDueDate_Changed(object sender, SelectionChangedEventArgs e)
-    {
-        if (selected == null) return;
-        DateTime? val = DetailDueDate.SelectedDate?.ToUniversalTime();
-        if (val != selected.DueDate)
-            await TodoStore.Instance.UpdateAsync(selected.Id, dueDate: val);
-    }
-
-    private async void DetailProgress_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (selected == null || DetailProgressText == null) return;
-        int val = (int)e.NewValue;
-        DetailProgressText.Text = val + "%";
-        // 父节点进度由子任务聚合，禁止手动写入
-        if (TodoStore.Instance.GetChildren(selected.Id).Count > 0) return;
-        if (val != selected.Progress)
-            await TodoStore.Instance.UpdateAsync(selected.Id, progress: val);
-    }
-
-    private async void DetailRepeatSave_Click(object sender, RoutedEventArgs e)
-    {
-        if (selected == null) return;
-
-        var freqIndex = DetailRepeatFreq.SelectedIndex;
-
-        // "不重复" → 取消重复
-        if (freqIndex == 0)
-        {
-            await TodoStore.Instance.SetRepeatConfigAsync(selected.Id, null);
-        }
-        else
-        {
-            var frequency = (ERepeatFrequency)(freqIndex - 1);
-
-            // Parse reminder time with validation
-            var timeStr = DetailRepeatTime.Text.Trim();
-            int hour = 9, minute = 0;
-            if (TimeSpan.TryParse(timeStr, out var ts))
-            {
-                hour = ts.Hours;
-                minute = ts.Minutes;
-            }
-
-            DateTime? endDate = DetailRepeatEndDate.SelectedDate;
-            if (endDate.HasValue)
-                endDate = endDate.Value.ToUniversalTime();
-
-            var config = new RepeatConfig
-            {
-                Frequency = frequency,
-                StartDate = DateTime.UtcNow.Date,
-                EndDate = endDate,
-                ReminderHour = Math.Clamp(hour, 0, 23),
-                ReminderMinute = Math.Clamp(minute, 0, 59),
-            };
-
-            // 根据频率读取具体日选择
-            switch (frequency)
-            {
-                case ERepeatFrequency.Weekly:
-                    config.RepeatDayOfWeek = DetailRepeatDayOfWeek.SelectedIndex + 1;
-                    break;
-                case ERepeatFrequency.Monthly:
-                    config.RepeatDayOfMonth = DetailRepeatDayOfMonth.SelectedIndex + 1;
-                    break;
-                case ERepeatFrequency.Yearly:
-                    config.RepeatMonth = DetailRepeatMonth.SelectedIndex + 1;
-                    config.RepeatDay = DetailRepeatDay.SelectedIndex + 1;
-                    break;
-            }
-
-            await TodoStore.Instance.SetRepeatConfigAsync(selected.Id, config);
-        }
-
-        ShowDetail(selected); // Refresh display
-    }
-
-    private async void DetailTrash_Click(object sender, RoutedEventArgs e)
-    {
-        if (selected == null) return;
-        await TodoStore.Instance.TrashAsync(selected.Id);
-        selected = null;
-        HideDetail();
-    }
-
-    private async void DetailRestore_Click(object sender, RoutedEventArgs e)
-    {
-        if (selected == null) return;
-        await TodoStore.Instance.RestoreAsync(selected.Id);
-        selected = null;
-        HideDetail();
-    }
-
-    private async void DetailCategory_LostFocus(object sender, RoutedEventArgs e)
-    {
-        CategorySuggestions.Visibility = Visibility.Collapsed;
-        if (selected == null) return;
-        var cat = DetailCategory.Text.Trim();
-        cat = string.IsNullOrEmpty(cat) ? (string)FindResource("Lang_Todo_DefaultCategory") : cat;
-        if (cat != selected.Category)
-            await TodoStore.Instance.UpdateAsync(selected.Id, category: cat);
-    }
-
-    private void DetailCategory_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        UpdateCategorySuggestions(DetailCategory.Text.Trim());
-    }
-
-    private void CategorySuggestion_Selected(object sender, SelectionChangedEventArgs e)
-    {
-        if (CategorySuggestions.SelectedItem is not string cat) return;
-        DetailCategory.Text = cat;
-        DetailCategory.CaretIndex = cat.Length;
-        CategorySuggestions.Visibility = Visibility.Collapsed;
-    }
-
-    private void UpdateCategorySuggestions(string filter)
-    {
-        var cats = TodoStore.Instance.Categories
-            .Where(c => c != (string)FindResource("Lang_Todo_DefaultCategory") && (string.IsNullOrEmpty(filter) || c.Contains(filter, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-        if (cats.Count == 0 || cats[0].Equals(filter, StringComparison.OrdinalIgnoreCase))
-        {
-            CategorySuggestions.Visibility = Visibility.Collapsed;
-            return;
-        }
-        CategorySuggestions.ItemsSource = cats;
-        CategorySuggestions.Visibility = Visibility.Visible;
-    }
-
-    private async void AddSubTodo_Click(object sender, RoutedEventArgs e)
-    {
-        if (selected == null) return;
-        var input = new InputWindow((string)FindResource("Lang_Todo_AddSubtaskTitle"), (string)FindResource("Lang_Todo_AddSubtaskPrompt"));
-        input.ShowTodoFields();
-        if (await input.ShowNonModalAsync(Window.GetWindow(this)) && !string.IsNullOrWhiteSpace(input.Value))
-        {
-            await TodoStore.Instance.AddAsync(input.Value.Trim(), priority: input.Priority,
-                category: selected.Category, dueDate: input.DueDate, parentId: selected.Id);
-            ShowDetail(selected);
-        }
+        DetailPanel.HideDetail();
     }
 
     private async void FloatingAddBtn_Click(object sender, RoutedEventArgs e)

@@ -1,0 +1,249 @@
+<UserControl x:Class="ToolBox.Views.Todo.TodoDetailPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{DynamicResource BgElevatedBrush}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="DetailPanel" Margin="16,12">
+                <!-- Title (editable) -->
+                <TextBox x:Name="DetailTitle" FontSize="16" FontWeight="SemiBold"
+                         Background="Transparent" BorderThickness="0,0,0,2" BorderBrush="Transparent"
+                         Padding="0,4" Margin="0,0,0,12"
+                         Foreground="{DynamicResource TextPrimaryBrush}"
+                         CaretBrush="{DynamicResource AccentBrush}"
+                         LostFocus="DetailTitle_LostFocus"/>
+
+                <!-- Status badge + Completed checkbox -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                    <Border x:Name="DetailStatusBadge" CornerRadius="{StaticResource RadiusMd}" Padding="10,2"
+                            Background="{DynamicResource AccentSoftBrush}">
+                        <TextBlock x:Name="DetailStatusText" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentBrush}"/>
+                    </Border>
+                    <CheckBox x:Name="IsCompleted" Content="完成" FontSize="11" Margin="12,0,0,0"
+                              VerticalAlignment="Center"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
+                              Checked="Completed_Changed" Unchecked="Completed_Changed"/>
+                </StackPanel>
+
+                <!-- Category -->
+                <TextBlock Text="分类" FontSize="11" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                <Grid Margin="0,0,0,12" Width="220" HorizontalAlignment="Left">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBox x:Name="DetailCategory" Grid.Row="0" FontSize="12" Padding="6,4"
+                             Background="{DynamicResource BgSunkenBrush}"
+                             Foreground="{DynamicResource TextPrimaryBrush}"
+                             BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
+                             CaretBrush="{DynamicResource TextPrimaryBrush}"
+                             TextChanged="DetailCategory_TextChanged"
+                             LostFocus="DetailCategory_LostFocus"/>
+                    <ListBox x:Name="CategorySuggestions" Grid.Row="1" MaxHeight="100" Margin="0,2,0,0"
+                             Visibility="Collapsed" FontSize="11"
+                             Background="{DynamicResource BgElevatedBrush}"
+                             BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"
+                             SelectionChanged="CategorySuggestion_Selected"/>
+                </Grid>
+
+                <!-- Priority -->
+                <TextBlock Text="优先级" FontSize="11" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                    <RadioButton x:Name="PriLow" Content="普通" Margin="0,0,6,0"
+                                 Style="{StaticResource PriOptionStyle}" Click="Priority_Changed"/>
+                    <RadioButton x:Name="PriMid" Content="重要" Margin="0,0,6,0"
+                                 Style="{StaticResource PriOptionStyle}" Click="Priority_Changed"/>
+                    <RadioButton x:Name="PriHigh" Content="紧急"
+                                 Style="{StaticResource PriOptionStyle}" Click="Priority_Changed"/>
+                </StackPanel>
+
+                <!-- Non-repeat fields: due date + progress -->
+                <StackPanel x:Name="DetailNonRepeatSection">
+                    <TextBlock Text="截止日期" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                    <DatePicker x:Name="DetailDueDate" FontSize="12" Margin="0,0,0,12"
+                                SelectedDateChanged="DetailDueDate_Changed"
+                                Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                    <TextBlock Text="进度" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Slider x:Name="DetailProgress" Grid.Column="0" Minimum="0" Maximum="100"
+                                TickFrequency="10" IsSnapToTickEnabled="True" TickPlacement="None"
+                                Style="{StaticResource ModernSlider}"
+                                ValueChanged="DetailProgress_Changed"/>
+                        <TextBlock x:Name="DetailProgressText" Grid.Column="1" Text="0%" Width="36"
+                                   TextAlignment="Right" FontSize="12" Margin="8,0,0,0"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Repeat config -->
+                <Border x:Name="DetailRepeatSection" Margin="0,0,0,12" Padding="0" BorderThickness="0"
+                        Visibility="Collapsed">
+                    <StackPanel>
+                        <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="{StaticResource RadiusSm}" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="重复设置" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+
+                                <TextBlock Text="频率" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                <ComboBox x:Name="DetailRepeatFreq" FontSize="12" SelectedIndex="0" Margin="0,0,0,8"
+                                          SelectionChanged="DetailRepeatFreq_SelectionChanged"
+                                          Background="{DynamicResource BgElevatedBrush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}">
+                                    <ComboBoxItem Content="不重复"/>
+                                    <ComboBoxItem Content="每天"/>
+                                    <ComboBoxItem Content="每周"/>
+                                    <ComboBoxItem Content="每月"/>
+                                    <ComboBoxItem Content="每年"/>
+                                </ComboBox>
+
+                                <StackPanel x:Name="DetailRepeatFieldsSection">
+                                    <TextBlock Text="提醒时间" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="DetailRepeatTime" Grid.Column="0" FontSize="12" Padding="6,4"
+                                                 Text="09:00"
+                                                 Background="{DynamicResource BgSunkenBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"/>
+                                    </Grid>
+
+                                    <!-- 每周：选择星期几 -->
+                                    <StackPanel x:Name="DetailWeeklyPanel" Visibility="Collapsed" Margin="0,0,0,8">
+                                        <TextBlock Text="选择星期" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                        <ComboBox x:Name="DetailRepeatDayOfWeek" FontSize="12"
+                                                  Background="{DynamicResource BgElevatedBrush}"
+                                                  Foreground="{DynamicResource TextPrimaryBrush}">
+                                            <ComboBoxItem Content="周一"/>
+                                            <ComboBoxItem Content="周二"/>
+                                            <ComboBoxItem Content="周三"/>
+                                            <ComboBoxItem Content="周四"/>
+                                            <ComboBoxItem Content="周五"/>
+                                            <ComboBoxItem Content="周六"/>
+                                            <ComboBoxItem Content="周日"/>
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <!-- 每月：选择几号 -->
+                                    <StackPanel x:Name="DetailMonthlyPanel" Visibility="Collapsed" Margin="0,0,0,8">
+                                        <TextBlock Text="选择日期" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                        <ComboBox x:Name="DetailRepeatDayOfMonth" FontSize="12"
+                                                  Background="{DynamicResource BgElevatedBrush}"
+                                                  Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    </StackPanel>
+
+                                    <!-- 每年：选择月日 -->
+                                    <StackPanel x:Name="DetailYearlyPanel" Visibility="Collapsed" Margin="0,0,0,8">
+                                        <TextBlock Text="选择月日" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                        <Grid Margin="0,0,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="8"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox x:Name="DetailRepeatMonth" Grid.Column="0" FontSize="12"
+                                                      Background="{DynamicResource BgElevatedBrush}"
+                                                      Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <ComboBox x:Name="DetailRepeatDay" Grid.Column="2" FontSize="12"
+                                                      Background="{DynamicResource BgElevatedBrush}"
+                                                      Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        </Grid>
+                                    </StackPanel>
+
+                                    <TextBlock Text="结束日期" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                                    <DatePicker x:Name="DetailRepeatEndDate" FontSize="12" Margin="0,0,0,8"
+                                                Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </StackPanel>
+
+                                <Button x:Name="DetailRepeatSaveBtn" Content="保存重复设置"
+                                        Padding="14,6" FontSize="12"
+                                        Style="{StaticResource BtnPrimary}"
+                                        Click="DetailRepeatSave_Click"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Description -->
+                <TextBlock Text="描述" FontSize="11" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                <TextBox x:Name="DetailDesc" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80"
+                         FontSize="13" Padding="10" Margin="0,0,0,12"
+                         Background="{DynamicResource BgSunkenBrush}"
+                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                         Foreground="{DynamicResource TextPrimaryBrush}"
+                         CaretBrush="{DynamicResource AccentBrush}"
+                         LostFocus="DetailDesc_LostFocus"/>
+
+                <!-- Timestamps -->
+                <Border Background="{DynamicResource BgSunkenBrush}" CornerRadius="{StaticResource RadiusSm}" Padding="10" Margin="0,0,0,12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="创建时间" FontSize="11"
+                                       Foreground="{DynamicResource TextTertiaryBrush}" Width="60"/>
+                            <TextBlock x:Name="DetailCreated" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="完成时间" FontSize="11"
+                                       Foreground="{DynamicResource TextTertiaryBrush}" Width="60"/>
+                            <TextBlock x:Name="DetailCompleted" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Subtasks -->
+                <TextBlock x:Name="SubTasksHeader" Text="子任务" FontSize="11" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6" Visibility="Collapsed"/>
+                <StackPanel x:Name="SubTasksList" Margin="0,0,0,12"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer buttons -->
+        <Border x:Name="FooterBorder" Grid.Row="1" Padding="16,10"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="添加子任务" Padding="14,6" FontSize="12"
+                        Style="{StaticResource BtnPrimary}" Margin="0,0,8,0"
+                        Click="AddSubTodo_Click"/>
+                <Button x:Name="DetailTrashBtn" Content="废弃"
+                        Padding="14,6" FontSize="12"
+                        Style="{StaticResource OutlineButton}"
+                        Foreground="{DynamicResource DangerBrush}"
+                        BorderBrush="{DynamicResource DangerBrush}"
+                        Click="DetailTrash_Click"/>
+                <Button x:Name="DetailRestoreBtn" Content="恢复"
+                        Padding="14,6" FontSize="12"
+                        Style="{StaticResource BtnPrimary}"
+                        Margin="8,0,0,0"
+                        Visibility="Collapsed"
+                        Click="DetailRestore_Click"/>
+                <Button x:Name="DeleteBtn" Content="删除" Padding="12,6" FontSize="12"
+                        Style="{StaticResource OutlineButton}"
+                        Foreground="{DynamicResource DangerBrush}"
+                        BorderBrush="{DynamicResource DangerBrush}"
+                        Margin="8,0,0,0"
+                        Click="DeleteBtn_Click" Visibility="Collapsed"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
