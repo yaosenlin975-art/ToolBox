@@ -206,7 +206,8 @@ public class ToolBoxOption
                 ClipboardMaxEntries = Data.ClipboardMaxEntries,
                 ClipboardIgnoredApps = Data.ClipboardIgnoredApps,
                 OcrEngine = Data.OcrEngine,
-                OcrLanguage = Data.OcrLanguage
+                OcrLanguage = Data.OcrLanguage,
+                AutoHideEnabled = Data.AutoHideEnabled
             },
             Scrap = new ScrapOption
             {
@@ -298,6 +299,8 @@ public class ToolBoxOptionData
     public double PreviewCardDurationMs { get; set; } = 5000;
     /// <summary>贴图模式下跳过预览卡</summary>
     public bool PreviewCardSkipInPinMode { get; set; }
+    /// <summary>小窗口靠边自动隐藏（默认开启）</summary>
+    public bool AutoHideEnabled { get; set; } = true;
 }
 
 public class ScrapOption

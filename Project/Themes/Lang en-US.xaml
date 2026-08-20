@@ -103,6 +103,9 @@
     <sys:String x:Key="Lang_MiniOpacity">Mini window opacity</sys:String>
     <sys:String x:Key="Lang_MiniOpacityHint">Adjust mini-mode window background opacity (live preview)</sys:String>
 
+    <sys:String x:Key="Lang_AutoHide">Auto-hide at screen edge</sys:String>
+    <sys:String x:Key="Lang_AutoHideHint">Window slides to screen edge and hides, hover the strip to restore</sys:String>
+
     <sys:String x:Key="Lang_HotkeyHint2">Configure global hotkeys</sys:String>
     <sys:String x:Key="Lang_GlobalHotkey">Global hotkeys</sys:String>
     <sys:String x:Key="Lang_EnableHotkeyHint">Enable to trigger capture / show-hide via hotkeys</sys:String>

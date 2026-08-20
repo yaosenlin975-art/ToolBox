@@ -42,6 +42,7 @@ public partial class CompactToolboxWindow : Window
     private bool isHideCountingDown;
     private DispatcherTimer? hideTimer;
     private bool isAnimating;
+    private bool hiddenAtLeftEdge;
 
     public CompactToolboxWindow()
     {
@@ -665,23 +666,24 @@ public partial class CompactToolboxWindow : Window
         isAnimating = true;
         CancelHideTimer();
 
-        var anim = new DoubleAnimation(0, TimeSpan.FromMilliseconds(300))
+        var workArea = GetCurrentMonitorWorkArea();
+        double targetLeft = hiddenAtLeftEdge ? workArea.Left : workArea.Right - Width;
+
+        var anim = new DoubleAnimation(targetLeft, TimeSpan.FromMilliseconds(300))
         { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
 
-        var transform = RenderTransform as TranslateTransform;
-        if (transform == null)
-        {
-            transform = new TranslateTransform();
-            RenderTransform = transform;
-        }
+        BeginAnimation(LeftProperty, anim);
 
-        transform.BeginAnimation(TranslateTransform.XProperty, anim);
+        RootBorder.IsHitTestVisible = true;
         HiddenStrip.Visibility = Visibility.Collapsed;
+
         DispatcherTimer? done = null;
         done = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(310) };
         done.Tick += (_, _) =>
         {
             done?.Stop();
+            Left = targetLeft;
+            BeginAnimation(LeftProperty, null);
             isHiddenAtEdge = false;
             isAnimating = false;
         };
@@ -694,9 +696,10 @@ public partial class CompactToolboxWindow : Window
         if (!isHiddenAtEdge) return;
         isHiddenAtEdge = false;
         isAnimating = false;
-        var transform = RenderTransform as TranslateTransform;
-        if (transform != null)
-            transform.BeginAnimation(TranslateTransform.XProperty, null);
+        BeginAnimation(LeftProperty, null);
+        var workArea = GetCurrentMonitorWorkArea();
+        Left = hiddenAtLeftEdge ? workArea.Left : workArea.Right - Width;
+        RootBorder.IsHitTestVisible = true;
         HiddenStrip.Visibility = Visibility.Collapsed;
     }
 
@@ -705,31 +708,32 @@ public partial class CompactToolboxWindow : Window
         if (isAnimating || isHiddenAtEdge) return;
         isAnimating = true;
 
-        double stripWidth = 20;
-        double targetX = -(Width - stripWidth);
+        var workArea = GetCurrentMonitorWorkArea();
+        double screenCenter = workArea.Left + workArea.Width / 2;
+        double windowCenter = Left + Width / 2;
+        hiddenAtLeftEdge = windowCenter <= screenCenter;
 
-        var anim = new DoubleAnimation(targetX, TimeSpan.FromMilliseconds(300))
+        double stripWidth = 20;
+        double targetLeft = hiddenAtLeftEdge ? workArea.Left : workArea.Right - stripWidth;
+
+        var anim = new DoubleAnimation(targetLeft, TimeSpan.FromMilliseconds(300))
         { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
 
-        var transform = RenderTransform as TranslateTransform;
-        if (transform == null)
-        {
-            transform = new TranslateTransform();
-            RenderTransform = transform;
-        }
+        BeginAnimation(LeftProperty, anim);
 
-        transform.BeginAnimation(TranslateTransform.XProperty, anim);
-
-        var workArea = GetCurrentMonitorWorkArea();
-        bool atLeft = Left <= workArea.Left + 2;
-        StripArrow.Text = atLeft ? "\u25B6" : "\u25C0";
+        StripArrow.Text = hiddenAtLeftEdge ? "\u25C0" : "\u25B6";
+        HiddenStrip.HorizontalAlignment = hiddenAtLeftEdge ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        StripBar.BorderThickness = hiddenAtLeftEdge ? new Thickness(0, 1, 1, 1) : new Thickness(1, 1, 0, 1);
         HiddenStrip.Visibility = Visibility.Visible;
+        RootBorder.IsHitTestVisible = false;
 
         DispatcherTimer? done = null;
         done = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(310) };
         done.Tick += (_, _) =>
         {
             done?.Stop();
+            Left = targetLeft;
+            BeginAnimation(LeftProperty, null);
             isHiddenAtEdge = true;
             isAnimating = false;
         };

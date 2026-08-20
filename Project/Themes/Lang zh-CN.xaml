@@ -103,6 +103,9 @@
     <sys:String x:Key="Lang_MiniOpacity">迷你窗口透明度</sys:String>
     <sys:String x:Key="Lang_MiniOpacityHint">调整迷你模式窗口背景透明度（实时预览）</sys:String>
 
+    <sys:String x:Key="Lang_AutoHide">靠边自动隐藏</sys:String>
+    <sys:String x:Key="Lang_AutoHideHint">窗口拖到屏幕边缘后自动隐藏，悬停唤起条恢复</sys:String>
+
     <sys:String x:Key="Lang_HotkeyHint2">配置全局热键</sys:String>
     <sys:String x:Key="Lang_GlobalHotkey">全局热键</sys:String>
     <sys:String x:Key="Lang_EnableHotkeyHint">开启后可使用快捷键触发截图/显示隐藏</sys:String>

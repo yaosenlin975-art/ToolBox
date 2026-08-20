@@ -5,7 +5,8 @@
         Title="ToolBox" Width="360" Height="480" MinWidth="180" MinHeight="200"
         WindowStartupLocation="Manual" Topmost="True"
         WindowStyle="None" AllowsTransparency="True"
-        Background="Transparent" ShowInTaskbar="False">
+        Background="Transparent" ShowInTaskbar="False"
+        MouseLeave="Window_MouseLeave">
     <Window.Resources>
         <Style x:Key="CompactTabButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
@@ -133,6 +134,7 @@
             </Setter>
         </Style>
     </Window.Resources>
+    <Grid>
     <!-- 合法例外：紧凑模式窗口整体直角设计（非圆角浮窗） -->
     <Border x:Name="RootBorder" Background="{DynamicResource BgElevatedBrush}" CornerRadius="0" BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1" PreviewMouseLeftButtonDown="RootBorder_PreviewMouseLeftButtonDown" PreviewMouseMove="RootBorder_PreviewMouseMove">
         <Grid>
@@ -187,25 +189,44 @@
                     </Grid>
                 </Grid>
                 <chat:ChatView x:Name="ChatPanel" Visibility="Collapsed" IsCompactMode="True"/>
-                <ScrollViewer x:Name="ScreenshotPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="8,4">
-                    <ItemsControl x:Name="ScreenshotList">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Margin="0,3">
-                                    <Image Source="{Binding Thumbnail}" Width="56" Height="40" Stretch="UniformToFill" MouseLeftButtonUp="ScreenshotItem_Click" ToolTip="{DynamicResource Lang_Compact_ViewOriginal}"/>
-                                    <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding TimeDisplay}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="{Binding SizeDisplay}" FontSize="10" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                <Grid x:Name="ScreenshotPanel" Visibility="Collapsed" VerticalAlignment="Stretch">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,4">
+                        <ItemsControl x:Name="ScreenshotList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,3">
+                                        <Image Source="{Binding Thumbnail}" Width="56" Height="40" Stretch="UniformToFill" MouseLeftButtonUp="ScreenshotItem_Click" ToolTip="{DynamicResource Lang_Compact_ViewOriginal}"/>
+                                        <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding TimeDisplay}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="{Binding SizeDisplay}" FontSize="10" Foreground="{DynamicResource TextTertiaryBrush}"/>
+                                        </StackPanel>
                                     </StackPanel>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
             </Grid>
             <Border Grid.Row="3" x:Name="ResizeGrip" Height="6" Background="Transparent" Cursor="SizeNWSE"
                     MouseLeftButtonDown="ResizeGrip_MouseLeftButtonDown"
                     HorizontalAlignment="Stretch" VerticalAlignment="Bottom"/>
         </Grid>
     </Border>
+    <!-- 靠边自动隐藏：20px 唤起竖条 + 箭头（放在外层 Grid，不随 RootBorder 翻译） -->
+    <Border x:Name="HiddenStrip" Width="100" HorizontalAlignment="Left" Visibility="Collapsed"
+            Background="Transparent" IsHitTestVisible="True" MouseEnter="HiddenStrip_MouseEnter"
+            Cursor="Hand">
+        <Grid Background="Transparent">
+            <Border x:Name="StripBar" Width="20" Background="{DynamicResource BgElevatedBrush}"
+                    BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,1,1" CornerRadius="0"/>
+            <TextBlock x:Name="StripArrow" FontSize="12" FontWeight="Bold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"
+                       IsHitTestVisible="False"/>
+        </Grid>
+    </Border>
+    </Grid>
 </Window>

@@ -128,6 +128,8 @@ public partial class SettingsView : UserControl
 
         txtCompactOpacityValue.Text = ((int)sldCompactOpacity.Value).ToString();
 
+        chkAutoHide.IsChecked = data.AutoHideEnabled;
+
 
 
         LoadProviders();
@@ -445,7 +447,7 @@ public partial class SettingsView : UserControl
 
         result.Scrap.MouseOverAlphaValue = (int)sldMouseOverAlpha.Value;
 
-
+        result.Data.AutoHideEnabled = chkAutoHide.IsChecked == true;
 
 
 
