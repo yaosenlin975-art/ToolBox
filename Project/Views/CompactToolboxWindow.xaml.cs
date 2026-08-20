@@ -4,13 +4,16 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using ToolBox.Core.Llm;
 using ToolBox.Core.Todo;
 using ToolBox.Models;
 using ToolBox.Services;
 using ToolBox.Views.Todo;
+using System.Runtime.InteropServices;
 using ToolBox.Core.Native;
 
 namespace ToolBox.Views;
@@ -34,6 +37,12 @@ public partial class CompactToolboxWindow : Window
     private Point dragOrigin;
     private bool dragStarted;
 
+    // 靠边自动隐藏
+    private bool isHiddenAtEdge;
+    private bool isHideCountingDown;
+    private DispatcherTimer? hideTimer;
+    private bool isAnimating;
+
     public CompactToolboxWindow()
     {
         InitializeComponent();
@@ -47,12 +56,21 @@ public partial class CompactToolboxWindow : Window
         ChatManager.Instance.SessionsChanged += () => Dispatcher.Invoke(LoadSessions);
         CacheManager.Instance.OnScrapCached += (_, _) => Dispatcher.Invoke(LoadScreenshots);
         Core.Theming.ThemeManager.Instance.ThemeChanged += (_, _) => Dispatcher.BeginInvoke(LoadTodos);
+
+        Loaded += (_, _) => SetupAutoHide();
     }
 
     public void ApplyCompactOpacity(int opacityPercent)
     {
         options.Data.CompactOpacity = opacityPercent;
         SwitchToTab(currentTab);
+    }
+
+    protected override void OnActivated(EventArgs e)
+    {
+        base.OnActivated(e);
+        if (isHiddenAtEdge)
+            RestoreFromEdge();
     }
 
     private void PositionWindow()
@@ -63,6 +81,8 @@ public partial class CompactToolboxWindow : Window
 
     public void SwitchToTab(string tab)
     {
+        if (isHiddenAtEdge)
+            RestoreFromEdge();
         currentTab = tab;
         if (isTodoCollapsed)
         {
@@ -406,6 +426,7 @@ public partial class CompactToolboxWindow : Window
         {
             dragStarted = true;
             DragMove();
+            CheckEdgeAfterDrag();
         }
     }
 
@@ -571,4 +592,149 @@ public partial class CompactToolboxWindow : Window
             NativeMethods.SendMessage(hwndSource.Handle, NativeMethods.WM_SYSCOMMAND, (IntPtr)0xF008, IntPtr.Zero);
         }
     }
+
+    #region Auto-hide at screen edge
+
+    private Rect GetCurrentMonitorWorkArea()
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        var hMonitor = NativeMethods.MonitorFromWindow(hwnd, NativeMethods.MONITOR_DEFAULTTONEAREST);
+        var mi = new MONITORINFO { cbSize = Marshal.SizeOf(typeof(MONITORINFO)) };
+        NativeMethods.GetMonitorInfo(hMonitor, ref mi);
+        var r = mi.rcWork;
+        return new Rect(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top);
+    }
+
+    private void SetupAutoHide()
+    {
+        if (!options.Data.AutoHideEnabled) return;
+        RootBorder.MouseLeave += (_, _) =>
+        {
+            if (!options.Data.AutoHideEnabled || isHiddenAtEdge || isAnimating) return;
+            StartHideTimer();
+        };
+    }
+
+    private void CheckEdgeAfterDrag()
+    {
+        if (!options.Data.AutoHideEnabled || isHiddenAtEdge) return;
+        var workArea = GetCurrentMonitorWorkArea();
+        bool atLeft = Left <= workArea.Left + 2;
+        bool atRight = Left + Width >= workArea.Right - 2;
+        if (atLeft || atRight)
+            StartHideTimer();
+    }
+
+    private void StartHideTimer()
+    {
+        hideTimer?.Stop();
+        isHideCountingDown = true;
+        hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        hideTimer.Tick += (_, _) =>
+        {
+            hideTimer?.Stop();
+            isHideCountingDown = false;
+            HideWindow();
+        };
+        hideTimer.Start();
+    }
+
+    private void CancelHideTimer()
+    {
+        hideTimer?.Stop();
+        hideTimer = null;
+        isHideCountingDown = false;
+    }
+
+    private void Window_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (!options.Data.AutoHideEnabled || isHiddenAtEdge || isAnimating) return;
+        StartHideTimer();
+    }
+
+    private void HiddenStrip_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (isAnimating) return;
+        CancelHideTimer();
+        ShowWindow();
+    }
+
+    private void ShowWindow()
+    {
+        if (isAnimating || !isHiddenAtEdge) return;
+        isAnimating = true;
+        CancelHideTimer();
+
+        var anim = new DoubleAnimation(0, TimeSpan.FromMilliseconds(300))
+        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+
+        var transform = RenderTransform as TranslateTransform;
+        if (transform == null)
+        {
+            transform = new TranslateTransform();
+            RenderTransform = transform;
+        }
+
+        transform.BeginAnimation(TranslateTransform.XProperty, anim);
+        HiddenStrip.Visibility = Visibility.Collapsed;
+        DispatcherTimer? done = null;
+        done = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(310) };
+        done.Tick += (_, _) =>
+        {
+            done?.Stop();
+            isHiddenAtEdge = false;
+            isAnimating = false;
+        };
+        done.Start();
+    }
+
+    private void RestoreFromEdge()
+    {
+        CancelHideTimer();
+        if (!isHiddenAtEdge) return;
+        isHiddenAtEdge = false;
+        isAnimating = false;
+        var transform = RenderTransform as TranslateTransform;
+        if (transform != null)
+            transform.BeginAnimation(TranslateTransform.XProperty, null);
+        HiddenStrip.Visibility = Visibility.Collapsed;
+    }
+
+    private void HideWindow()
+    {
+        if (isAnimating || isHiddenAtEdge) return;
+        isAnimating = true;
+
+        double stripWidth = 20;
+        double targetX = -(Width - stripWidth);
+
+        var anim = new DoubleAnimation(targetX, TimeSpan.FromMilliseconds(300))
+        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
+
+        var transform = RenderTransform as TranslateTransform;
+        if (transform == null)
+        {
+            transform = new TranslateTransform();
+            RenderTransform = transform;
+        }
+
+        transform.BeginAnimation(TranslateTransform.XProperty, anim);
+
+        var workArea = GetCurrentMonitorWorkArea();
+        bool atLeft = Left <= workArea.Left + 2;
+        StripArrow.Text = atLeft ? "\u25B6" : "\u25C0";
+        HiddenStrip.Visibility = Visibility.Visible;
+
+        DispatcherTimer? done = null;
+        done = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(310) };
+        done.Tick += (_, _) =>
+        {
+            done?.Stop();
+            isHiddenAtEdge = true;
+            isAnimating = false;
+        };
+        done.Start();
+    }
+
+    #endregion
 }

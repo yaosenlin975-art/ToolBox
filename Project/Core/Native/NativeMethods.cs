@@ -152,6 +152,15 @@ internal static class NativeMethods
 
     public const byte VK_CONTROL = 0x11;
 
+    // ── 多显示器支持 ──
+    [DllImport("user32.dll")]
+    public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    public const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
+
     public const int CURSOR_SHOWING = 0x00000001;
 
     public static void DrawCursorImageToScreenImage(System.Drawing.Point position, IntPtr hDC)
@@ -231,4 +240,13 @@ struct CURSORINFO
     public int flags;
     public IntPtr hCursor;
     public System.Drawing.Point ptScreenPos;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct MONITORINFO
+{
+    public int cbSize;
+    public RECT rcMonitor;
+    public RECT rcWork;
+    public uint dwFlags;
 }
