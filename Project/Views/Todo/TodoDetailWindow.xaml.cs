@@ -19,7 +19,7 @@ public partial class TodoDetailWindow : Window
 
     private void Populate()
     {
-        DetailPanel.ShowDetail(item, () => Populate());
+        DetailPanel.Refresh();
     }
 
     private void OnTitleBarMouseDown(object sender, MouseButtonEventArgs e)

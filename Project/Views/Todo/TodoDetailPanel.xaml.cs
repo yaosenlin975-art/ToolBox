@@ -54,6 +54,11 @@ public partial class TodoDetailPanel : UserControl
         Populate();
     }
 
+    public void Refresh()
+    {
+        Populate();
+    }
+
     public void HideDetail()
     {
         currentItem = null;
