@@ -310,10 +310,11 @@ public partial class TodoDetailPanel : UserControl
             if (endDate.HasValue)
                 endDate = endDate.Value.ToUniversalTime();
 
+            var existingConfig = currentItem.RepeatConfig;
             var config = new RepeatConfig
             {
                 Frequency = frequency,
-                StartDate = DateTime.UtcNow.Date,
+                StartDate = existingConfig?.StartDate ?? DateTime.UtcNow.Date,
                 EndDate = endDate,
                 ReminderHour = Math.Clamp(hour, 0, 23),
                 ReminderMinute = Math.Clamp(minute, 0, 59),

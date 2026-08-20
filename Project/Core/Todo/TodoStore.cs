@@ -456,8 +456,21 @@ public class TodoStore
             var item = items.FirstOrDefault(t => t.Id == id);
             if (item == null) return;
             UnregisterRepeatReminder(id);
+            var prevConfig = item.RepeatConfig;
             item.RepeatConfig = config;
-            item.LastResetAt = config != null ? DateTime.UtcNow : null;
+            // Only reset the cycle anchor when StartDate actually changes (e.g. creating a new repeat or
+            // user explicitly reset). Preserve existing LastResetAt when just editing fields like reminder time.
+            if (config != null)
+            {
+                bool startDateChanged = prevConfig == null || config.StartDate.Date != prevConfig.StartDate.Date;
+                if (startDateChanged)
+                    item.LastResetAt = DateTime.UtcNow;
+                // else: keep existing LastResetAt (editing fields only)
+            }
+            else
+            {
+                item.LastResetAt = null;
+            }
             if (config != null)
                 RegisterSingleRepeatReminder(item);
             await SaveAsync();
