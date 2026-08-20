@@ -2,6 +2,17 @@
 
 本文件记录每次功能开发/修复的变更内容。
 
+## [2026-08-20] 任务详情统一 + 迷你窗口自动隐藏
+
+### 新功能
+- **迷你窗口自动隐藏** (CSH-47/46)：CompactToolboxWindow 支持自动隐藏功能，鼠标离开后淡出隐藏，移入或热键触发时恢复；设置页新增开关控制；多显示器边缘检测（`MonitorFromWindow` P/Invoke）+ HiddenStrip 触发条
+- **共享 TodoDetailPanel** (CSH-46)：提取公共 `TodoDetailPanel` UserControl，统一大窗口（TodoView）和小窗口（TodoDetailWindow）的任务详情展示，两种模式现在展示完全一致的界面
+
+### 修复
+- **任务详情窗口顶栏全区域可拖动** (CSH-47)：`TodoDetailWindow` 标题栏 `Background=Transparent` 使整个顶栏可拖动，不再仅限标题文字位置
+- **重复待办提醒时间编辑数据保留** (CSH-45)：编辑重复待办提醒时间时保留 `StartDate` 和 `LastResetAt` 字段，避免重置时间丢失
+- **TodoDetailPanel 递归调用风险** (CSH-46)：新增 `Refresh()` 方法仅刷新当前项显示而不重新设置回调，`TodoDetailWindow.Populate()` 改为调用 `Refresh()` 而非 `ShowDetail()`，避免回调链递归
+
 ## [2026-08-05] 日常功能开发与修复
 
 ### 新功能

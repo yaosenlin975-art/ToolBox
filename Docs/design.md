@@ -94,7 +94,7 @@ Project/
 │   └── ...
 ├── Views/
 │   ├── MainWindow.cs                  # 主窗口（隐藏宿主，管理托盘和子窗口）
-│   ├── CompactToolboxWindow.xaml/.cs  # 迷你模式（Topmost，260px，右下角常驻）
+│   ├── CompactToolboxWindow.xaml/.cs  # 迷你模式（Topmost，260px，右下角常驻，自动隐藏）
 │   ├── WorkbenchWindow.xaml/.cs       # 全屏工作台（左侧深色侧边栏 + 5 页面导航）
 │   ├── SplashWindow.xaml/.cs          # 启动画面（Loading/Error/Complete 三态）
 │   ├── Capture/CaptureWindow.cs       # 截图选区
@@ -108,6 +108,8 @@ Project/
 │   │   └── BoolToVisibilityConverter.cs
 │   ├── Todo/
 │   │   ├── TodoView.xaml/.cs          # 待办视图（嵌入工作台 todos 页，65/35 双栏）
+│   │   ├── TodoDetailPanel.xaml/.cs   # 共享任务详情面板（大窗口+小窗口复用）
+│   │   ├── TodoDetailWindow.xaml/.cs  # 小窗口任务详情弹窗（内嵌 TodoDetailPanel）
 │   │   ├── TodoRepeatToast.xaml/.cs   # 重复待办提醒弹窗（应用风格通知卡片）
 │   ├── SettingsView.xaml/.cs          # 设置视图（嵌入工作台 settings 页）
 │   ├── HotkeyInputWindow.xaml/.cs     # 快捷键录入
@@ -144,6 +146,7 @@ ToolBox 采用**启动画面 + 迷你模式 + 全屏工作台**的三组件设�
 - 显示：未完成待办（按 `DueDate` 升序，无截止日期排末尾，可直接切换状态）+ LLM 会话状态摘要
 - 底部按钮跳转：💬聊天 / ✅待办 / 📸截图 / ⚙设置
 - 右上角 `☰` 三横按钮打开工作台 settings 页
+- **自动隐藏**：鼠标离开窗口区域后自动淡出隐藏（可通过设置页开关控制），鼠标移入或全局热键触发时恢复显示；支持多显示器边缘检测（`MonitorFromWindow` P/Invoke），吸附屏幕边缘时自动隐藏到边缘仅露出触发条
 
 **全屏工作台（WorkbenchWindow）**：
 - 960×640px，普通窗口
@@ -246,7 +249,8 @@ Agent 在对话循环中最多执行 10 轮工具调用，每轮最多 3 次重�
   - `RepeatConfig`（RepeatConfig?, 可空, 有值则代表该待办为重复待办；配置频率/提醒时间/结束日期等；空 = 普通待办）
   - `LastResetAt`（DateTime?, 可空, 重复待办最近一次重置时间，用于补齐判断；普通待办为 null）
 - **迷你窗口** — 仅显示未完成项（`IsDone=false`），按 `DueDate` 升序，无 `DueDate` 排末尾；checkbox 切换状态 + 快速添加；递归显示子任务层级（子任务 depth×16px 缩进，父任务进度由子任务自动聚合）
-- **工作台 todos 页** — 65/35 双栏布局：左侧筛选（全部/待办/已完成 胶囊样式）+ 快速添加 + 列表（checkbox + 优先级点 + 标题 + 标签 + 截止日期）；右侧详情面板（标题/状态/优先级/描述/创建完成时间/删除按钮）
+- **工作台 todos 页** — 65/35 双栏布局：左侧筛选（全部/待办/已完成 胶囊样式）+ 快速添加 + 列表（checkbox + 优先级点 + 标题 + 标签 + 截止日期）；右侧详情面板使用共享 `TodoDetailPanel` 组件
+- **共享 TodoDetailPanel** — 提取为独立 `UserControl`（`Project/Views/Todo/TodoDetailPanel.xaml(.cs)`），统一大窗口（TodoView）和小窗口（TodoDetailWindow）的任务详情展示；包含：可编辑标题、状态徽章、完成复选框、分类输入（带自动补全）、优先级单选按钮、截止日期选择器、进度滑块、重复配置、描述文本框、时间戳、子任务列表、操作按钮
 - **LLM 集成** — `TodoTools` 允许 LLM 增删改查（add/list/complete/delete/update）
 - **同级排序** — "全部"视图中，已完成待办项自动下沉至同级未完成项下方（层级关系不变，仅调整显示顺序）
 - **详情面板联动** — 按"重复频率"下拉值联动显隐字段：频率=不重复时显示截止日期与完成进度；频率≠不重复时显示提醒时间与结束日期
