@@ -88,6 +88,9 @@ public class CronExpressionr : IDisposable
 
         var delay = fireAt.Value - DateTime.UtcNow;
         if (delay < TimeSpan.Zero) delay = TimeSpan.Zero;
+        // Timer 的 dueTime 会向下取整毫秒，可能提前 ≤1ms 触发；提前触发会让按"下次发生时刻"续订的逻辑
+        // 仍取到同一时刻，造成毫秒级连环重复触发（如重复待办连弹多条通知），这里向上取整规避
+        delay = TimeSpan.FromMilliseconds(Math.Ceiling(delay.TotalMilliseconds));
 
         if (delay > MaxTimerDelay)
         {

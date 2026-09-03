@@ -2,6 +2,26 @@
 
 本文件记录每次功能开发/修复的变更内容。
 
+## [2026-09-03] 修复重复待办连环弹重复通知
+
+### 修复
+- **重复待办连环弹出重复通知**：`CronScheduler.ScheduleNextCore` 计算定时器延时后增加 `delay = TimeSpan.FromMilliseconds(Math.Ceiling(delay.TotalMilliseconds));`，将正延时向上取整到整毫秒。原因：`System.Threading.Timer` 的 dueTime 向下取整毫秒会提前 ≤1ms 触发，重复待办回调触发后按"下次发生时刻"续订，提前触发导致续订仍取到同一时刻，造成毫秒级连环重复触发（实测同一待办连弹 5 条通知）
+- **影响范围**：所有 Cron 调度使用方（重复待办、定时提醒、自动截图、每日总结）统一消除提前触发
+
+## [2026-09-02] 移除 LLM 聊天助手
+
+### 变更
+- **删除 LLM 助手聊天界面与核心**：移除 `Views/Chat/`（ChatView、MessageBubble、SessionSidebar、ToolCallCard）、`Core/Llm/` 中聊天专属类（Agent、ChatManager、ChatSession、ContextCompressor、DefaultSystemPromptBuilder、ISystemPromptBuilder、LlmTranslationService），以及 `Core/ContextAware/`、`Core/Memory/MemoryStore`、`Core/Personalization/PersonalizedPromptBuilder`、活动链 `SendToAiNode`。同步移除所有"发送到 AI/跳转 assistant"入口：工作台 `assistant` 页、侧边栏与迷你模式聊天 Tab、托盘"AI 助手"菜单、Dashboard 会话卡片/快捷入口、剪贴板/OCR/预览卡的"发送到 AI"按钮、全局热键 command=3
+- **保留 LLM Provider 基础设施**：`Core/Providers/`、`Core/Llm/ChatMessage.cs`/`ChatChunk.cs` 保留，供"待办识别"（截图右键 → 识别待办）使用；设置页保留 Provider 配置区，仅删除聊天专属的"聊天字号"选项
+- **保留工具系统**：`Core/Tools/`（ToolRegistry、FileTools、TodoTools、WebSearchTools 等静态能力封装）及 `Core/Security/FileAccessWhitelist.cs` 保留
+- **翻译改为非 LLM 方案**：新增 `Core/Translation/TranslationService.cs`，调用免费公开在线翻译接口；OCR"翻译选中"、选字 OCR 翻译、活动链"翻译文本"节点改走该服务
+- **回收通用转换器**：`BoolToVisibilityConverter` 从 Chat 目录移至 `Views/` 命名空间 `ToolBox.Views`（仍被剪贴板视图引用），App.xaml 资源引用同步更新
+
+## [2026-08-27] 重复待办提醒时间编辑修复
+
+### 修复
+- **重复待办详情无法修改提醒时间**：`TodoDetailPanel.DetailRepeatSave_Click` 原用 `TimeSpan.TryParse` 解析"提醒时间"，全角冒号（如 `10：30`）、非法格式或越界值解析失败时静默回落到默认 09:00 并保存，保存后 `Populate()` 回显错误值导致用户输入丢失，表现为"改不了、改了不生效"。现改为：解析前规范化全角冒号；解析失败/超出 [00:00,24:00) 范围时输入框标红 + ToolTip 提示并中止保存（不再静默回落）；`Populate()` 重刷时恢复默认边框避免错误标红跨任务残留
+
 ## [2026-08-20] 任务详情统一 + 迷你窗口自动隐藏
 
 ### 新功能

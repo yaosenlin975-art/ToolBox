@@ -1,8 +1,8 @@
-﻿# ToolBox 设计文档
+# ToolBox 设计文档
 
 ## 项目概述
 
-ToolBox 是一款 Windows 桌面截图+贴图工具，基于 .NET 8.0 WPF 构建。在传统截图贴图功能基础上，集成了 LLM 桌面助手、待办管理、截图历史、定时截图与日报生成等能力。
+ToolBox 是一款 Windows 桌面截图+贴图工具，基于 .NET 8.0 WPF 构建。在传统截图贴图功能基础上，集成了待办管理、截图历史、定时截图与日报生成、OCR 文本识别与翻译等能力。
 
 ## 技术栈
 
@@ -26,15 +26,9 @@ Project/
 ├── GlobalUsings.cs                     # 全局 using
 ├── Core/
 │   ├── HotkeyManager.cs               # 全局热键注册与分发
-│   ├── Llm/                           # LLM 聊天核心
-│   │   ├── Agent.cs                   # 工具调用循环（最多10轮×3次重试）
-│   │   ├── ChatManager.cs             # 会话 CRUD + JSON 持久化 + SessionsChanged 事件
-│   │   ├── ChatSession.cs             # 会话数据模型（含 IsPinned、UpdatedAtLocal）
+│   ├── Llm/                           # LLM 请求核心（保留供 OCR/待办识别等场景调用）
 │   │   ├── ChatMessage.cs             # 消息模型（含 ToolCalls）
-│   │   ├── ChatChunk.cs               # 流式输出片段
-│   │   ├── ContextCompressor.cs       # 上下文压缩
-│   │   ├── ISystemPromptBuilder.cs    # 系统提示词接口
-│   │   └── DefaultSystemPromptBuilder.cs
+│   │   └── ChatChunk.cs               # 流式输出片段
 │   ├── Providers/                     # LLM 供应商适配
 │   │   ├── ILlmProvider.cs            # 流式聊天接口
 │   │   ├── IProvider.cs               # 供应商元数据接口
@@ -43,7 +37,9 @@ Project/
 │   │   ├── OpenAiProvider.cs          # OpenAI 兼容 API
 │   │   ├── OllamaProvider.cs          # Ollama 本地模型
 │   │   └── AnthropicProvider.cs       # Anthropic Claude
-│   ├── Tools/                         # LLM 工具系统
+│   ├── Translation/                   # 非 LLM 翻译
+│   │   └── TranslationService.cs      # 免费公开在线翻译接口（不依赖 LLM Provider）
+│   ├── Tools/                         # 工具系统（面向 LLM 调用的静态能力封装）
 │   │   ├── ToolAttribute.cs           # [Tool("name", "desc")] 标记静态方法
 │   │   ├── ToolParamAttribute.cs      # [ToolParam("desc")] 标记参数
 │   │   ├── ToolInfo.cs                # 工具元数据
@@ -100,12 +96,6 @@ Project/
 │   ├── Capture/CaptureWindow.cs       # 截图选区
 │   ├── Dashboard/
 │   │   └── DashboardView.xaml/.cs     # 仪表盘视图（统计卡片 + 快捷入口）
-│   ├── Chat/
-│   │   ├── ChatView.xaml/.cs          # 聊天视图（嵌入工作台 assistant 页）
-│   │   ├── SessionSidebar.xaml/.cs    # 会话列表侧栏
-│   │   ├── MessageBubble.xaml/.cs     # 消息气泡（内嵌 MdXaml 渲染 Markdown）
-│   │   ├── ToolCallCard.xaml/.cs      # 工具调用卡片
-│   │   └── BoolToVisibilityConverter.cs
 │   ├── Todo/
 │   │   ├── TodoView.xaml/.cs          # 待办视图（嵌入工作台 todos 页，65/35 双栏）
 │   │   ├── TodoDetailPanel.xaml/.cs   # 共享任务详情面板（大窗口+小窗口复用）
@@ -119,7 +109,6 @@ Project/
 │   ├── DesignTokens.xaml              # 设计令牌 + 共享 Style（CardStyle/FilterTabStyle 等）
 │   ├── Light.xaml                     # 浅色主题资源字典
 │   ├── Dark.xaml                      # 深色主题资源字典
-│   ├── LLM-Colors.xaml                # LLM 聊天颜色
 │   ├── Fonts/                         # 嵌入字体（Geist / Geist Mono）
 │   ├── Lang zh-CN.xaml                # 中文语言包
 │   └── Lang en-US.xaml                # 英文语言包
@@ -288,7 +277,7 @@ Agent 在对话循环中最多执行 10 轮工具调用，每轮最多 3 次重�
 - **每日行为总结** — 开关 + 时间设置（如 `18:00`），根据当日截图生成日报
 
 后端组件：
-- **CronScheduler** — 基于 Cronos 的定时触发
+- **CronScheduler** — 基于 Cronos 的定时触发；定时器延时向上取整到整毫秒，保证不早于计划时刻触发（提前触发会导致按"下次发生时刻"续订的调度取到同一时刻，产生连环重复触发）
 - **ScreenshotTracker** — 定时全屏截图 + 应用使用记录
 - **ReportGenerator** — 日报/周报 Markdown 生成
 
