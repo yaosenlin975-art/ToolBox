@@ -2,6 +2,12 @@
 
 本文件记录每次功能开发/修复的变更内容。
 
+## [2026-09-03] 修复 OCR 原生崩溃（AccessViolationException）
+
+### 修复
+- **OCR 引擎初始化必崩**：部分用户机器 `C:\Windows\System32` 存在被污染的老版 VC++ 运行时（msvcp140.dll/vcruntime140.dll = 14.00.24215.1，2016 年），OCR 原生库 tesseract55.dll（VS2022 编译）依赖解析被 System32 老版本劫持，标准库 ABI 不匹配导致 Tesseract 引擎初始化抛 AccessViolationException。修复两层：① 本机安装/替换为最新 VC++ 运行时（14.50.35719.0）；② 应用加固——新增 `Project/Natives/VCRuntime/` 存放 3 个官方签名运行时 DLL（msvcp140.dll、vcruntime140.dll、vcruntime140_1.dll），通过 csproj 的 None+Link 平铺部署到输出根目录，加载器优先级高于 System32，保证任何机器上原生 OCR 都能正常初始化
+- **改动文件**：`Project/ToolBox.csproj`（新增 1 个 ItemGroup）、新增 `Project/Natives/VCRuntime/` 下 3 个 DLL
+
 ## [2026-09-03] 修复重复待办连环弹重复通知
 
 ### 修复

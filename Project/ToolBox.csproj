@@ -25,4 +25,9 @@
     <Resource Include="Assets\Fonts\*.ttf" />
   </ItemGroup>
 
+  <!-- 应用自带 VC++ 运行时：防止用户机器 System32 中老版运行时劫持原生 OCR 库依赖导致崩溃 -->
+  <ItemGroup>
+    <None Include="Natives\VCRuntime\*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
 </Project>
