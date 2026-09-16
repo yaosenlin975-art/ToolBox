@@ -6,7 +6,7 @@
         WindowStartupLocation="Manual" Topmost="True"
         WindowStyle="None" AllowsTransparency="True"
         Background="Transparent" ShowInTaskbar="False"
-        MouseLeave="Window_MouseLeave">
+        MouseLeave="Window_MouseLeave" MouseEnter="Window_MouseEnter">
     <Window.Resources>
         <Style x:Key="CompactTabButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
@@ -216,7 +216,7 @@
         </Grid>
     </Border>
     <!-- 靠边自动隐藏：20px 唤起竖条 + 箭头（放在外层 Grid，不随 RootBorder 翻译） -->
-    <Border x:Name="HiddenStrip" Width="100" HorizontalAlignment="Left" Visibility="Collapsed"
+    <Border x:Name="HiddenStrip" Width="20" HorizontalAlignment="Left" Visibility="Collapsed"
             Background="Transparent" IsHitTestVisible="True" MouseEnter="HiddenStrip_MouseEnter"
             Cursor="Hand">
         <Grid Background="Transparent">

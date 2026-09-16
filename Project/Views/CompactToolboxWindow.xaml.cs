@@ -43,6 +43,7 @@ public partial class CompactToolboxWindow : Window
     private DispatcherTimer? hideTimer;
     private bool isAnimating;
     private bool hiddenAtLeftEdge;
+    private bool restoreRequested;
 
     public CompactToolboxWindow()
     {
@@ -58,7 +59,6 @@ public partial class CompactToolboxWindow : Window
         CacheManager.Instance.OnScrapCached += (_, _) => Dispatcher.Invoke(LoadScreenshots);
         Core.Theming.ThemeManager.Instance.ThemeChanged += (_, _) => Dispatcher.BeginInvoke(LoadTodos);
 
-        Loaded += (_, _) => SetupAutoHide();
     }
 
     public void ApplyCompactOpacity(int opacityPercent)
@@ -170,6 +170,7 @@ public partial class CompactToolboxWindow : Window
     {
         var wb = App.Workbench;
         if (wb == null) return;
+        Hide();
         wb.Show();
         wb.Activate();
         wb.LoadPage("settings");
@@ -427,7 +428,6 @@ public partial class CompactToolboxWindow : Window
         {
             dragStarted = true;
             DragMove();
-            CheckEdgeAfterDrag();
         }
     }
 
@@ -606,24 +606,24 @@ public partial class CompactToolboxWindow : Window
         return new Rect(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top);
     }
 
-    private void SetupAutoHide()
+    public void ApplyAutoHide(bool enabled)
     {
-        if (!options.Data.AutoHideEnabled) return;
-        RootBorder.MouseLeave += (_, _) =>
+        options.Data.AutoHideEnabled = enabled;
+        if (enabled) return;
+        CancelHideTimer();
+        restoreRequested = false;
+        if (isAnimating)
         {
-            if (!options.Data.AutoHideEnabled || isHiddenAtEdge || isAnimating) return;
-            StartHideTimer();
-        };
-    }
-
-    private void CheckEdgeAfterDrag()
-    {
-        if (!options.Data.AutoHideEnabled || isHiddenAtEdge) return;
-        var workArea = GetCurrentMonitorWorkArea();
-        bool atLeft = Left <= workArea.Left + 2;
-        bool atRight = Left + Width >= workArea.Right - 2;
-        if (atLeft || atRight)
-            StartHideTimer();
+            BeginAnimation(LeftProperty, null);
+            isAnimating = false;
+            isHiddenAtEdge = false;
+            var workArea = GetCurrentMonitorWorkArea();
+            Left = hiddenAtLeftEdge ? workArea.Left : workArea.Right - Width;
+            RootBorder.IsHitTestVisible = true;
+            HiddenStrip.Visibility = Visibility.Collapsed;
+        }
+        else if (isHiddenAtEdge)
+            RestoreFromEdge();
     }
 
     private void StartHideTimer()
@@ -650,12 +650,24 @@ public partial class CompactToolboxWindow : Window
     private void Window_MouseLeave(object sender, MouseEventArgs e)
     {
         if (!options.Data.AutoHideEnabled || isHiddenAtEdge || isAnimating) return;
-        StartHideTimer();
+        var workArea = GetCurrentMonitorWorkArea();
+        if (Left <= workArea.Left + 2 || Left + Width >= workArea.Right - 2)
+            StartHideTimer();
+    }
+
+    private void Window_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (isHideCountingDown)
+            CancelHideTimer();
     }
 
     private void HiddenStrip_MouseEnter(object sender, MouseEventArgs e)
     {
-        if (isAnimating) return;
+        if (isAnimating)
+        {
+            restoreRequested = true;
+            return;
+        }
         CancelHideTimer();
         ShowWindow();
     }
@@ -707,22 +719,23 @@ public partial class CompactToolboxWindow : Window
     {
         if (isAnimating || isHiddenAtEdge) return;
         isAnimating = true;
+        restoreRequested = false;
 
         var workArea = GetCurrentMonitorWorkArea();
         double screenCenter = workArea.Left + workArea.Width / 2;
         double windowCenter = Left + Width / 2;
         hiddenAtLeftEdge = windowCenter <= screenCenter;
 
-        double stripWidth = 20;
-        double targetLeft = hiddenAtLeftEdge ? workArea.Left : workArea.Right - stripWidth;
+        const double stripWidth = 20;
+        double targetLeft = hiddenAtLeftEdge ? workArea.Left - Width + stripWidth : workArea.Right - stripWidth;
 
         var anim = new DoubleAnimation(targetLeft, TimeSpan.FromMilliseconds(300))
         { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
 
         BeginAnimation(LeftProperty, anim);
 
-        StripArrow.Text = hiddenAtLeftEdge ? "\u25C0" : "\u25B6";
-        HiddenStrip.HorizontalAlignment = hiddenAtLeftEdge ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        StripArrow.Text = hiddenAtLeftEdge ? "\u25B6" : "\u25C0";
+        HiddenStrip.HorizontalAlignment = hiddenAtLeftEdge ? HorizontalAlignment.Right : HorizontalAlignment.Left;
         StripBar.BorderThickness = hiddenAtLeftEdge ? new Thickness(0, 1, 1, 1) : new Thickness(1, 1, 0, 1);
         HiddenStrip.Visibility = Visibility.Visible;
         RootBorder.IsHitTestVisible = false;
@@ -732,10 +745,16 @@ public partial class CompactToolboxWindow : Window
         done.Tick += (_, _) =>
         {
             done?.Stop();
+            if (!options.Data.AutoHideEnabled) return;
             Left = targetLeft;
             BeginAnimation(LeftProperty, null);
             isHiddenAtEdge = true;
             isAnimating = false;
+            if (restoreRequested)
+            {
+                restoreRequested = false;
+                ShowWindow();
+            }
         };
         done.Start();
     }

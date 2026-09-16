@@ -879,6 +879,7 @@ public partial class SettingsView : UserControl
 
         result.Save();
 
+        App.CompactToolbox?.ApplyAutoHide(result.Data.AutoHideEnabled);
         App.ApplyLanguage(result.Language);
 
         App.MainWindow?.ReRegisterHotkeys();
