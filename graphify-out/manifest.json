@@ -1,0 +1,1358 @@
+{
+  ".multica/project/resources.json": {
+    "mtime": 1785918395.3149202,
+    "seen": 1788317918.994144,
+    "ast_hash": "40bf6dc303086bac5f14ba70269b93d1",
+    "semantic_hash": "40bf6dc303086bac5f14ba70269b93d1"
+  },
+  ".opencode/skills/cli-anything/scripts/install.ps1": {
+    "mtime": 1785918391.6539142,
+    "seen": 1788317918.994144,
+    "ast_hash": "cb1aa4ae1dae34d0273e8a6b9a202077",
+    "semantic_hash": "cb1aa4ae1dae34d0273e8a6b9a202077"
+  },
+  ".opencode/skills/cli-anything/scripts/install.sh": {
+    "mtime": 1785918391.6539142,
+    "seen": 1788317918.994144,
+    "ast_hash": "54c680583e48e76ba990da79869e57f8",
+    "semantic_hash": "54c680583e48e76ba990da79869e57f8"
+  },
+  ".opencode/skills/cli-anything/tests/test_install.sh": {
+    "mtime": 1785918391.6544187,
+    "seen": 1788317918.994144,
+    "ast_hash": "7f74410a0b6a785167fabc93241fbf94",
+    "semantic_hash": "7f74410a0b6a785167fabc93241fbf94"
+  },
+  ".reasonix/desktop-topic-auto-title-meta.json": {
+    "mtime": 1785722968.63526,
+    "seen": 1788317918.994144,
+    "ast_hash": "f6a09a9b621de2f0aebd13a4af0c1ebb",
+    "semantic_hash": "f6a09a9b621de2f0aebd13a4af0c1ebb"
+  },
+  ".reasonix/desktop-topic-created-at.json": {
+    "mtime": 1785722908.5713842,
+    "seen": 1788317918.994144,
+    "ast_hash": "aa297c7ce70c98ba7654b478e99daeae",
+    "semantic_hash": "aa297c7ce70c98ba7654b478e99daeae"
+  },
+  ".reasonix/desktop-topic-title-sources.json": {
+    "mtime": 1785724132.1864526,
+    "seen": 1788317918.994144,
+    "ast_hash": "847c79796e2c7e114eec6d2acdad82a2",
+    "semantic_hash": "847c79796e2c7e114eec6d2acdad82a2"
+  },
+  ".reasonix/desktop-topic-titles.json": {
+    "mtime": 1785724132.1859403,
+    "seen": 1788317918.994144,
+    "ast_hash": "f3689ae44d484bbafc020add55b7d123",
+    "semantic_hash": "f3689ae44d484bbafc020add55b7d123"
+  },
+  "Project/App.xaml": {
+    "mtime": 1785837484.565019,
+    "seen": 1788317918.994144,
+    "ast_hash": "41546ba157610cc18332e0a309a522df",
+    "semantic_hash": "41546ba157610cc18332e0a309a522df"
+  },
+  "Project/App.xaml.cs": {
+    "mtime": 1786064900.7697356,
+    "seen": 1788317918.994144,
+    "ast_hash": "ea9dd40df77c6f7be4f022287bccdfd8",
+    "semantic_hash": "ea9dd40df77c6f7be4f022287bccdfd8"
+  },
+  "Project/AssemblyInfo.cs": {
+    "mtime": 1783298017.2744496,
+    "seen": 1788317918.994144,
+    "ast_hash": "8a158a8a488c0dd7d226a06783fc2860",
+    "semantic_hash": "8a158a8a488c0dd7d226a06783fc2860"
+  },
+  "Project/Core/ActionChain/ActionChainDefinition.cs": {
+    "mtime": 1784026015.8261547,
+    "seen": 1788317918.994144,
+    "ast_hash": "e418ad343181150997d0b38cc152427b",
+    "semantic_hash": "e418ad343181150997d0b38cc152427b"
+  },
+  "Project/Core/ActionChain/ActionChainEngine.cs": {
+    "mtime": 1784026047.6216562,
+    "seen": 1788317918.994144,
+    "ast_hash": "bada4ef57891e2490cf4cca9cbc33107",
+    "semantic_hash": "bada4ef57891e2490cf4cca9cbc33107"
+  },
+  "Project/Core/ActionChain/ActionChainStore.cs": {
+    "mtime": 1784026031.6703417,
+    "seen": 1788317918.994144,
+    "ast_hash": "69d1131fdec70202ecff14d172312553",
+    "semantic_hash": "69d1131fdec70202ecff14d172312553"
+  },
+  "Project/Core/ActionChain/IActionNode.cs": {
+    "mtime": 1784026010.5240228,
+    "seen": 1788317918.994144,
+    "ast_hash": "981ef9d737f649428da686f571808193",
+    "semantic_hash": "981ef9d737f649428da686f571808193"
+  },
+  "Project/Core/ActionChain/NodeFactory.cs": {
+    "mtime": 1788317679.364744,
+    "seen": 1788317918.994144,
+    "ast_hash": "acdba5a78159c5135d370242d886aec6",
+    "semantic_hash": "acdba5a78159c5135d370242d886aec6"
+  },
+  "Project/Core/ActionChain/Nodes/CopyTextToClipboardNode.cs": {
+    "mtime": 1784026066.906046,
+    "seen": 1788317918.994144,
+    "ast_hash": "1f8a7f0829a809a0530a41cffbbb68c3",
+    "semantic_hash": "1f8a7f0829a809a0530a41cffbbb68c3"
+  },
+  "Project/Core/ActionChain/Nodes/CopyToClipboardNode.cs": {
+    "mtime": 1784026061.9893816,
+    "seen": 1788317918.994144,
+    "ast_hash": "560fe5c8c7ad81841a0c4ebd287044e6",
+    "semantic_hash": "560fe5c8c7ad81841a0c4ebd287044e6"
+  },
+  "Project/Core/ActionChain/Nodes/OcrExtractNode.cs": {
+    "mtime": 1784026083.5747333,
+    "seen": 1788317918.994144,
+    "ast_hash": "08470ae4c6081cf500d6d108b5d5c504",
+    "semantic_hash": "08470ae4c6081cf500d6d108b5d5c504"
+  },
+  "Project/Core/ActionChain/Nodes/SaveToFileNode.cs": {
+    "mtime": 1784026094.1252325,
+    "seen": 1788317918.994144,
+    "ast_hash": "1c6bb52e0880569968ae902bef360647",
+    "semantic_hash": "1c6bb52e0880569968ae902bef360647"
+  },
+  "Project/Core/ActionChain/Nodes/TranslateTextNode.cs": {
+    "mtime": 1788316966.1265235,
+    "seen": 1788317918.994144,
+    "ast_hash": "248ade55c42ebfaf6416eec20bd9e8ee",
+    "semantic_hash": "248ade55c42ebfaf6416eec20bd9e8ee"
+  },
+  "Project/Core/Clipboard/ClipboardEntry.cs": {
+    "mtime": 1785285868.346579,
+    "seen": 1788317918.994144,
+    "ast_hash": "ec3eedfbdde06abce6e001e23a9dae24",
+    "semantic_hash": "ec3eedfbdde06abce6e001e23a9dae24"
+  },
+  "Project/Core/Clipboard/ClipboardMonitor.cs": {
+    "mtime": 1785285868.3877769,
+    "seen": 1788317918.994144,
+    "ast_hash": "02db3b32eda2c30a3f6c732a6771762a",
+    "semantic_hash": "02db3b32eda2c30a3f6c732a6771762a"
+  },
+  "Project/Core/Clipboard/ClipboardStore.cs": {
+    "mtime": 1785285868.4981704,
+    "seen": 1788317918.994144,
+    "ast_hash": "e7de5fc0af7dea7f641ba55ccb6effcc",
+    "semantic_hash": "e7de5fc0af7dea7f641ba55ccb6effcc"
+  },
+  "Project/Core/Clipboard/ClipboardTools.cs": {
+    "mtime": 1785285868.5433235,
+    "seen": 1788317918.994144,
+    "ast_hash": "1fa3f28d526bc9ee5abdf197d5f61fdb",
+    "semantic_hash": "1fa3f28d526bc9ee5abdf197d5f61fdb"
+  },
+  "Project/Core/CloudShare/CloudShareService.cs": {
+    "mtime": 1784102004.9995227,
+    "seen": 1788317918.994144,
+    "ast_hash": "f41c97378c4fab23802a7dc601ddccc5",
+    "semantic_hash": "f41c97378c4fab23802a7dc601ddccc5"
+  },
+  "Project/Core/Color/ColorHistoryStore.cs": {
+    "mtime": 1785285868.6178296,
+    "seen": 1788317918.994144,
+    "ast_hash": "92eb4e037da5098a73568dbcdc60e499",
+    "semantic_hash": "92eb4e037da5098a73568dbcdc60e499"
+  },
+  "Project/Core/Color/ColorPickerService.cs": {
+    "mtime": 1785285868.6809483,
+    "seen": 1788317918.994144,
+    "ast_hash": "d4d96c0c14eb7548727000745f805aa4",
+    "semantic_hash": "d4d96c0c14eb7548727000745f805aa4"
+  },
+  "Project/Core/Color/ColorTools.cs": {
+    "mtime": 1785285868.7420957,
+    "seen": 1788317918.994144,
+    "ast_hash": "576b4dea70ef2e4c07efb4478576aa98",
+    "semantic_hash": "576b4dea70ef2e4c07efb4478576aa98"
+  },
+  "Project/Core/Habits/HabitStore.cs": {
+    "mtime": 1784101368.1792722,
+    "seen": 1788317918.994144,
+    "ast_hash": "cbbdd8cf56b671792c1949d2d6be5ba1",
+    "semantic_hash": "cbbdd8cf56b671792c1949d2d6be5ba1"
+  },
+  "Project/Core/HotkeyManager.cs": {
+    "mtime": 1784100098.2260365,
+    "seen": 1788317918.994144,
+    "ast_hash": "3cd552de9969bede5da90fc110cfa453",
+    "semantic_hash": "3cd552de9969bede5da90fc110cfa453"
+  },
+  "Project/Core/Llm/ChatChunk.cs": {
+    "mtime": 1783298017.3297505,
+    "seen": 1788317918.994144,
+    "ast_hash": "62a0dc7e040a00240016a5e6a040dec9",
+    "semantic_hash": "62a0dc7e040a00240016a5e6a040dec9"
+  },
+  "Project/Core/Llm/ChatMessage.cs": {
+    "mtime": 1783298017.4185672,
+    "seen": 1788317918.994144,
+    "ast_hash": "f8569405797a7d6592947817aebfff98",
+    "semantic_hash": "f8569405797a7d6592947817aebfff98"
+  },
+  "Project/Core/Markdown/MarkdownDocument.cs": {
+    "mtime": 1785838542.324825,
+    "seen": 1788317918.994144,
+    "ast_hash": "ff1e848905ae50d0bd794ee9f018d4f5",
+    "semantic_hash": "ff1e848905ae50d0bd794ee9f018d4f5"
+  },
+  "Project/Core/Native/NativeMethods.cs": {
+    "mtime": 1787201993.4189885,
+    "seen": 1788317918.994144,
+    "ast_hash": "84b36cbc705a98876dfb631f83007963",
+    "semantic_hash": "84b36cbc705a98876dfb631f83007963"
+  },
+  "Project/Core/Native/WpfTrayIcon.cs": {
+    "mtime": 1785146542.4330463,
+    "seen": 1788317918.994144,
+    "ast_hash": "e8168b4d4dbb965e295b6fa7c1f8fa9b",
+    "semantic_hash": "e8168b4d4dbb965e295b6fa7c1f8fa9b"
+  },
+  "Project/Core/Pomodoro/PomodoroService.cs": {
+    "mtime": 1784101531.9125369,
+    "seen": 1788317918.994144,
+    "ast_hash": "14bcf0ea4f823bab3301b694c09ab2f2",
+    "semantic_hash": "14bcf0ea4f823bab3301b694c09ab2f2"
+  },
+  "Project/Core/Providers/AnthropicProvider.cs": {
+    "mtime": 1785840264.754699,
+    "seen": 1788317918.994144,
+    "ast_hash": "d5e4138617a46470000eb97f39c778ac",
+    "semantic_hash": "d5e4138617a46470000eb97f39c778ac"
+  },
+  "Project/Core/Providers/ILlmProvider.cs": {
+    "mtime": 1783298017.4731297,
+    "seen": 1788317918.994144,
+    "ast_hash": "47061ce8ed5681bab2231daa1e9c1ae1",
+    "semantic_hash": "47061ce8ed5681bab2231daa1e9c1ae1"
+  },
+  "Project/Core/Providers/IProvider.cs": {
+    "mtime": 1783298017.4731297,
+    "seen": 1788317918.994144,
+    "ast_hash": "542a43fd7a17e9ca5940df521569271e",
+    "semantic_hash": "542a43fd7a17e9ca5940df521569271e"
+  },
+  "Project/Core/Providers/ModelInfo.cs": {
+    "mtime": 1783298017.5169392,
+    "seen": 1788317918.994144,
+    "ast_hash": "c937bf36b019700ebfdf3b3171ac2423",
+    "semantic_hash": "c937bf36b019700ebfdf3b3171ac2423"
+  },
+  "Project/Core/Providers/OllamaProvider.cs": {
+    "mtime": 1785839893.2606428,
+    "seen": 1788317918.994144,
+    "ast_hash": "e10401d70b9dbd2b6b6fce667c9a27e9",
+    "semantic_hash": "e10401d70b9dbd2b6b6fce667c9a27e9"
+  },
+  "Project/Core/Providers/OpenAiProvider.cs": {
+    "mtime": 1785840251.3601596,
+    "seen": 1788317918.994144,
+    "ast_hash": "f06586c568d7f4ade26e3abd23614762",
+    "semantic_hash": "f06586c568d7f4ade26e3abd23614762"
+  },
+  "Project/Core/Providers/ProviderManager.cs": {
+    "mtime": 1783320078.971472,
+    "seen": 1788317918.994144,
+    "ast_hash": "a3034d6a226438878f2c22ee3224379c",
+    "semantic_hash": "a3034d6a226438878f2c22ee3224379c"
+  },
+  "Project/Core/QrCode/QrCodeService.cs": {
+    "mtime": 1784101305.4462843,
+    "seen": 1788317918.994144,
+    "ast_hash": "aab2a8152ac653ee37d2d9e5de878437",
+    "semantic_hash": "aab2a8152ac653ee37d2d9e5de878437"
+  },
+  "Project/Core/Reminder/ReminderItem.cs": {
+    "mtime": 1785931847.3804333,
+    "seen": 1788317918.994144,
+    "ast_hash": "3722b0c181338384b265ce9f5ea03f8d",
+    "semantic_hash": "3722b0c181338384b265ce9f5ea03f8d"
+  },
+  "Project/Core/Reminder/ReminderScheduler.cs": {
+    "mtime": 1785931636.5351858,
+    "seen": 1788317918.994144,
+    "ast_hash": "ea7e21423f6edf38f60233b1c0d084a4",
+    "semantic_hash": "ea7e21423f6edf38f60233b1c0d084a4"
+  },
+  "Project/Core/Reminder/ReminderStore.cs": {
+    "mtime": 1785931623.8389773,
+    "seen": 1788317918.994144,
+    "ast_hash": "dae8f25e9a196afd8df2ee3944496465",
+    "semantic_hash": "dae8f25e9a196afd8df2ee3944496465"
+  },
+  "Project/Core/Scheduling/CronScheduler.cs": {
+    "mtime": 1785815846.2284095,
+    "seen": 1788317918.994144,
+    "ast_hash": "8395fa2f8df93171faabe573e1a0bfee",
+    "semantic_hash": "8395fa2f8df93171faabe573e1a0bfee"
+  },
+  "Project/Core/Scheduling/ReportGenerator.cs": {
+    "mtime": 1785839559.147071,
+    "seen": 1788317918.994144,
+    "ast_hash": "4c655d23e530b5fcd87a7b9ddc021048",
+    "semantic_hash": "4c655d23e530b5fcd87a7b9ddc021048"
+  },
+  "Project/Core/Scheduling/ScheduleManager.cs": {
+    "mtime": 1785903402.9318883,
+    "seen": 1788317918.994144,
+    "ast_hash": "ac0a4c014338e4cff267078abf2b47b1",
+    "semantic_hash": "ac0a4c014338e4cff267078abf2b47b1"
+  },
+  "Project/Core/Scheduling/ScreenshotTracker.cs": {
+    "mtime": 1783954404.7150443,
+    "seen": 1788317918.994144,
+    "ast_hash": "5742202274d5dfe1f12304ab9fa97349",
+    "semantic_hash": "5742202274d5dfe1f12304ab9fa97349"
+  },
+  "Project/Core/Scheduling/ShutdownScheduler.cs": {
+    "mtime": 1785902965.1393654,
+    "seen": 1788317918.994144,
+    "ast_hash": "7d3f0e0ab4dd1fa1c2c33d9c51709883",
+    "semantic_hash": "7d3f0e0ab4dd1fa1c2c33d9c51709883"
+  },
+  "Project/Core/ScreenFreeze/ScreenFreezeService.cs": {
+    "mtime": 1784100743.6887584,
+    "seen": 1788317918.994144,
+    "ast_hash": "c185d356d522fdbc8ad517e6cc6a2fa9",
+    "semantic_hash": "c185d356d522fdbc8ad517e6cc6a2fa9"
+  },
+  "Project/Core/Screenshot/ImageStitcher.cs": {
+    "mtime": 1784026454.7222736,
+    "seen": 1788317918.994144,
+    "ast_hash": "f84af06645a4f72497fd4ba2a090093b",
+    "semantic_hash": "f84af06645a4f72497fd4ba2a090093b"
+  },
+  "Project/Core/Screenshot/ScrollDetector.cs": {
+    "mtime": 1784026417.4054873,
+    "seen": 1788317918.994144,
+    "ast_hash": "e7aa4542aeb0b792127ad4f29b12293e",
+    "semantic_hash": "e7aa4542aeb0b792127ad4f29b12293e"
+  },
+  "Project/Core/Screenshot/ScrollingCaptureEngine.cs": {
+    "mtime": 1784026469.6394596,
+    "seen": 1788317918.994144,
+    "ast_hash": "485152c749b1180efc969d1a593d92c3",
+    "semantic_hash": "485152c749b1180efc969d1a593d92c3"
+  },
+  "Project/Core/Security/ConfirmDialog.cs": {
+    "mtime": 1783298017.5859158,
+    "seen": 1788317918.994144,
+    "ast_hash": "9078fb916f029805beff7c21e7ab9514",
+    "semantic_hash": "9078fb916f029805beff7c21e7ab9514"
+  },
+  "Project/Core/Security/FileAccessWhitelist.cs": {
+    "mtime": 1783320078.9724767,
+    "seen": 1788317918.994144,
+    "ast_hash": "0306be0dbb7e37e4ea55986c855c803d",
+    "semantic_hash": "0306be0dbb7e37e4ea55986c855c803d"
+  },
+  "Project/Core/SmartRedaction/SmartRedactionService.cs": {
+    "mtime": 1784101901.0280275,
+    "seen": 1788317918.994144,
+    "ast_hash": "058ba71d9e21bab2537f60e852ac5e62",
+    "semantic_hash": "058ba71d9e21bab2537f60e852ac5e62"
+  },
+  "Project/Core/StepCapture/StepCaptureService.cs": {
+    "mtime": 1784101729.0862405,
+    "seen": 1788317918.994144,
+    "ast_hash": "18b7ac3ca15f5bfc0e3814f44119cf08",
+    "semantic_hash": "18b7ac3ca15f5bfc0e3814f44119cf08"
+  },
+  "Project/Core/Tags/ColorExtractor.cs": {
+    "mtime": 1784026293.5059092,
+    "seen": 1788317918.994144,
+    "ast_hash": "c30f3b77293f8670b7b9a2345ff872d1",
+    "semantic_hash": "c30f3b77293f8670b7b9a2345ff872d1"
+  },
+  "Project/Core/Tags/ScreenshotTagStore.cs": {
+    "mtime": 1784026274.4154968,
+    "seen": 1788317918.994144,
+    "ast_hash": "4de6959f75958dd9da65c493e712860d",
+    "semantic_hash": "4de6959f75958dd9da65c493e712860d"
+  },
+  "Project/Core/Theming/ThemeManager.cs": {
+    "mtime": 1783298017.606243,
+    "seen": 1788317918.994144,
+    "ast_hash": "3d90dc3f3acda9ce0868dba762db2a56",
+    "semantic_hash": "3d90dc3f3acda9ce0868dba762db2a56"
+  },
+  "Project/Core/Todo/RepeatCalculator.cs": {
+    "mtime": 1785980239.4755921,
+    "seen": 1788317918.994144,
+    "ast_hash": "93172d90b3433cc097650574b63ea2a7",
+    "semantic_hash": "93172d90b3433cc097650574b63ea2a7"
+  },
+  "Project/Core/Todo/RepeatConfig.cs": {
+    "mtime": 1785924573.8598633,
+    "seen": 1788317918.994144,
+    "ast_hash": "e7f1aab468c56e438d273413b6fc065d",
+    "semantic_hash": "e7f1aab468c56e438d273413b6fc065d"
+  },
+  "Project/Core/Todo/SmartDateParser.cs": {
+    "mtime": 1784026478.5104434,
+    "seen": 1788317918.994144,
+    "ast_hash": "77fa876501d39f8a9600e9fddf9dae18",
+    "semantic_hash": "77fa876501d39f8a9600e9fddf9dae18"
+  },
+  "Project/Core/Todo/TodoItem.cs": {
+    "mtime": 1786066525.5882885,
+    "seen": 1788317918.994144,
+    "ast_hash": "4b6e81a79a62f19dfc75dc1a42d5bd45",
+    "semantic_hash": "4b6e81a79a62f19dfc75dc1a42d5bd45"
+  },
+  "Project/Core/Todo/TodoStore.cs": {
+    "mtime": 1787198984.79513,
+    "seen": 1788317918.994144,
+    "ast_hash": "b9c348d54d0ca90710698a3a557c4c0f",
+    "semantic_hash": "b9c348d54d0ca90710698a3a557c4c0f"
+  },
+  "Project/Core/Tools/ActionChainTools.cs": {
+    "mtime": 1784026122.894248,
+    "seen": 1788317918.994144,
+    "ast_hash": "be9c6d8425b67dc4d245435a8da91417",
+    "semantic_hash": "be9c6d8425b67dc4d245435a8da91417"
+  },
+  "Project/Core/Tools/FileTools.cs": {
+    "mtime": 1783954404.7240689,
+    "seen": 1788317918.994144,
+    "ast_hash": "5ae35f588d383406fd5e72710a280d7c",
+    "semantic_hash": "5ae35f588d383406fd5e72710a280d7c"
+  },
+  "Project/Core/Tools/OcrTools.cs": {
+    "mtime": 1785285868.8902466,
+    "seen": 1788317918.994144,
+    "ast_hash": "203d8ec01bc1f1ae5dd3ddc60b8631f4",
+    "semantic_hash": "203d8ec01bc1f1ae5dd3ddc60b8631f4"
+  },
+  "Project/Core/Tools/ScreenshotTools.cs": {
+    "mtime": 1784026303.4087174,
+    "seen": 1788317918.994144,
+    "ast_hash": "ac1f3a7545cced6aaf0bb86357bf943b",
+    "semantic_hash": "ac1f3a7545cced6aaf0bb86357bf943b"
+  },
+  "Project/Core/Tools/TodoTools.cs": {
+    "mtime": 1785980255.951998,
+    "seen": 1788317918.994144,
+    "ast_hash": "a1ef1f8e8b17a2f860ee889eaa71c4aa",
+    "semantic_hash": "a1ef1f8e8b17a2f860ee889eaa71c4aa"
+  },
+  "Project/Core/Tools/ToolAttribute.cs": {
+    "mtime": 1783298017.6182935,
+    "seen": 1788317918.994144,
+    "ast_hash": "971bb5803d56c3f3350030befe37c884",
+    "semantic_hash": "971bb5803d56c3f3350030befe37c884"
+  },
+  "Project/Core/Tools/ToolInfo.cs": {
+    "mtime": 1783903592.893882,
+    "seen": 1788317918.994144,
+    "ast_hash": "3771a488a02268e110ed1adedfa447cb",
+    "semantic_hash": "3771a488a02268e110ed1adedfa447cb"
+  },
+  "Project/Core/Tools/ToolParamAttribute.cs": {
+    "mtime": 1783298017.6508808,
+    "seen": 1788317918.994144,
+    "ast_hash": "7fae56da442f852a0c3a1831c0f1e638",
+    "semantic_hash": "7fae56da442f852a0c3a1831c0f1e638"
+  },
+  "Project/Core/Tools/ToolRegistry.cs": {
+    "mtime": 1783903592.9018831,
+    "seen": 1788317918.994144,
+    "ast_hash": "ccd882644097687fc79d0dceccc26afd",
+    "semantic_hash": "ccd882644097687fc79d0dceccc26afd"
+  },
+  "Project/Core/Tools/WebSearchTools.cs": {
+    "mtime": 1783903592.9066246,
+    "seen": 1788317918.994144,
+    "ast_hash": "a9d9fdeda94bf055f29175c4814c5dec",
+    "semantic_hash": "a9d9fdeda94bf055f29175c4814c5dec"
+  },
+  "Project/Core/Translation/TranslationService.cs": {
+    "mtime": 1788316946.8191152,
+    "seen": 1788317918.994144,
+    "ast_hash": "3cd94d3df8d0ed14b34e1686021236ab",
+    "semantic_hash": "3cd94d3df8d0ed14b34e1686021236ab"
+  },
+  "Project/Core/Window/PreviewCardManager.cs": {
+    "mtime": 1788317109.6315868,
+    "seen": 1788317918.994144,
+    "ast_hash": "60a01b7554ebdbebf1b0ede3811c5cd7",
+    "semantic_hash": "60a01b7554ebdbebf1b0ede3811c5cd7"
+  },
+  "Project/Core/Window/WindowInfo.cs": {
+    "mtime": 1783298017.817925,
+    "seen": 1788317918.994144,
+    "ast_hash": "7bce8e2fd6e6135712b3912c40016738",
+    "semantic_hash": "7bce8e2fd6e6135712b3912c40016738"
+  },
+  "Project/Core/Window/WindowManager.cs": {
+    "mtime": 1783954404.731083,
+    "seen": 1788317918.994144,
+    "ast_hash": "c0c3359c10bc97eaf4f8fef87ce1bfde",
+    "semantic_hash": "c0c3359c10bc97eaf4f8fef87ce1bfde"
+  },
+  "Project/Core/Window/WindowPinner.cs": {
+    "mtime": 1784083862.5689695,
+    "seen": 1788317918.994144,
+    "ast_hash": "4f0526ffd7c6bc683d801c43283c1d01",
+    "semantic_hash": "4f0526ffd7c6bc683d801c43283c1d01"
+  },
+  "Project/Core/Window/WindowsFilter.cs": {
+    "mtime": 1783298017.818435,
+    "seen": 1788317918.994144,
+    "ast_hash": "933a57290ed0e29daba0af7662ba2e10",
+    "semantic_hash": "933a57290ed0e29daba0af7662ba2e10"
+  },
+  "Project/GlobalUsings.cs": {
+    "mtime": 1783298017.818435,
+    "seen": 1788317918.994144,
+    "ast_hash": "00559ead497b82265f830e9db288a365",
+    "semantic_hash": "00559ead497b82265f830e9db288a365"
+  },
+  "Project/Models/CStyle.cs": {
+    "mtime": 1783298017.8392603,
+    "seen": 1788317918.994144,
+    "ast_hash": "b25238d33f9faf763e2a7bbbaed16d03",
+    "semantic_hash": "b25238d33f9faf763e2a7bbbaed16d03"
+  },
+  "Project/Models/Enums.cs": {
+    "mtime": 1783298017.882489,
+    "seen": 1788317918.994144,
+    "ast_hash": "a69488cb9f23247bf306af6aa7bcf719",
+    "semantic_hash": "a69488cb9f23247bf306af6aa7bcf719"
+  },
+  "Project/Models/Events.cs": {
+    "mtime": 1783298017.882489,
+    "seen": 1788317918.994144,
+    "ast_hash": "6ffe527a7998004ffa1fb8f5f9e90085",
+    "semantic_hash": "6ffe527a7998004ffa1fb8f5f9e90085"
+  },
+  "Project/Models/KeyItem.cs": {
+    "mtime": 1783298017.882489,
+    "seen": 1788317918.994144,
+    "ast_hash": "0952e682ad07d9f90cb5ae823eb449e7",
+    "semantic_hash": "0952e682ad07d9f90cb5ae823eb449e7"
+  },
+  "Project/Models/KeyItemBook.cs": {
+    "mtime": 1783298017.8834858,
+    "seen": 1788317918.994144,
+    "ast_hash": "1e7198dcb9d9349a4711e7802bf163a5",
+    "semantic_hash": "1e7198dcb9d9349a4711e7802bf163a5"
+  },
+  "Project/Models/RGBColor.cs": {
+    "mtime": 1783298017.8834858,
+    "seen": 1788317918.994144,
+    "ast_hash": "d976b656b4f65d988b4c3f5ebab3d70e",
+    "semantic_hash": "d976b656b4f65d988b4c3f5ebab3d70e"
+  },
+  "Project/Models/ScrapSource.cs": {
+    "mtime": 1783298018.010531,
+    "seen": 1788317918.994144,
+    "ast_hash": "d3fcbdf6cee58e2b9f11582c1704e5ad",
+    "semantic_hash": "d3fcbdf6cee58e2b9f11582c1704e5ad"
+  },
+  "Project/Models/ScrapWindow.cs": {
+    "mtime": 1788317517.4169946,
+    "seen": 1788317918.994144,
+    "ast_hash": "8fb86722a35b6a0bad836e2550974cd4",
+    "semantic_hash": "8fb86722a35b6a0bad836e2550974cd4"
+  },
+  "Project/Models/SetunaOption.cs": {
+    "mtime": 1787197719.0484319,
+    "seen": 1788317918.994144,
+    "ast_hash": "3d63d4683160e6dec70a5951d40a4966",
+    "semantic_hash": "3d63d4683160e6dec70a5951d40a4966"
+  },
+  "Project/Models/StyleItemDictionary.cs": {
+    "mtime": 1783298018.0268161,
+    "seen": 1788317918.994144,
+    "ast_hash": "cd575f8c909d7f3afa311ce6aaf54269",
+    "semantic_hash": "cd575f8c909d7f3afa311ce6aaf54269"
+  },
+  "Project/Services/AutoStartup.cs": {
+    "mtime": 1785823154.430432,
+    "seen": 1788317918.994144,
+    "ast_hash": "fca58bed6d778fe402a00c81c78d93cd",
+    "semantic_hash": "fca58bed6d778fe402a00c81c78d93cd"
+  },
+  "Project/Services/CacheItem.cs": {
+    "mtime": 1783903592.9256227,
+    "seen": 1788317918.994144,
+    "ast_hash": "82557d30f4f88a6c025726de16f17b86",
+    "semantic_hash": "82557d30f4f88a6c025726de16f17b86"
+  },
+  "Project/Services/CacheManager.cs": {
+    "mtime": 1785839281.9195023,
+    "seen": 1788317918.994144,
+    "ast_hash": "52fbb5fb34ffe56a8c62b105d9ef2ca1",
+    "semantic_hash": "52fbb5fb34ffe56a8c62b105d9ef2ca1"
+  },
+  "Project/Services/Extensions.cs": {
+    "mtime": 1783298018.072054,
+    "seen": 1788317918.994144,
+    "ast_hash": "8b9b8182e93c5b0077882e5e76001f12",
+    "semantic_hash": "8b9b8182e93c5b0077882e5e76001f12"
+  },
+  "Project/Services/LayerCommands.cs": {
+    "mtime": 1783298018.0814772,
+    "seen": 1788317918.994144,
+    "ast_hash": "53d65da640fae84054c4308ca2a034e6",
+    "semantic_hash": "53d65da640fae84054c4308ca2a034e6"
+  },
+  "Project/Services/LayerManager.cs": {
+    "mtime": 1783298018.0827086,
+    "seen": 1788317918.994144,
+    "ast_hash": "a9b9a72b0a2e0abeafbab1b5680b33e6",
+    "semantic_hash": "a9b9a72b0a2e0abeafbab1b5680b33e6"
+  },
+  "Project/Services/Ocr/LanguagePackManager.cs": {
+    "mtime": 1785839312.0484724,
+    "seen": 1788317918.994144,
+    "ast_hash": "931c96fbba9a80bdff2a2742e3f20ba6",
+    "semantic_hash": "931c96fbba9a80bdff2a2742e3f20ba6"
+  },
+  "Project/Services/Ocr/OcrResult.cs": {
+    "mtime": 1785285869.3530438,
+    "seen": 1788317918.994144,
+    "ast_hash": "d1396d8698454678cd82440451f02dfa",
+    "semantic_hash": "d1396d8698454678cd82440451f02dfa"
+  },
+  "Project/Services/Ocr/OcrService.cs": {
+    "mtime": 1785285869.4433262,
+    "seen": 1788317918.994144,
+    "ast_hash": "2efe145dacdb68672a9ed11d5ae713dc",
+    "semantic_hash": "2efe145dacdb68672a9ed11d5ae713dc"
+  },
+  "Project/Services/PointJsonConverter.cs": {
+    "mtime": 1783386427.4060524,
+    "seen": 1788317918.994144,
+    "ast_hash": "8b2dd954f48247716d69caaeaa596c85",
+    "semantic_hash": "8b2dd954f48247716d69caaeaa596c85"
+  },
+  "Project/Services/ScrapBook.cs": {
+    "mtime": 1783954404.7658243,
+    "seen": 1788317918.994144,
+    "ast_hash": "a24252b66929a03e24f69b2acb7f7d02",
+    "semantic_hash": "a24252b66929a03e24f69b2acb7f7d02"
+  },
+  "Project/Services/SingletonApplication.cs": {
+    "mtime": 1783298018.0827086,
+    "seen": 1788317918.994144,
+    "ast_hash": "3e6d8240bf981d202d91c783d8b574f2",
+    "semantic_hash": "3e6d8240bf981d202d91c783d8b574f2"
+  },
+  "Project/Services/Styles/CBasicStyleItems.cs": {
+    "mtime": 1783298018.1153953,
+    "seen": 1788317918.994144,
+    "ast_hash": "b04e9c0751b93445d4b23fb8e661cb27",
+    "semantic_hash": "b04e9c0751b93445d4b23fb8e661cb27"
+  },
+  "Project/Services/Styles/CCopyStyleItem.cs": {
+    "mtime": 1783413142.8564012,
+    "seen": 1788317918.994144,
+    "ast_hash": "204abfacd4cf8e2b34ec608347ef274d",
+    "semantic_hash": "204abfacd4cf8e2b34ec608347ef274d"
+  },
+  "Project/Services/Styles/CImageStyleItems.cs": {
+    "mtime": 1783298018.1153953,
+    "seen": 1788317918.994144,
+    "ast_hash": "abe010ba1d801082e8b238a106a904e2",
+    "semantic_hash": "abe010ba1d801082e8b238a106a904e2"
+  },
+  "Project/Services/Styles/CMoreStyleItems.cs": {
+    "mtime": 1783298018.1153953,
+    "seen": 1788317918.994144,
+    "ast_hash": "a2f62623695b393df50889dbf6148b32",
+    "semantic_hash": "a2f62623695b393df50889dbf6148b32"
+  },
+  "Project/Services/ToolCommand.cs": {
+    "mtime": 1783298018.1480088,
+    "seen": 1788317918.994144,
+    "ast_hash": "c9b25dbed6c37e29d6c820750b70f5de",
+    "semantic_hash": "c9b25dbed6c37e29d6c820750b70f5de"
+  },
+  "Project/Services/Utils.cs": {
+    "mtime": 1783298018.1505482,
+    "seen": 1788317918.994144,
+    "ast_hash": "0f582acdd1dea8ef2e8e21c9814ea4f5",
+    "semantic_hash": "0f582acdd1dea8ef2e8e21c9814ea4f5"
+  },
+  "Project/Themes/Dark.xaml": {
+    "mtime": 1785904861.9972851,
+    "seen": 1788317918.994144,
+    "ast_hash": "e2bd3ecd28d3843c4eea3168467f0672",
+    "semantic_hash": "e2bd3ecd28d3843c4eea3168467f0672"
+  },
+  "Project/Themes/DesignTokens.xaml": {
+    "mtime": 1786066555.4859905,
+    "seen": 1788317918.994144,
+    "ast_hash": "37a6cfc597e897582792e7c3c6ea4d75",
+    "semantic_hash": "37a6cfc597e897582792e7c3c6ea4d75"
+  },
+  "Project/Themes/Lang en-US.xaml": {
+    "mtime": 1787197757.7910628,
+    "seen": 1788317918.994144,
+    "ast_hash": "6e54b2fdeca4f2d2df9adbe7816be76e",
+    "semantic_hash": "6e54b2fdeca4f2d2df9adbe7816be76e"
+  },
+  "Project/Themes/Lang zh-CN.xaml": {
+    "mtime": 1787197747.704534,
+    "seen": 1788317918.994144,
+    "ast_hash": "d0b80c5ae9864aaf94836992c475156c",
+    "semantic_hash": "d0b80c5ae9864aaf94836992c475156c"
+  },
+  "Project/Themes/Light.xaml": {
+    "mtime": 1785904854.5007355,
+    "seen": 1788317918.994144,
+    "ast_hash": "2bc143ea8de9bb68ba396ace159dbff5",
+    "semantic_hash": "2bc143ea8de9bb68ba396ace159dbff5"
+  },
+  "Project/ToolBox.csproj": {
+    "mtime": 1785285869.7233875,
+    "seen": 1788317918.994144,
+    "ast_hash": "64a176840acf54f323ed16e6bd5d1d6f",
+    "semantic_hash": "64a176840acf54f323ed16e6bd5d1d6f"
+  },
+  "Project/ToolBox.slnx": {
+    "mtime": 1783298018.2390783,
+    "seen": 1788317918.994144,
+    "ast_hash": "4df3ff5408717f7bf4a25792d1ec3953",
+    "semantic_hash": "4df3ff5408717f7bf4a25792d1ec3953"
+  },
+  "Project/Views/Capture/CaptureWindow.cs": {
+    "mtime": 1783925841.404715,
+    "seen": 1788317918.994144,
+    "ast_hash": "e714cc94fcf6e2bcb92c30c9c7cb1514",
+    "semantic_hash": "e714cc94fcf6e2bcb92c30c9c7cb1514"
+  },
+  "Project/Views/Capture/CaptureWindow.xaml": {
+    "mtime": 1785837053.213498,
+    "seen": 1788317918.994144,
+    "ast_hash": "d7504c721346c69b025b000ec1c0ff43",
+    "semantic_hash": "d7504c721346c69b025b000ec1c0ff43"
+  },
+  "Project/Views/ClickCaptureWindow.cs": {
+    "mtime": 1783413170.1232321,
+    "seen": 1788317918.994144,
+    "ast_hash": "78c2fdd749655b2d09518eca2f0a0aab",
+    "semantic_hash": "78c2fdd749655b2d09518eca2f0a0aab"
+  },
+  "Project/Views/Clipboard/ClipboardPopup.xaml": {
+    "mtime": 1788317087.8038754,
+    "seen": 1788317918.994144,
+    "ast_hash": "138cc8a65bca2911750c379b57ea65e6",
+    "semantic_hash": "138cc8a65bca2911750c379b57ea65e6"
+  },
+  "Project/Views/Clipboard/ClipboardPopup.xaml.cs": {
+    "mtime": 1788317075.0425937,
+    "seen": 1788317918.994144,
+    "ast_hash": "f1cff71b434d3a6cbdcdc1d92a22d722",
+    "semantic_hash": "f1cff71b434d3a6cbdcdc1d92a22d722"
+  },
+  "Project/Views/Clipboard/ClipboardView.xaml": {
+    "mtime": 1788317015.596269,
+    "seen": 1788317918.994144,
+    "ast_hash": "0c811e50c79ad93f7eb8a6c1fc967e64",
+    "semantic_hash": "0c811e50c79ad93f7eb8a6c1fc967e64"
+  },
+  "Project/Views/Clipboard/ClipboardView.xaml.cs": {
+    "mtime": 1788317004.2445273,
+    "seen": 1788317918.994144,
+    "ast_hash": "b1db58e62445c7cb8e0f7c6bafb51409",
+    "semantic_hash": "b1db58e62445c7cb8e0f7c6bafb51409"
+  },
+  "Project/Views/CloseDialogWindow.xaml": {
+    "mtime": 1786950581.2817302,
+    "seen": 1788317918.994144,
+    "ast_hash": "783d0177c299892b881b0977738ab1f7",
+    "semantic_hash": "783d0177c299892b881b0977738ab1f7"
+  },
+  "Project/Views/CloseDialogWindow.xaml.cs": {
+    "mtime": 1783557702.8602624,
+    "seen": 1788317918.994144,
+    "ast_hash": "1f9b848a6fed1fd80ccce16f705c8f29",
+    "semantic_hash": "1f9b848a6fed1fd80ccce16f705c8f29"
+  },
+  "Project/Views/Color/ColorHistoryPopup.xaml": {
+    "mtime": 1785837126.5481105,
+    "seen": 1788317918.994144,
+    "ast_hash": "7010db08458555dc60c54d7a1f0bd7e9",
+    "semantic_hash": "7010db08458555dc60c54d7a1f0bd7e9"
+  },
+  "Project/Views/Color/ColorHistoryPopup.xaml.cs": {
+    "mtime": 1785285870.398242,
+    "seen": 1788317918.994144,
+    "ast_hash": "2d410e16499b58418190bbeb41104b01",
+    "semantic_hash": "2d410e16499b58418190bbeb41104b01"
+  },
+  "Project/Views/Color/ColorPickerOverlay.xaml": {
+    "mtime": 1785837127.1847718,
+    "seen": 1788317918.994144,
+    "ast_hash": "5d9434cc9f393fef9b8ce1fc2cae57d1",
+    "semantic_hash": "5d9434cc9f393fef9b8ce1fc2cae57d1"
+  },
+  "Project/Views/Color/ColorPickerOverlay.xaml.cs": {
+    "mtime": 1783995886.8882177,
+    "seen": 1788317918.994144,
+    "ast_hash": "0886d75a92ec05421366f231bd60f1c6",
+    "semantic_hash": "0886d75a92ec05421366f231bd60f1c6"
+  },
+  "Project/Views/Color/ColorToast.xaml": {
+    "mtime": 1785837127.7240014,
+    "seen": 1788317918.994144,
+    "ast_hash": "73c7e41d3c58afe8df9f0a8132431060",
+    "semantic_hash": "73c7e41d3c58afe8df9f0a8132431060"
+  },
+  "Project/Views/Color/ColorToast.xaml.cs": {
+    "mtime": 1785285870.8629744,
+    "seen": 1788317918.994144,
+    "ast_hash": "7c6c7e7bec66c5bb2ec6ee389b026290",
+    "semantic_hash": "7c6c7e7bec66c5bb2ec6ee389b026290"
+  },
+  "Project/Views/CompactScrapWindow.cs": {
+    "mtime": 1783557702.8653212,
+    "seen": 1788317918.994144,
+    "ast_hash": "9cbbdc0942ed4271d021857929309823",
+    "semantic_hash": "9cbbdc0942ed4271d021857929309823"
+  },
+  "Project/Views/CompactScrapWindow.xaml": {
+    "mtime": 1785837074.1082468,
+    "seen": 1788317918.994144,
+    "ast_hash": "01153940f689b2c56b44c21bde3e67aa",
+    "semantic_hash": "01153940f689b2c56b44c21bde3e67aa"
+  },
+  "Project/Views/CompactToolboxWindow.xaml": {
+    "mtime": 1788317391.724995,
+    "seen": 1788317918.994144,
+    "ast_hash": "63f17c1d64c6a836396e9cee4b6d66bc",
+    "semantic_hash": "63f17c1d64c6a836396e9cee4b6d66bc"
+  },
+  "Project/Views/CompactToolboxWindow.xaml.cs": {
+    "mtime": 1788317499.2506921,
+    "seen": 1788317918.994144,
+    "ast_hash": "a07a51d3052db3acd8dcf31ccf0f0ae8",
+    "semantic_hash": "a07a51d3052db3acd8dcf31ccf0f0ae8"
+  },
+  "Project/Views/Dashboard/DashboardView.xaml": {
+    "mtime": 1788317236.939072,
+    "seen": 1788317918.994144,
+    "ast_hash": "9d5df755b3b89ccd78ad182c7c66df77",
+    "semantic_hash": "9d5df755b3b89ccd78ad182c7c66df77"
+  },
+  "Project/Views/Dashboard/DashboardView.xaml.cs": {
+    "mtime": 1788317180.900654,
+    "seen": 1788317918.994144,
+    "ast_hash": "21fdb538deadb13b61396c2a4212dfaf",
+    "semantic_hash": "21fdb538deadb13b61396c2a4212dfaf"
+  },
+  "Project/Views/Habits/HabitTrackerView.cs": {
+    "mtime": 1784102065.0880098,
+    "seen": 1788317918.994144,
+    "ast_hash": "06da9df8cc935c8dda32944bd9b24e7c",
+    "semantic_hash": "06da9df8cc935c8dda32944bd9b24e7c"
+  },
+  "Project/Views/HistoryView.xaml": {
+    "mtime": 1785928318.9920292,
+    "seen": 1788317918.994144,
+    "ast_hash": "3f6a8b1a425913571e9817a27e1f93ba",
+    "semantic_hash": "3f6a8b1a425913571e9817a27e1f93ba"
+  },
+  "Project/Views/HistoryView.xaml.cs": {
+    "mtime": 1785838140.656847,
+    "seen": 1788317918.994144,
+    "ast_hash": "5da521e59a4c01ac05a8b849bf2b2eb9",
+    "semantic_hash": "5da521e59a4c01ac05a8b849bf2b2eb9"
+  },
+  "Project/Views/HotkeyInputWindow.cs": {
+    "mtime": 1783298018.4062724,
+    "seen": 1788317918.994144,
+    "ast_hash": "074020d5d93a031057f9faca8de8acf1",
+    "semantic_hash": "074020d5d93a031057f9faca8de8acf1"
+  },
+  "Project/Views/HotkeyInputWindow.xaml": {
+    "mtime": 1785838201.876892,
+    "seen": 1788317918.994144,
+    "ast_hash": "a86245d1cc05a5bb8b195dee4d9c3658",
+    "semantic_hash": "a86245d1cc05a5bb8b195dee4d9c3658"
+  },
+  "Project/Views/ImageHelper.cs": {
+    "mtime": 1783415521.7912822,
+    "seen": 1788317918.994144,
+    "ast_hash": "290326b75f7fe19e75dfdee81e730f7f",
+    "semantic_hash": "290326b75f7fe19e75dfdee81e730f7f"
+  },
+  "Project/Views/ImagePreviewWindow.xaml": {
+    "mtime": 1783559537.8751583,
+    "seen": 1788317918.994144,
+    "ast_hash": "cc46bc8a13471130ae1a611c3c73d9a4",
+    "semantic_hash": "cc46bc8a13471130ae1a611c3c73d9a4"
+  },
+  "Project/Views/ImagePreviewWindow.xaml.cs": {
+    "mtime": 1783903592.979023,
+    "seen": 1788317918.994144,
+    "ast_hash": "d64e5c2051b927a2d0767374077011ba",
+    "semantic_hash": "d64e5c2051b927a2d0767374077011ba"
+  },
+  "Project/Views/InputWindow.xaml": {
+    "mtime": 1785926053.35822,
+    "seen": 1788317918.994144,
+    "ast_hash": "41037d8009ca439d2f04fb3e06a45834",
+    "semantic_hash": "41037d8009ca439d2f04fb3e06a45834"
+  },
+  "Project/Views/InputWindow.xaml.cs": {
+    "mtime": 1785926795.2105155,
+    "seen": 1788317918.994144,
+    "ast_hash": "ccdf5df4abfbe977327e15bcd2aa9ac2",
+    "semantic_hash": "ccdf5df4abfbe977327e15bcd2aa9ac2"
+  },
+  "Project/Views/LayerRenameWindow.cs": {
+    "mtime": 1783298018.4072747,
+    "seen": 1788317918.994144,
+    "ast_hash": "3ec93301fd5f262abb75968104694df1",
+    "semantic_hash": "3ec93301fd5f262abb75968104694df1"
+  },
+  "Project/Views/LayerRenameWindow.xaml": {
+    "mtime": 1783298018.4072747,
+    "seen": 1788317918.994144,
+    "ast_hash": "1f9363305e2517bd19c5be6821d3348f",
+    "semantic_hash": "1f9363305e2517bd19c5be6821d3348f"
+  },
+  "Project/Views/MagnifierWindow.cs": {
+    "mtime": 1783320184.8867524,
+    "seen": 1788317918.994144,
+    "ast_hash": "ab299374a86a6b94034a806e466333ba",
+    "semantic_hash": "ab299374a86a6b94034a806e466333ba"
+  },
+  "Project/Views/MagnifierWindow.xaml": {
+    "mtime": 1785836928.318213,
+    "seen": 1788317918.994144,
+    "ast_hash": "ea4f616dd87b77195021d3908b3889c9",
+    "semantic_hash": "ea4f616dd87b77195021d3908b3889c9"
+  },
+  "Project/Views/MainWindow.cs": {
+    "mtime": 1788317789.523677,
+    "seen": 1788317918.994144,
+    "ast_hash": "a7e19903e3977cfdc1fa7d934ccffa05",
+    "semantic_hash": "a7e19903e3977cfdc1fa7d934ccffa05"
+  },
+  "Project/Views/MainWindow.xaml": {
+    "mtime": 1783418792.410208,
+    "seen": 1788317918.994144,
+    "ast_hash": "a3968efcf1fcbf5bc237cab3ac1ef798",
+    "semantic_hash": "a3968efcf1fcbf5bc237cab3ac1ef798"
+  },
+  "Project/Views/MessageWindow.xaml": {
+    "mtime": 1785926076.9228132,
+    "seen": 1788317918.994144,
+    "ast_hash": "392c5f891877e26731f4d25dadd9a51e",
+    "semantic_hash": "392c5f891877e26731f4d25dadd9a51e"
+  },
+  "Project/Views/MessageWindow.xaml.cs": {
+    "mtime": 1783298018.7897239,
+    "seen": 1788317918.994144,
+    "ast_hash": "eef0853201aa5fe5e2e26dd171d49224",
+    "semantic_hash": "eef0853201aa5fe5e2e26dd171d49224"
+  },
+  "Project/Views/NetworkDiagnosis/DiagnosisModels.cs": {
+    "mtime": 1785898734.8608851,
+    "seen": 1788317918.994144,
+    "ast_hash": "273284deb377c2b9ea9f8d82e62f6c1e",
+    "semantic_hash": "273284deb377c2b9ea9f8d82e62f6c1e"
+  },
+  "Project/Views/NetworkDiagnosis/NetworkDiagnosisView.xaml": {
+    "mtime": 1785926086.9053142,
+    "seen": 1788317918.994144,
+    "ast_hash": "10d6b505b03d34ecde4230db4f114572",
+    "semantic_hash": "10d6b505b03d34ecde4230db4f114572"
+  },
+  "Project/Views/NetworkDiagnosis/NetworkDiagnosisView.xaml.cs": {
+    "mtime": 1785926172.663591,
+    "seen": 1788317918.994144,
+    "ast_hash": "29fb7f2c2da26a330d88b8f7eb6d0d7d",
+    "semantic_hash": "29fb7f2c2da26a330d88b8f7eb6d0d7d"
+  },
+  "Project/Views/NetworkDiagnosis/RepairConfirmWindow.xaml": {
+    "mtime": 1785926078.5169635,
+    "seen": 1788317918.994144,
+    "ast_hash": "14db4234e60d387f79033d1087bd4496",
+    "semantic_hash": "14db4234e60d387f79033d1087bd4496"
+  },
+  "Project/Views/NetworkDiagnosis/RepairConfirmWindow.xaml.cs": {
+    "mtime": 1785926137.6350844,
+    "seen": 1788317918.994144,
+    "ast_hash": "6c79116bc9fe3f6e26eb452177f72bdb",
+    "semantic_hash": "6c79116bc9fe3f6e26eb452177f72bdb"
+  },
+  "Project/Views/NetworkDiagnosis/RepairModels.cs": {
+    "mtime": 1785923578.7662952,
+    "seen": 1788317918.994144,
+    "ast_hash": "28e5d52dd8be984ce007293a93ed8026",
+    "semantic_hash": "28e5d52dd8be984ce007293a93ed8026"
+  },
+  "Project/Views/Ocr/OcrResultOverlay.xaml": {
+    "mtime": 1788316995.5793319,
+    "seen": 1788317918.994144,
+    "ast_hash": "1d8361be01c101fdaf9410ada0d488f5",
+    "semantic_hash": "1d8361be01c101fdaf9410ada0d488f5"
+  },
+  "Project/Views/Ocr/OcrResultOverlay.xaml.cs": {
+    "mtime": 1788316986.7963521,
+    "seen": 1788317918.994144,
+    "ast_hash": "bb1bdb6d640e0deec155f1956aba7bb7",
+    "semantic_hash": "bb1bdb6d640e0deec155f1956aba7bb7"
+  },
+  "Project/Views/Ocr/OcrSelectAdorner.cs": {
+    "mtime": 1785285871.3207867,
+    "seen": 1788317918.994144,
+    "ast_hash": "4c6cbcd431748179ac1e0a013e0cbac4",
+    "semantic_hash": "4c6cbcd431748179ac1e0a013e0cbac4"
+  },
+  "Project/Views/Ocr/OcrTextPopup.xaml": {
+    "mtime": 1785837051.7560034,
+    "seen": 1788317918.994144,
+    "ast_hash": "9d2eb8e54844dd1dba733901fcfbb9ce",
+    "semantic_hash": "9d2eb8e54844dd1dba733901fcfbb9ce"
+  },
+  "Project/Views/Ocr/OcrTextPopup.xaml.cs": {
+    "mtime": 1788317823.213538,
+    "seen": 1788317918.994144,
+    "ast_hash": "0c649dc6e3ab8ce579c198194bb55dbd",
+    "semantic_hash": "0c649dc6e3ab8ce579c198194bb55dbd"
+  },
+  "Project/Views/Paint/PaintWindow.cs": {
+    "mtime": 1783298018.7952428,
+    "seen": 1788317918.994144,
+    "ast_hash": "224021baaf04b862d7e7fe326efdcfa6",
+    "semantic_hash": "224021baaf04b862d7e7fe326efdcfa6"
+  },
+  "Project/Views/Paint/PaintWindow.xaml": {
+    "mtime": 1783298018.7952428,
+    "seen": 1788317918.994144,
+    "ast_hash": "b44c13c5ddf98dc46a05b9139dc5ed98",
+    "semantic_hash": "b44c13c5ddf98dc46a05b9139dc5ed98"
+  },
+  "Project/Views/Paint/ScrapPaintLayer.cs": {
+    "mtime": 1783298018.7952428,
+    "seen": 1788317918.994144,
+    "ast_hash": "d39aa55f483415f6887fe6e8b82b3fec",
+    "semantic_hash": "d39aa55f483415f6887fe6e8b82b3fec"
+  },
+  "Project/Views/Paint/ScrapPaintToolBar.cs": {
+    "mtime": 1783298018.7952428,
+    "seen": 1788317918.994144,
+    "ast_hash": "cd90f6d7f5388ad4f0bfd4f35ceb3c16",
+    "semantic_hash": "cd90f6d7f5388ad4f0bfd4f35ceb3c16"
+  },
+  "Project/Views/Paint/ScrapPaintTools.cs": {
+    "mtime": 1783298018.7967515,
+    "seen": 1788317918.994144,
+    "ast_hash": "28e80cf37d40caf6af90c1df1fe6dced",
+    "semantic_hash": "28e80cf37d40caf6af90c1df1fe6dced"
+  },
+  "Project/Views/PenToolWindow.cs": {
+    "mtime": 1783298018.7967515,
+    "seen": 1788317918.994144,
+    "ast_hash": "992eaa0080f2f655b10d24c1c28f36ad",
+    "semantic_hash": "992eaa0080f2f655b10d24c1c28f36ad"
+  },
+  "Project/Views/PenToolWindow.xaml": {
+    "mtime": 1783298018.834505,
+    "seen": 1788317918.994144,
+    "ast_hash": "802060e7c1a164370bc883cdb48bd3f2",
+    "semantic_hash": "802060e7c1a164370bc883cdb48bd3f2"
+  },
+  "Project/Views/Pomodoro/PomodoroView.cs": {
+    "mtime": 1784101873.0279648,
+    "seen": 1788317918.994144,
+    "ast_hash": "93975577b3d1c36aa6a7360951747f54",
+    "semantic_hash": "93975577b3d1c36aa6a7360951747f54"
+  },
+  "Project/Views/PreviewCard/PreviewCardWindow.xaml": {
+    "mtime": 1788317157.570916,
+    "seen": 1788317918.994144,
+    "ast_hash": "b3b1c6ea755b3e88ecb97f94edc3d464",
+    "semantic_hash": "b3b1c6ea755b3e88ecb97f94edc3d464"
+  },
+  "Project/Views/PreviewCard/PreviewCardWindow.xaml.cs": {
+    "mtime": 1788317125.605743,
+    "seen": 1788317918.994144,
+    "ast_hash": "9af0971bca60ef1fb61fbfcea6f03602",
+    "semantic_hash": "9af0971bca60ef1fb61fbfcea6f03602"
+  },
+  "Project/Views/Reminder/ReminderDialog.xaml": {
+    "mtime": 1785931703.5743368,
+    "seen": 1788317918.994144,
+    "ast_hash": "1835e6e21ef1c09618af693a5d57ac1e",
+    "semantic_hash": "1835e6e21ef1c09618af693a5d57ac1e"
+  },
+  "Project/Views/Reminder/ReminderDialog.xaml.cs": {
+    "mtime": 1785931713.3387992,
+    "seen": 1788317918.994144,
+    "ast_hash": "0fdea4320452ef1f961a0f179b6d5191",
+    "semantic_hash": "0fdea4320452ef1f961a0f179b6d5191"
+  },
+  "Project/Views/Reminder/ReminderToast.xaml": {
+    "mtime": 1785931657.970454,
+    "seen": 1788317918.994144,
+    "ast_hash": "4c0923a1e1efba9532d81ae10256ea83",
+    "semantic_hash": "4c0923a1e1efba9532d81ae10256ea83"
+  },
+  "Project/Views/Reminder/ReminderToast.xaml.cs": {
+    "mtime": 1785931678.440811,
+    "seen": 1788317918.994144,
+    "ast_hash": "ed13d9bd14f4c75bc95deb7a362c88e4",
+    "semantic_hash": "ed13d9bd14f4c75bc95deb7a362c88e4"
+  },
+  "Project/Views/ScreenFreeze/ScreenFreezeWindow.xaml": {
+    "mtime": 1784100238.1943147,
+    "seen": 1788317918.994144,
+    "ast_hash": "76ebcf84e72372960e6c62a8943ab62a",
+    "semantic_hash": "76ebcf84e72372960e6c62a8943ab62a"
+  },
+  "Project/Views/ScreenFreeze/ScreenFreezeWindow.xaml.cs": {
+    "mtime": 1784100258.7557063,
+    "seen": 1788317918.994144,
+    "ast_hash": "cbdaa3d7b36ef5589b58c1c7115acd7e",
+    "semantic_hash": "cbdaa3d7b36ef5589b58c1c7115acd7e"
+  },
+  "Project/Views/Screenshot/ScrollingCapturePreview.xaml": {
+    "mtime": 1784081104.689781,
+    "seen": 1788317918.994144,
+    "ast_hash": "f28efb5984ce4ac7d2663a78022a83c5",
+    "semantic_hash": "f28efb5984ce4ac7d2663a78022a83c5"
+  },
+  "Project/Views/Screenshot/ScrollingCapturePreview.xaml.cs": {
+    "mtime": 1784081090.9239278,
+    "seen": 1788317918.994144,
+    "ast_hash": "41f8e57d30c5f986edeb7eafebb2a0a2",
+    "semantic_hash": "41f8e57d30c5f986edeb7eafebb2a0a2"
+  },
+  "Project/Views/SettingsView.xaml": {
+    "mtime": 1788317637.401639,
+    "seen": 1788317918.994144,
+    "ast_hash": "087ae7a86ea05f02307aa6d594476b5e",
+    "semantic_hash": "087ae7a86ea05f02307aa6d594476b5e"
+  },
+  "Project/Views/SettingsView.xaml.cs": {
+    "mtime": 1788317662.5080614,
+    "seen": 1788317918.994144,
+    "ast_hash": "ab42b0a061a7fd16712b4ff1e7981f52",
+    "semantic_hash": "ab42b0a061a7fd16712b4ff1e7981f52"
+  },
+  "Project/Views/Shell/Sidebar.xaml": {
+    "mtime": 1788317350.5964427,
+    "seen": 1788317918.994144,
+    "ast_hash": "4a66b918ee71789091104e07998fa137",
+    "semantic_hash": "4a66b918ee71789091104e07998fa137"
+  },
+  "Project/Views/Shell/Sidebar.xaml.cs": {
+    "mtime": 1788317340.694921,
+    "seen": 1788317918.994144,
+    "ast_hash": "bfc81d515fdafff5e55e9ef64f6352f6",
+    "semantic_hash": "bfc81d515fdafff5e55e9ef64f6352f6"
+  },
+  "Project/Views/Shell/TopHeader.xaml": {
+    "mtime": 1783298018.8370616,
+    "seen": 1788317918.994144,
+    "ast_hash": "d9f710ea5291d882852f5fc334432c30",
+    "semantic_hash": "d9f710ea5291d882852f5fc334432c30"
+  },
+  "Project/Views/Shell/TopHeader.xaml.cs": {
+    "mtime": 1783298018.8370616,
+    "seen": 1788317918.994144,
+    "ast_hash": "aa5265a1067d1164ab6fa2265791ffa4",
+    "semantic_hash": "aa5265a1067d1164ab6fa2265791ffa4"
+  },
+  "Project/Views/Shutdown/ShutdownToast.xaml": {
+    "mtime": 1785926084.3040128,
+    "seen": 1788317918.994144,
+    "ast_hash": "b6b0185a97ab665a4558703bea5033aa",
+    "semantic_hash": "b6b0185a97ab665a4558703bea5033aa"
+  },
+  "Project/Views/Shutdown/ShutdownToast.xaml.cs": {
+    "mtime": 1785903182.3603666,
+    "seen": 1788317918.994144,
+    "ast_hash": "9a6342484759585abca31ce2b8757d85",
+    "semantic_hash": "9a6342484759585abca31ce2b8757d85"
+  },
+  "Project/Views/SplashWindow.cs": {
+    "mtime": 1783298018.8381915,
+    "seen": 1788317918.994144,
+    "ast_hash": "49d4c340696f86b38f9f52982f13ad6d",
+    "semantic_hash": "49d4c340696f86b38f9f52982f13ad6d"
+  },
+  "Project/Views/SplashWindow.xaml": {
+    "mtime": 1785892509.3253222,
+    "seen": 1788317918.994144,
+    "ast_hash": "058a3a66adc96155bd1704e0eb14a61a",
+    "semantic_hash": "058a3a66adc96155bd1704e0eb14a61a"
+  },
+  "Project/Views/StepCapture/StepCapturePreviewWindow.xaml.cs": {
+    "mtime": 1784101682.7681408,
+    "seen": 1788317918.994144,
+    "ast_hash": "69af4dbbe3f48b75ad9dfea191881abd",
+    "semantic_hash": "69af4dbbe3f48b75ad9dfea191881abd"
+  },
+  "Project/Views/StyleEditWindow.cs": {
+    "mtime": 1783298018.8573296,
+    "seen": 1788317918.994144,
+    "ast_hash": "220d2e5095b44fa962ce4e9efaf59852",
+    "semantic_hash": "220d2e5095b44fa962ce4e9efaf59852"
+  },
+  "Project/Views/StyleEditWindow.xaml": {
+    "mtime": 1783298018.8573296,
+    "seen": 1788317918.994144,
+    "ast_hash": "87927e22e021d28ee3e3d19241b9512d",
+    "semantic_hash": "87927e22e021d28ee3e3d19241b9512d"
+  },
+  "Project/Views/StyleItemSelectWindow.cs": {
+    "mtime": 1783298018.8573296,
+    "seen": 1788317918.994144,
+    "ast_hash": "f897d450388dd43af8641c418e28f527",
+    "semantic_hash": "f897d450388dd43af8641c418e28f527"
+  },
+  "Project/Views/StyleItemSelectWindow.xaml": {
+    "mtime": 1783298018.8573296,
+    "seen": 1788317918.994144,
+    "ast_hash": "d101f59f41d01442345cdeff3d6d70ad",
+    "semantic_hash": "d101f59f41d01442345cdeff3d6d70ad"
+  },
+  "Project/Views/TextToolWindow.cs": {
+    "mtime": 1783298018.8583348,
+    "seen": 1788317918.994144,
+    "ast_hash": "2f5a1dab11d4f83905042317f3a94ec5",
+    "semantic_hash": "2f5a1dab11d4f83905042317f3a94ec5"
+  },
+  "Project/Views/TextToolWindow.xaml": {
+    "mtime": 1783298018.8583348,
+    "seen": 1788317918.994144,
+    "ast_hash": "17c5086efcb788fbb7d345ea7cb7a43b",
+    "semantic_hash": "17c5086efcb788fbb7d345ea7cb7a43b"
+  },
+  "Project/Views/TodoConfirmWindow.xaml": {
+    "mtime": 1785926065.7522304,
+    "seen": 1788317918.994144,
+    "ast_hash": "09bec27812310d4a9b1904eee0fe291c",
+    "semantic_hash": "09bec27812310d4a9b1904eee0fe291c"
+  },
+  "Project/Views/TodoConfirmWindow.xaml.cs": {
+    "mtime": 1785923338.7028415,
+    "seen": 1788317918.994144,
+    "ast_hash": "0dda0d0a7bf2fda0fdb40734dd384e92",
+    "semantic_hash": "0dda0d0a7bf2fda0fdb40734dd384e92"
+  },
+  "Project/Views/Todo/CalendarView.cs": {
+    "mtime": 1784101617.1340847,
+    "seen": 1788317918.994144,
+    "ast_hash": "df97de8220b7bc639da3e918bd7a8771",
+    "semantic_hash": "df97de8220b7bc639da3e918bd7a8771"
+  },
+  "Project/Views/Todo/CalendarView.xaml": {
+    "mtime": 1784101551.7536843,
+    "seen": 1788317918.994144,
+    "ast_hash": "158d8d5aec704a24ea624b45decde12f",
+    "semantic_hash": "158d8d5aec704a24ea624b45decde12f"
+  },
+  "Project/Views/Todo/TodoDetailPanel.xaml": {
+    "mtime": 1787188754.1282213,
+    "seen": 1788317918.994144,
+    "ast_hash": "e343ce508ec8148df5312e4a18902677",
+    "semantic_hash": "e343ce508ec8148df5312e4a18902677"
+  },
+  "Project/Views/Todo/TodoDetailPanel.xaml.cs": {
+    "mtime": 1787815060.86269,
+    "seen": 1788317918.994144,
+    "ast_hash": "141cb79689ebbc35c38b6cbb56096ad7",
+    "semantic_hash": "141cb79689ebbc35c38b6cbb56096ad7"
+  },
+  "Project/Views/Todo/TodoDetailWindow.xaml": {
+    "mtime": 1787189612.6299107,
+    "seen": 1788317918.994144,
+    "ast_hash": "069f1e195c35d5dae576d8655a0cce44",
+    "semantic_hash": "069f1e195c35d5dae576d8655a0cce44"
+  },
+  "Project/Views/Todo/TodoDetailWindow.xaml.cs": {
+    "mtime": 1787189770.487349,
+    "seen": 1788317918.994144,
+    "ast_hash": "9ff249e81f0da9ebd59587225d99fecc",
+    "semantic_hash": "9ff249e81f0da9ebd59587225d99fecc"
+  },
+  "Project/Views/Todo/TodoRepeatToast.xaml": {
+    "mtime": 1786064888.3042247,
+    "seen": 1788317918.994144,
+    "ast_hash": "93567a75700ce5e5b356fa1542886579",
+    "semantic_hash": "93567a75700ce5e5b356fa1542886579"
+  },
+  "Project/Views/Todo/TodoRepeatToast.xaml.cs": {
+    "mtime": 1786064895.3041413,
+    "seen": 1788317918.994144,
+    "ast_hash": "9407cc49d3ee68baf955ff8a21216717",
+    "semantic_hash": "9407cc49d3ee68baf955ff8a21216717"
+  },
+  "Project/Views/Todo/TodoView.xaml": {
+    "mtime": 1787188846.4064815,
+    "seen": 1788317918.994144,
+    "ast_hash": "45a28adb84f4f118e0050e03e30fd09b",
+    "semantic_hash": "45a28adb84f4f118e0050e03e30fd09b"
+  },
+  "Project/Views/Todo/TodoView.xaml.cs": {
+    "mtime": 1787188991.771764,
+    "seen": 1788317918.994144,
+    "ast_hash": "3cd8d586541098641b57e19d514cb0bf",
+    "semantic_hash": "3cd8d586541098641b57e19d514cb0bf"
+  },
+  "Project/Views/TrimWindow.cs": {
+    "mtime": 1783298018.9675632,
+    "seen": 1788317918.994144,
+    "ast_hash": "32265d49dd5ced05d13e686408c8e1f9",
+    "semantic_hash": "32265d49dd5ced05d13e686408c8e1f9"
+  },
+  "Project/Views/TrimWindow.xaml": {
+    "mtime": 1783298018.9675632,
+    "seen": 1788317918.994144,
+    "ast_hash": "4e07c474d2261c39ce72e1fda58a0122",
+    "semantic_hash": "4e07c474d2261c39ce72e1fda58a0122"
+  },
+  "Project/Views/WorkbenchWindow.xaml": {
+    "mtime": 1785892525.8535712,
+    "seen": 1788317918.994144,
+    "ast_hash": "ecdb9787099eb8a5c0790b6b88378a3f",
+    "semantic_hash": "ecdb9787099eb8a5c0790b6b88378a3f"
+  },
+  "Project/Views/WorkbenchWindow.xaml.cs": {
+    "mtime": 1788317323.3052588,
+    "seen": 1788317918.994144,
+    "ast_hash": "19fff8b4ac52e54246f1d60f55b19d54",
+    "semantic_hash": "19fff8b4ac52e54246f1d60f55b19d54"
+  },
+  "Project/obj2/ToolBox.csproj.nuget.dgspec.json": {
+    "mtime": 1783557702.8901763,
+    "seen": 1788317918.994144,
+    "ast_hash": "0d5617209a79f1ad2e0af7a5db3ec61e",
+    "semantic_hash": "0d5617209a79f1ad2e0af7a5db3ec61e"
+  },
+  "Project/obj2/project.assets.json": {
+    "mtime": 1783557702.8997557,
+    "seen": 1788317918.994144,
+    "ast_hash": "116aeee78363c773052b25043008b3de",
+    "semantic_hash": "116aeee78363c773052b25043008b3de"
+  },
+  "_build.sh": {
+    "mtime": 1784025160.155616,
+    "seen": 1788317918.994144,
+    "ast_hash": "0e0b6c93444e4e9c9bd1b2f721c79d54",
+    "semantic_hash": "0e0b6c93444e4e9c9bd1b2f721c79d54"
+  },
+  "_tmp_fix_lang.py": {
+    "mtime": 1783559458.4868033,
+    "seen": 1788317918.994144,
+    "ast_hash": "99a02c885e2b8c90b8c388d6de8aa4c2",
+    "semantic_hash": "99a02c885e2b8c90b8c388d6de8aa4c2"
+  }
+}

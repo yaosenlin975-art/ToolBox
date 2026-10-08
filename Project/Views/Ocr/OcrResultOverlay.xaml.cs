@@ -159,19 +159,20 @@ public partial class OcrResultOverlay : Window
         }
     }
 
-    private void TranslateClick(object sender, RoutedEventArgs e)
+    private async void TranslateClick(object sender, RoutedEventArgs e)
     {
         var text = GetSelectedOrAllText();
         if (string.IsNullOrEmpty(text)) return;
-        SendToAiInput("请翻译:\n" + text);
-        Close();
-    }
-
-    private void SendToAiClick(object sender, RoutedEventArgs e)
-    {
-        if (result == null || result.IsEmpty) return;
-        SendToAiInput(result.FullText);
-        Close();
+        try
+        {
+            var translated = await Core.Translation.TranslationService.TranslateAsync(text);
+            Clipboard.SetText(translated);
+            ShowStatus("已翻译并复制到剪贴板");
+        }
+        catch (Exception ex)
+        {
+            ShowStatus("翻译失败: " + ex.Message);
+        }
     }
 
     private void CloseClick(object sender, RoutedEventArgs e) => Close();
@@ -182,23 +183,6 @@ public partial class OcrResultOverlay : Window
         if (LineList.SelectedItem is ListBoxItem item && item.Tag is OcrLine line)
             return line.Text;
         return result?.FullText ?? string.Empty;
-    }
-
-    /// <summary>将文本填入 AI 助手输入框并跳转 AI Tab(复用 CompactToolbox 的常驻 ChatView)。</summary>
-    private void SendToAiInput(string text)
-    {
-        var toolbox = App.CompactToolbox;
-        if (toolbox != null)
-        {
-            toolbox.ChatPanel?.SetInput(text);
-            toolbox.SwitchToTab("chat");
-            toolbox.Activate();
-            return;
-        }
-        // 回退:打开工作台 AI 页
-        App.Workbench?.Show();
-        App.Workbench?.Activate();
-        App.Workbench?.LoadPage("assistant");
     }
 
     private void ShowStatus(string text)

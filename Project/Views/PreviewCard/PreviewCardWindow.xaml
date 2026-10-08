@@ -59,7 +59,6 @@
             Opacity="0.95">
         <Border.ContextMenu>
             <ContextMenu>
-                <MenuItem Header="发送到 AI" Click="OnSendToAiClick"/>
                 <MenuItem Header="保存为文件" Click="OnSaveClick"/>
                 <Separator/>
                 <MenuItem Header="丢弃" Click="OnDiscardClick"/>

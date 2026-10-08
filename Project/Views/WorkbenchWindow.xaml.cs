@@ -1,7 +1,6 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using ToolBox.Views.Chat;
 using ToolBox.Views.ClipboardHistory;
 using ToolBox.Views.Dashboard;
 using ToolBox.Views.NetworkDiagnosis;
@@ -12,7 +11,6 @@ namespace ToolBox.Views;
 public partial class WorkbenchWindow : Window
 {
     private DashboardView? dashboardView;
-    private ChatView? chatView;
     private TodoView? todoView;
     private HistoryView? historyView;
     private ClipboardView? clipboardView;
@@ -33,7 +31,6 @@ public partial class WorkbenchWindow : Window
         PageTitle.Text = page switch
         {
             "dashboard" => (FindResource("Lang_Page_Dashboard") as string) ?? "工作台",
-            "assistant" => (FindResource("Lang_Page_Assistant") as string) ?? "AI 助手",
             "todos" => (FindResource("Lang_Page_Todos") as string) ?? "待办管理",
             "screenshots" => (FindResource("Lang_Page_Screenshots") as string) ?? "截图历史",
             "clipboard" => (FindResource("Lang_Page_Clipboard") as string) ?? "剪贴板",
@@ -47,7 +44,6 @@ public partial class WorkbenchWindow : Window
         PageHost.Content = page switch
         {
             "dashboard" => GetDashboard(),
-            "assistant" => GetChatView(),
             "todos" => GetTodoView(),
             "screenshots" => GetHistoryView(),
             "clipboard" => GetClipboard(),
@@ -68,12 +64,6 @@ public partial class WorkbenchWindow : Window
     {
         networkView ??= new NetworkDiagnosisView();
         return networkView;
-    }
-
-    private ChatView GetChatView()
-    {
-        chatView ??= new ChatView();
-        return chatView;
     }
 
     private TodoView GetTodoView()

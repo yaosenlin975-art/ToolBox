@@ -12,7 +12,6 @@ public static class NodeFactory
         ["OcrExtract"] = () => new OcrExtractNode(),
         ["SaveToFile"] = () => new SaveToFileNode(),
         ["TranslateText"] = () => new TranslateTextNode(),
-        ["SendToAi"] = () => new SendToAiNode(),
     };
 
     public static IActionNode? CreateNode(string nodeType)
@@ -27,6 +26,5 @@ public static class NodeFactory
         ["OcrExtract"] = "🔤 OCR 提取文字",
         ["SaveToFile"] = "💾 保存到文件",
         ["TranslateText"] = "🌐 翻译文本",
-        ["SendToAi"] = "🤖 发送到 AI",
     };
 }

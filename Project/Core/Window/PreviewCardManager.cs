@@ -11,7 +11,6 @@ public enum EPreviewCardAction
     PinToDesktop,   // 贴图置顶
     Copy,           // 复制到剪贴板
     Save,           // 保存到文件
-    SendToAi,       // 发送到 AI 助手
     Discard         // 丢弃（不保存）
 }
 

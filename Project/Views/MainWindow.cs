@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -425,10 +425,6 @@ public partial class MainWindow : Window
 
         menu.Items.Add(new System.Windows.Controls.Separator());
 
-        var aiItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_Tray_AI") as string) ?? "AI 助手" };
-        aiItem.Click += (s, e) => ShowChatWindow();
-        menu.Items.Add(aiItem);
-
         var todoItem = new System.Windows.Controls.MenuItem { Header = (Application.Current.FindResource("Lang_Tray_Todo") as string) ?? "待办" };
         todoItem.Click += (s, e) => ShowTodoWindow();
         menu.Items.Add(todoItem);
@@ -628,11 +624,6 @@ public partial class MainWindow : Window
         return this;
     }
 
-    private void ShowChatWindow()
-    {
-        OpenWorkbench("assistant");
-    }
-
     /// <summary>打开主工作台并跳转到网络诊断视图（托盘菜单 / 全局热键入口，PRD F1）。</summary>
     private void ShowNetworkWindow()
     {
@@ -783,7 +774,6 @@ public partial class MainWindow : Window
         {
             if (command == 1) ShowOptions();
             else if (command == 2) StartCapture();
-            else if (command == 3) ShowChatWindow();
             else if (command == 4) ShowTodoWindow();
         }
         return this;
@@ -899,11 +889,6 @@ public partial class MainWindow : Window
                     using var fs = new FileStream(dialog.FileName, FileMode.Create);
                     encoder.Save(fs);
                 }
-                break;
-
-            case EPreviewCardAction.SendToAi:
-                // 发送到 AI 助手
-                OpenWorkbench("assistant");
                 break;
 
             case EPreviewCardAction.Discard:

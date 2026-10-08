@@ -1,4 +1,4 @@
-using ToolBox.Core.Llm;
+using ToolBox.Core.Translation;
 
 namespace ToolBox.Core.ActionChain.Nodes;
 
@@ -16,9 +16,9 @@ public class TranslateTextNode : IActionNode
 
         try
         {
-            var translated = await LlmTranslationService.TranslateAsync(
+            var translated = await TranslationService.TranslateAsync(
                 text,
-                targetLanguage: "English",
+                targetLanguage: "en",
                 ct: context.CancellationToken);
 
             return new ActionNodeResult

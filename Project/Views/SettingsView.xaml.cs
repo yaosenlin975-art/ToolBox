@@ -111,13 +111,6 @@ public partial class SettingsView : UserControl
 
             txtAreaTransparentValue.Text = ((int)sldAreaTransparent.Value).ToString();
 
-        sldChatFontSize.Value = data.ChatFontSize;
-        txtChatFontSizeValue.Text = data.ChatFontSize.ToString();
-        sldChatFontSize.ValueChanged += (s, e) =>
-            txtChatFontSizeValue.Text = ((int)sldChatFontSize.Value).ToString();
-
-
-
         rdoLineSolid.IsChecked = !data.SelectLineSolid;
 
         rdoLineDotted.IsChecked = data.SelectLineSolid;
@@ -435,7 +428,6 @@ public partial class SettingsView : UserControl
         result.Data.DailyReportTime = txtDailyReportTime.Text.Trim();
 
         result.Data.ScreenshotMaxAge = (int)sldScreenshotMaxAge.Value;
-        result.Data.ChatFontSize = (int)sldChatFontSize.Value;
         result.Data.ClipboardMaxEntries = (int)sldClipboardMaxEntries.Value;
         result.Data.ClipboardIgnoredApps = txtClipboardIgnoredApps.Text?.Trim() ?? string.Empty;
 
@@ -1450,4 +1442,3 @@ public partial class SettingsView : UserControl
     }
 
 }
-

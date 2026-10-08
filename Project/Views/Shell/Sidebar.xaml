@@ -55,9 +55,6 @@
                 <RadioButton x:Name="NavDashboard" GroupName="Nav" IsChecked="True"
                              Style="{StaticResource NavItemStyle}" Tag="{StaticResource IconDashboard}"
                              AutomationProperties.Name="{DynamicResource Lang_Page_Dashboard}" Checked="OnNavChecked"/>
-                <RadioButton x:Name="NavAssistant" GroupName="Nav"
-                             Style="{StaticResource NavItemStyle}" Tag="{StaticResource IconChat}"
-                             AutomationProperties.Name="{DynamicResource Lang_Page_Assistant}" Checked="OnNavChecked"/>
                 <RadioButton x:Name="NavTodos" GroupName="Nav"
                              Style="{StaticResource NavItemStyle}" Tag="{StaticResource IconChecklist}"
                              AutomationProperties.Name="{DynamicResource Lang_Page_Todos}" Checked="OnNavChecked"/>

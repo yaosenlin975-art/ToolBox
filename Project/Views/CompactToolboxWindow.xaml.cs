@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -8,7 +8,6 @@ using System.Windows.Media.Animation;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using ToolBox.Core.Llm;
 using ToolBox.Core.Todo;
 using ToolBox.Models;
 using ToolBox.Services;
@@ -21,7 +20,6 @@ namespace ToolBox.Views;
 public partial class CompactToolboxWindow : Window
 {
     private static readonly (double w, double h) TodoSize = (360, 480);
-    private static readonly (double w, double h) ChatSize = (360, 480);
     private static readonly (double w, double h) ScreenshotSize = (360, 480);
     private const double TodoItemHeight = 26;
     private const double TodoCollapsedPad = 12;
@@ -55,7 +53,6 @@ public partial class CompactToolboxWindow : Window
         LoadTodos();
 
         TodoStore.Instance.ItemsChanged += () => Dispatcher.BeginInvoke(LoadTodos);
-        ChatManager.Instance.SessionsChanged += () => Dispatcher.Invoke(LoadSessions);
         CacheManager.Instance.OnScrapCached += (_, _) => Dispatcher.Invoke(LoadScreenshots);
         Core.Theming.ThemeManager.Instance.ThemeChanged += (_, _) => Dispatcher.BeginInvoke(LoadTodos);
 
@@ -94,18 +91,13 @@ public partial class CompactToolboxWindow : Window
             TodoCollapseBtn.Content = "\u25BC";
         }
         TodoPanel.Visibility = Visibility.Collapsed;
-        ChatPanel.Visibility = Visibility.Collapsed;
         ScreenshotPanel.Visibility = Visibility.Collapsed;
-        SessionRow.Visibility = Visibility.Collapsed;
 
         TabTodo.Style = (Style)FindResource("CompactTabButton");
-        TabChat.Style = (Style)FindResource("CompactTabButton");
         TabScreenshot.Style = (Style)FindResource("CompactTabButton");
 
         var (w, h) = tab switch
         {
-            "chat" => ChatSize,
-            "assistant" => ChatSize,
             "screenshot" => ScreenshotSize,
             "screenshots" => ScreenshotSize,
             "history" => ScreenshotSize,
@@ -119,10 +111,7 @@ public partial class CompactToolboxWindow : Window
         Left = right - w;
         Top = bottom - h;
 
-        if (tab == "chat" || tab == "assistant")
-            RootBorder.Opacity = 1.0;
-        else
-            RootBorder.Opacity = options.Data.CompactOpacity / 100.0;
+        RootBorder.Opacity = options.Data.CompactOpacity / 100.0;
 
         switch (tab)
         {
@@ -130,13 +119,6 @@ public partial class CompactToolboxWindow : Window
             case "todos":
                 TodoPanel.Visibility = Visibility.Visible;
                 TabTodo.Style = (Style)FindResource("CompactTabButtonActive");
-                break;
-            case "chat":
-            case "assistant":
-                ChatPanel.Visibility = Visibility.Visible;
-                TabChat.Style = (Style)FindResource("CompactTabButtonActive");
-                SessionRow.Visibility = Visibility.Visible;
-                LoadSessions();
                 break;
             case "screenshot":
             case "screenshots":
@@ -174,27 +156,6 @@ public partial class CompactToolboxWindow : Window
         wb.Show();
         wb.Activate();
         wb.LoadPage("settings");
-    }
-
-    private void LoadSessions()
-    {
-        var sessions = ChatPanel.Sessions.ToList();
-        SessionSelector.ItemsSource = sessions;
-        if (ChatManager.Instance.ActiveSession != null)
-        {
-            for (int i = 0; i < sessions.Count; i++)
-            {
-                if (sessions[i].Id == ChatManager.Instance.ActiveSession.Id)
-                {
-                    SessionSelector.SelectedIndex = i;
-                    break;
-                }
-            }
-        }
-        else if (sessions.Count > 0)
-        {
-            SessionSelector.SelectedIndex = 0;
-        }
     }
 
     // --- Todo tree with category drawers ---
@@ -527,26 +488,6 @@ public partial class CompactToolboxWindow : Window
             }
         }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
-    }
-
-    private void SessionSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (SessionSelector.SelectedItem is ChatSession session)
-            ChatPanel.SelectSession(session.Id);
-    }
-
-    private async void NewSessionBtn_Click(object sender, RoutedEventArgs e)
-    {
-        var session = await ChatPanel.CreateNewSessionAsync();
-        LoadSessions();
-        for (int i = 0; i < SessionSelector.Items.Count; i++)
-        {
-            if (SessionSelector.Items[i] is ChatSession s && s.Id == session.Id)
-            {
-                SessionSelector.SelectedIndex = i;
-                break;
-            }
-        }
     }
 
     private void ScreenshotItem_Click(object sender, MouseButtonEventArgs e)

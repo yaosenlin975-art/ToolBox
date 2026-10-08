@@ -2,7 +2,6 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using ToolBox.Core.Llm;
 using ToolBox.Core.Todo;
 using ToolBox.Core.Theming;
 using ToolBox.Services;
@@ -24,7 +23,6 @@ public partial class DashboardView : UserControl
         try
         {
             StatTodo.Text = TodoStore.Instance.GetPending().Count.ToString();
-            StatChat.Text = ChatManager.Instance.Sessions.Count.ToString();
 
             var cacheDir = CacheManager.CachePath;
             StatShot.Text = Directory.Exists(cacheDir)

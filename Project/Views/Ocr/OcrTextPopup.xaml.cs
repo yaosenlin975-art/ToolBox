@@ -50,23 +50,19 @@ public partial class OcrTextPopup : Window
         Close();
     }
 
-    private void TranslateClick(object sender, RoutedEventArgs e)
+    private async void TranslateClick(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrEmpty(TextBox.Text)) return;
-        var toolbox = App.CompactToolbox;
-        if (toolbox != null)
+        try
         {
-            toolbox.ChatPanel?.SetInput("请翻译:\n" + TextBox.Text);
-            toolbox.SwitchToTab("chat");
-            toolbox.Activate();
+            var translated = await Core.Translation.TranslationService.TranslateAsync(TextBox.Text);
+            Clipboard.SetText(translated);
+            Close();
         }
-        else
+        catch (Exception ex)
         {
-            App.Workbench?.Show();
-            App.Workbench?.Activate();
-            App.Workbench?.LoadPage("assistant");
+            MessageBox.Show("翻译失败: " + ex.Message);
         }
-        Close();
     }
 
     private void CloseClick(object sender, RoutedEventArgs e) => Close();

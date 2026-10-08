@@ -99,6 +99,10 @@ public partial class TodoDetailPanel : UserControl
         DetailRestoreBtn.Visibility = item.IsTrashed ? Visibility.Visible : Visibility.Collapsed;
         DeleteBtn.Visibility = item.IsTrashed ? Visibility.Visible : Visibility.Collapsed;
 
+        // 重刷时恢复提醒时间输入框默认边框，避免上一项残留的错误标红延续到当前详情
+        DetailRepeatTime.SetResourceReference(TextBox.BorderBrushProperty, "BorderDefaultBrush");
+        DetailRepeatTime.ToolTip = null;
+
         if (item.RepeatConfig != null)
         {
             DetailRepeatSection.Visibility = Visibility.Visible;
@@ -298,13 +302,20 @@ public partial class TodoDetailPanel : UserControl
         {
             var frequency = (ERepeatFrequency)(freqIndex - 1);
 
-            var timeStr = DetailRepeatTime.Text.Trim();
-            int hour = 9, minute = 0;
-            if (TimeSpan.TryParse(timeStr, out var ts))
+            // 规范化+解析失败时不再静默回落到默认时间（全角冒号/非法格式/越界），改为标红提示并中止保存，避免用户输入丢失
+            if (!TryParseReminderTime(DetailRepeatTime.Text, out var ts))
             {
-                hour = ts.Hours;
-                minute = ts.Minutes;
+                DetailRepeatTime.BorderBrush = Brushes.IndianRed;
+                DetailRepeatTime.ToolTip = "时间格式无效，请输入 HH:mm";
+                return;
             }
+
+            // 解析成功后清除错误态；用 SetResourceReference 恢复为动态资源引用，而非硬编码色值快照
+            DetailRepeatTime.SetResourceReference(TextBox.BorderBrushProperty, "BorderDefaultBrush");
+            DetailRepeatTime.ToolTip = null;
+
+            int hour = ts.Hours;
+            int minute = ts.Minutes;
 
             DateTime? endDate = DetailRepeatEndDate.SelectedDate;
             if (endDate.HasValue)
@@ -338,6 +349,18 @@ public partial class TodoDetailPanel : UserControl
         }
 
         Populate();
+    }
+
+    // 规范化提醒时间输入并尝试解析：全角冒号转半角，Trim 后再解析；
+    // 限定在 [00:00, 24:00) 内视为有效——TimeSpan 对 "9" 会解析成 9 天、"25:00" 解析成功但语义越界，均需拒绝
+    private static bool TryParseReminderTime(string input, out TimeSpan time)
+    {
+        time = default;
+        var normalized = (input ?? string.Empty).Trim().Replace('：', ':');
+        if (!TimeSpan.TryParse(normalized, out var ts)) return false;
+        if (ts < TimeSpan.Zero || ts >= TimeSpan.FromHours(24)) return false;
+        time = ts;
+        return true;
     }
 
     private async void DetailTrash_Click(object sender, RoutedEventArgs e)

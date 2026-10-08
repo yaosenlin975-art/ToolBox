@@ -14,24 +14,14 @@
             </StackPanel>
 
             <!-- 统计卡片 -->
-            <UniformGrid Columns="4" Margin="0,0,0,28">
-                <Border Style="{StaticResource CardStyle}" Margin="0,0,12,0" Cursor="Hand"
+            <UniformGrid Columns="3" Margin="0,0,0,28">
+                <Border Style="{StaticResource CardStyle}" Margin="6,0,12,0" Cursor="Hand"
                         MouseLeftButtonUp="StatCard_Click" Tag="todos">
                     <StackPanel>
                         <TextBlock Text="待办" FontSize="12" Foreground="{DynamicResource TextTertiaryBrush}"/>
                         <TextBlock x:Name="StatTodo" Text="0" FontSize="28" FontWeight="Bold" Margin="0,4,0,0"
                                    Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBlock x:Name="StatTodoHint" Text="进行中" FontSize="11" Margin="0,2,0,0"
-                                   Foreground="{DynamicResource TextTertiaryBrush}"/>
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource CardStyle}" Margin="6,0,12,0" Cursor="Hand"
-                        MouseLeftButtonUp="StatCard_Click" Tag="assistant">
-                    <StackPanel>
-                        <TextBlock Text="会话" FontSize="12" Foreground="{DynamicResource TextTertiaryBrush}"/>
-                        <TextBlock x:Name="StatChat" Text="0" FontSize="28" FontWeight="Bold" Margin="0,4,0,0"
-                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="AI 助手" FontSize="11" Margin="0,2,0,0"
                                    Foreground="{DynamicResource TextTertiaryBrush}"/>
                     </StackPanel>
                 </Border>
@@ -68,22 +58,6 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Border Style="{StaticResource CardStyle}" Margin="0,0,12,12" Cursor="Hand"
-                        MouseLeftButtonUp="QuickAction_Click" Tag="assistant">
-                    <StackPanel Orientation="Horizontal">
-                        <Border Width="36" Height="36" CornerRadius="{StaticResource RadiusMd}"
-                                Background="{DynamicResource AccentBrush}" Opacity="0.12">
-                            <TextBlock Text="✦" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource AccentBrush}"/>
-                        </Border>
-                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="打开 AI 助手" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            <TextBlock Text="开始一段新对话" FontSize="11" Margin="0,2,0,0"
-                                       Foreground="{DynamicResource TextTertiaryBrush}"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource CardStyle}" Grid.Column="1" Margin="6,0,0,12" Cursor="Hand"
                         MouseLeftButtonUp="QuickAction_Click" Tag="todos">
                     <StackPanel Orientation="Horizontal">
                         <Border Width="36" Height="36" CornerRadius="{StaticResource RadiusMd}"

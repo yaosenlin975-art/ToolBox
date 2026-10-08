@@ -1,4 +1,4 @@
-﻿﻿// ClipboardView.xaml.cs - 工作台剪贴板历史页面
+﻿// ClipboardView.xaml.cs - 工作台剪贴板历史页面
 // 职责:列表展示 + 类型/日期/搜索筛选 + 分页加载 + 详情面板 + 增删改操作
 // 设计要点:
 //   - 复用 ClipboardEntryViewModel(定义于 ClipboardPopup.xaml.cs,同命名空间)
@@ -260,25 +260,6 @@ public partial class ClipboardView : UserControl
             ClearDetail();
             ClipboardStore.Instance.Delete(id);
         }
-    }
-
-    /// <summary>"发送到 AI 助手":打开 Workbench assistant 页并填入文本</summary>
-    private void OnDetailSendToAiClick(object sender, RoutedEventArgs e)
-    {
-        if (selectedVm == null) return;
-        var entry = selectedVm.Source;
-        var text = entry.EntryType == EClipboardEntryType.Image
-            ? "[图片内容]"
-            : entry.TextContent ?? string.Empty;
-
-        var workbench = App.Workbench;
-        if (workbench == null) return;
-        workbench.Show();
-        workbench.Activate();
-        workbench.LoadPage("assistant");
-
-        if (workbench.PageHost.Content is Views.Chat.ChatView chat)
-            chat.SetInput(text);
     }
 
     private static BitmapSource LoadImageFrozen(string path)

@@ -17,7 +17,6 @@ public partial class Sidebar : UserControl
         var target = page switch
         {
             "dashboard" => NavDashboard,
-            "assistant" => NavAssistant,
             "todos" => NavTodos,
             "screenshots" => NavScreenshots,
             "clipboard" => NavClipboard,
@@ -32,7 +31,6 @@ public partial class Sidebar : UserControl
     private void OnNavChecked(object sender, RoutedEventArgs e)
     {
         if (sender == NavDashboard) NavigationRequested?.Invoke("dashboard");
-        else if (sender == NavAssistant) NavigationRequested?.Invoke("assistant");
         else if (sender == NavTodos) NavigationRequested?.Invoke("todos");
         else if (sender == NavScreenshots) NavigationRequested?.Invoke("screenshots");
         else if (sender == NavClipboard) NavigationRequested?.Invoke("clipboard");

@@ -100,8 +100,6 @@
                                 Click="CopyAllClick" Content="复制全部"/>
                         <Button Style="{StaticResource BtnDefault}" Margin="0,0,8,0"
                                 Click="TranslateClick" Content="翻译选中"/>
-                        <Button Style="{StaticResource BtnPrimary}" Margin="0,0,8,0"
-                                Click="SendToAiClick" Content="发送到 AI"/>
                         <Button Style="{StaticResource BtnDefault}" Click="CloseClick" Content="关闭"/>
                     </StackPanel>
                 </Grid>

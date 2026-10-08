@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -774,10 +774,6 @@ public class ScrapWindow : Window
 
         menu.Items.Add(new System.Windows.Controls.Separator());
 
-        var chatItem = new System.Windows.Controls.MenuItem { Header = (string)FindResource("LLM.ScrapWindow.StartChat") };
-        chatItem.Click += (s, e) => StartChat();
-        menu.Items.Add(chatItem);
-
         var closeItem = new System.Windows.Controls.MenuItem { Header = (string)FindResource("Lang_Scrap_Close") };
         closeItem.Click += (s, e) => CloseScrap();
         menu.Items.Add(closeItem);
@@ -836,34 +832,6 @@ public class ScrapWindow : Window
 
     [System.Runtime.InteropServices.DllImport("gdi32.dll")]
     private static extern bool DeleteObject(IntPtr hObject);
-
-    private void StartChat()
-    {
-        var bitmap = GetOriginalBitmap();
-        if (bitmap == null) return;
-
-        // Save bitmap to temp file
-        var tempPath = System.IO.Path.Combine(
-            System.IO.Path.GetTempPath(),
-            "ToolBox_" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff") + ".png");
-
-        using (var fs = new System.IO.FileStream(tempPath, System.IO.FileMode.Create))
-        {
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(bitmap));
-            encoder.Save(fs);
-        }
-
-        // Create session with image
-        var session = Core.Llm.ChatManager.Instance.CreateSessionWithImage(
-            System.IO.File.ReadAllBytes(tempPath), "截图对话");
-
-
-        // Clean up temp file
-        try { System.IO.File.Delete(tempPath); } catch (Exception) { /* temp file cleanup is best-effort */ }
-        // Open chat window
-        App.CompactToolbox?.SwitchToTab("chat");
-    }
 
 }
 

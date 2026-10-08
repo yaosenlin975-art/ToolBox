@@ -1,7 +1,7 @@
 <Application x:Class="ToolBox.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:chat="clr-namespace:ToolBox.Views.Chat"
+             xmlns:views="clr-namespace:ToolBox.Views"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <ResourceDictionary>
@@ -9,7 +9,7 @@
                 <ResourceDictionary Source="Themes/DesignTokens.xaml"/>
                 <ResourceDictionary Source="Themes/Dark.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-            <chat:BoolToVisibilityConverter x:Key="BoolToVis"/>
+            <views:BoolToVisibilityConverter x:Key="BoolToVis"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

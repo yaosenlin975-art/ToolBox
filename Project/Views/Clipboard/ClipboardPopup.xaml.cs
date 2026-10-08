@@ -1,4 +1,4 @@
-﻿﻿// ClipboardPopup.xaml.cs - 浮动剪贴板面板
+﻿// ClipboardPopup.xaml.cs - 浮动剪贴板面板
 // 职责:Ctrl+Shift+V 唤起的 360x480 Topmost 浮窗,搜索/筛选/置顶/收藏/粘贴
 // 设计要点:
 //   - 实时搜索(无防抖,500 条 ≤50ms 满足规格)
@@ -228,27 +228,6 @@ public partial class ClipboardPopup : Window
         img.EndInit();
         img.Freeze();
         return img;
-    }
-
-    /// <summary>"发送到 AI 助手":关闭浮窗 → 打开 Workbench assistant 页并填入文本</summary>
-    private void OnSendToAiClick(object sender, RoutedEventArgs e)
-    {
-        if (EntryList.SelectedItem is not ClipboardEntryViewModel vm) return;
-        var text = vm.Source.EntryType == EClipboardEntryType.Image
-            ? "[图片内容]"
-            : vm.Source.TextContent;
-
-        Close();
-
-        var workbench = App.Workbench;
-        if (workbench == null) return;
-        workbench.Show();
-        workbench.Activate();
-        workbench.LoadPage("assistant");
-
-        // LoadPage 同步创建 ChatView,可直接取回并填入文本
-        if (workbench.PageHost.Content is Views.Chat.ChatView chat)
-            chat.SetInput(text);
     }
 }
 

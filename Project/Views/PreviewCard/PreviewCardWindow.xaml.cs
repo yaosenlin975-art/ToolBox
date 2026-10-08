@@ -173,13 +173,6 @@ public partial class PreviewCardWindow : Window
         ForceClose();
     }
 
-    private void OnSendToAiClick(object sender, RoutedEventArgs e)
-    {
-        if (_screenshot == null) return;
-        _manager?.RaiseAction(EPreviewCardAction.SendToAi, _screenshot);
-        ForceClose();
-    }
-
     private void OnSaveClick(object sender, RoutedEventArgs e)
     {
         if (_screenshot == null) return;
