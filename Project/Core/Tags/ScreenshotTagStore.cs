@@ -1,4 +1,5 @@
 using System.IO;
+using System.Security;
 using System.Text.Json;
 
 namespace ToolBox.Core.Tags;
@@ -22,15 +23,32 @@ public class ScreenshotTagStore
 
     private readonly string _filePath;
     private Dictionary<string, ScreenshotTagEntry> _entries = new();
+    private string? _loadFailureCode;
+
+    internal string? LoadFailureCode => _loadFailureCode;
 
     public event Action? EntriesChanged;
 
-    private ScreenshotTagStore()
+    private ScreenshotTagStore() : this(GetDefaultPath())
     {
-        _filePath = Path.Combine(
+    }
+
+    internal ScreenshotTagStore(string filePath)
+    {
+        _filePath = Path.GetFullPath(filePath);
+        Load();
+    }
+
+    private static string GetDefaultPath()
+    {
+#if DEBUG
+        var testRoot = Environment.GetEnvironmentVariable("TOOLBOX_TASK_TEST_ROOT");
+        if (!string.IsNullOrWhiteSpace(testRoot))
+            return Path.Combine(testRoot, "screenshot_tags.json");
+#endif
+        return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "ToolBox", "screenshot_tags.json");
-        Load();
     }
 
     public ScreenshotTagEntry GetOrCreate(string cacheKey)
@@ -169,15 +187,33 @@ public class ScreenshotTagStore
     {
         try
         {
-            if (File.Exists(_filePath))
+            using var stream = File.OpenRead(_filePath);
+            var list = JsonSerializer.Deserialize<List<ScreenshotTagEntry>>(stream);
+            if (list == null)
             {
-                var json = File.ReadAllText(_filePath);
-                var list = JsonSerializer.Deserialize<List<ScreenshotTagEntry>>(json);
-                if (list != null)
-                    _entries = list.ToDictionary(e => e.CacheKey, e => e);
+                _loadFailureCode = "DATA_CORRUPT";
+                return;
             }
+
+            var entries = new Dictionary<string, ScreenshotTagEntry>(StringComparer.Ordinal);
+            foreach (var entry in list)
+            {
+                if (entry == null || string.IsNullOrEmpty(entry.CacheKey) || entry.Tags == null || entry.Tags.Any(tag => tag == null) ||
+                    entry.Rating is < 0 or > 5 || entry.DominantColors == null ||
+                    entry.Notes == null || !entries.TryAdd(entry.CacheKey, entry))
+                {
+                    _loadFailureCode = "DATA_CORRUPT";
+                    return;
+                }
+            }
+            _entries = entries;
         }
-        catch { }
+        catch (FileNotFoundException) { }
+        catch (DirectoryNotFoundException) { }
+        catch (JsonException) { _loadFailureCode = "DATA_CORRUPT"; }
+        catch (UnauthorizedAccessException) { _loadFailureCode = "ACCESS_DENIED"; }
+        catch (SecurityException) { _loadFailureCode = "ACCESS_DENIED"; }
+        catch (IOException) { _loadFailureCode = "IO_ERROR"; }
     }
 
     private void Save()
@@ -189,6 +225,7 @@ public class ScreenshotTagStore
                 Directory.CreateDirectory(dir);
             var json = JsonSerializer.Serialize(_entries.Values.ToList(), new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_filePath, json);
+            _loadFailureCode = null;
         }
         catch { }
     }

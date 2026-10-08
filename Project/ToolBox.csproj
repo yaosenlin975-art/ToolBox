@@ -9,6 +9,9 @@
     <RootNamespace>ToolBox</RootNamespace>
     <AssemblyName>ToolBox</AssemblyName>
     <Version>2.0.0</Version>
+    <TaskCliProject>$(MSBuildProjectDirectory)\Cli\ToolBox.Cli.csproj</TaskCliProject>
+    <TaskCliOutputDir>$(MSBuildProjectDirectory)\Cli\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\</TaskCliOutputDir>
+    <TaskCliPublishDir>$(MSBuildProjectDirectory)\obj\TaskCliPublish\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\$(SelfContained)\</TaskCliPublishDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,6 +27,40 @@
   <ItemGroup>
     <Resource Include="Assets\Fonts\*.ttf" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Cli\**\*.cs;Tests\**\*.cs" />
+    <ApplicationDefinition Remove="Cli\**\*;Tests\**\*" />
+    <Content Remove="Cli\**\*;Tests\**\*" />
+    <EmbeddedResource Remove="Cli\**\*;Tests\**\*" />
+    <None Remove="Cli\**\*;Tests\**\*" />
+    <Page Remove="Cli\**\*;Tests\**\*" />
+    <Resource Remove="Cli\**\*;Tests\**\*" />
+  </ItemGroup>
+
+  <Target Name="BuildTaskCli" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <MSBuild Projects="$(TaskCliProject)" Targets="Restore;Build" BuildInParallel="false"
+             Properties="Configuration=$(Configuration);TargetFramework=net8.0-windows;RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained)" />
+    <ItemGroup>
+      <TaskCliBuildFile Include="$(TaskCliOutputDir)**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(TaskCliBuildFile)"
+          DestinationFiles="@(TaskCliBuildFile->'$(TargetDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="PublishTaskCli" AfterTargets="ComputeFilesToPublish">
+    <MSBuild Projects="$(TaskCliProject)" Targets="Restore;Publish" BuildInParallel="false"
+             Properties="Configuration=$(Configuration);TargetFramework=net8.0-windows;RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained);PublishDir=$(TaskCliPublishDir)" />
+    <ItemGroup>
+      <TaskCliPublishFile Include="$(TaskCliPublishDir)**\*" Exclude="@(ResolvedFileToPublish)" />
+      <ResolvedFileToPublish Include="@(TaskCliPublishFile)">
+        <RelativePath>%(TaskCliPublishFile.RecursiveDir)%(TaskCliPublishFile.Filename)%(TaskCliPublishFile.Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 
   <!-- 应用自带 VC++ 运行时：防止用户机器 System32 中老版运行时劫持原生 OCR 库依赖导致崩溃 -->
   <ItemGroup>

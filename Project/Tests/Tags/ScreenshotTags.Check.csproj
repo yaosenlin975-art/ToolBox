@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\Core\Tags\ScreenshotTagStore.cs" Link="ScreenshotTagStore.cs" />
+    <Compile Include="..\..\Core\Todo\TaskProtocol.cs" Link="TaskProtocol.cs" />
+    <Compile Include="..\..\Core\Todo\AgentScreenshotCommand.cs" Link="AgentScreenshotCommand.cs" />
+  </ItemGroup>
+</Project>

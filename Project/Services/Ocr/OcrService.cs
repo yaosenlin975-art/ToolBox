@@ -55,15 +55,8 @@ public class OcrService
         // 优先 Tesseract(配置允许且可用)
         if (PreferredEngine != "WindowsOCR" && IsTesseractAvailable)
         {
-            if (!IsLanguageInstalled(lang))
-            {
-                var ok = await LanguagePackManager.Instance.EnsureAsync(
-                    lang, autoDownload ? progress : null, ct);
-                if (!ok)
-                {
-                    // 下载失败仍尝试用已安装的子集，实在不行走 Windows OCR
-                }
-            }
+            if (autoDownload && !IsLanguageInstalled(lang))
+                await LanguagePackManager.Instance.EnsureAsync(lang, progress, ct);
 
             try
             {
@@ -74,7 +67,7 @@ public class OcrService
                     return result;
                 }
             }
-            catch (Exception ex) when (ex is DllNotFoundException or TypeInitializationException or IOException)
+            catch (Exception ex) when (ex is DllNotFoundException or TypeInitializationException)
             {
                 // 原生依赖缺失(MSVC++ 运行时未装等)，标记 Tesseract 不可用并回退
                 IsTesseractAvailable = false;
@@ -85,6 +78,10 @@ public class OcrService
                 // 原生内存访问违规(语言包损坏等)，标记不可用
                 IsTesseractAvailable = false;
                 System.Diagnostics.Debug.WriteLine("[ToolBox] Tesseract 原生崩溃，回退 Windows OCR: " + ex.Message);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -108,22 +105,22 @@ public class OcrService
     }
 
     /// <summary>识别 PNG 字节(内部共用入口)。</summary>
-    private async Task<OcrResult> RecognizeBytesAsync(byte[] bytes, string? language, bool autoDownload,
+    internal async Task<OcrResult> RecognizeBytesAsync(byte[] bytes, string? language, bool autoDownload,
         IProgress<(int percent, string status)>? progress, CancellationToken ct)
     {
         var lang = string.IsNullOrWhiteSpace(language) ? DefaultLanguage : language;
 
         if (PreferredEngine != "WindowsOCR" && IsTesseractAvailable)
         {
-            if (!IsLanguageInstalled(lang))
-                await LanguagePackManager.Instance.EnsureAsync(lang, autoDownload ? progress : null, ct);
+            if (autoDownload && !IsLanguageInstalled(lang))
+                await LanguagePackManager.Instance.EnsureAsync(lang, progress, ct);
 
             try
             {
                 var result = await Task.Run(() => RecognizeWithTesseract(bytes, lang), ct);
                 if (result != null) return result;
             }
-            catch (Exception ex) when (ex is DllNotFoundException or TypeInitializationException or IOException)
+            catch (Exception ex) when (ex is DllNotFoundException or TypeInitializationException)
             {
                 IsTesseractAvailable = false;
                 System.Diagnostics.Debug.WriteLine("[ToolBox] Tesseract 不可用，回退 Windows OCR: " + ex.Message);
@@ -132,6 +129,10 @@ public class OcrService
             {
                 IsTesseractAvailable = false;
                 System.Diagnostics.Debug.WriteLine("[ToolBox] Tesseract 原生崩溃，回退 Windows OCR: " + ex.Message);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -154,7 +155,6 @@ public class OcrService
             if (!File.Exists(path) || new FileInfo(path).Length < 1024)
             {
                 System.Diagnostics.Debug.WriteLine("[ToolBox] Tesseract 语言包缺失或损坏: " + path);
-                IsTesseractAvailable = false;
                 return null;
             }
         }
@@ -249,6 +249,10 @@ public class OcrService
                 result.FullText = sb.ToString().TrimEnd();
                 return result;
             }, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {

@@ -1,6 +1,6 @@
 # ToolBox 待办外部 CLI 设计
 
-日期：2026-10-08。状态：待用户确认；本次仅检查、调研和设计，尚未实现。
+日期：2026-10-08。状态：用户已授权实施，并要求从两个候选库中选择安装移植；采用 System.CommandLine 2.0.2。
 
 ## 1. 需求分析与检查结论
 
@@ -22,7 +22,7 @@
 
 检查范围：应用启动、全部 C# 命令参数/IPC 命中、工程配置、Todo 模型/Store/工具封装及直接 UI 调用者、现有待办设计。没有运行会更改真实待办的命令。当前仓库没有找到外部 CRUD 可执行程序、命名管道或 HTTP 服务。`TodoTools` 方法仍在，但当前源码未找到注册它的活跃入口，不能宣称现有 AI 调用链可用。
 
-现有总设计中的依赖版本与 csproj 不一致，本设计以实际工程为准；本次不修改该文档。
+现有总设计中的依赖版本与 csproj 不一致，本设计以实际工程为准；总设计仅补充本轮架构，不顺带更新无关旧条目。
 
 ## 2. 方案脑暴与推荐
 
@@ -32,7 +32,7 @@
 | Console CLI + 原应用后台模式 + 本地命名管道 | 同一 Store、同一缓存和调度；支持无界面启动；无需网络端口 | 要拆分应用初始化、支持唤出界面和结构化响应 | 推荐 |
 | 常驻 HTTP 服务或迁移 SQLite | 适合将来多客户端/远程访问 | 引入服务生命周期、认证或数据迁移；仅靠 SQLite 也不能解决 UI 缓存同步 | 当前不采用 |
 
-最小实现采用 Windows/.NET 自带 `System.IO.Pipes`、`System.Text.Json`、`ProcessStartInfo.ArgumentList`。CLI 以固定命令加 JSON 输入服务脚本，不引入完整 CLI 框架、DI 容器、通用 RPC、MCP 或新的数据层。
+实现采用 System.CommandLine 2.0.2 解析命令，Windows/.NET 自带 `System.IO.Pipes`、`System.Text.Json`、`ProcessStartInfo.ArgumentList` 处理 IPC、JSON 和启动。CLI 保留固定命令加 JSON 输入，不引入终端渲染库、DI 容器、通用 RPC、MCP 或新的数据层。
 
 ### GitHub 商用开源选型
 
@@ -40,13 +40,13 @@
 
 | 候选与固定版本 | 匹配功能和代码证据 | 兼容性、许可与商用条件 | 移植范围/成本与验证状态 |
 |---|---|---|---|
-| [System.CommandLine v2.0.2](https://github.com/dotnet/command-line-api/releases/tag/v2.0.2) | 已读目标 tag 的 `Command.cs`、`Option.cs`：子命令、类型化选项、验证器、解析及异步 action | csproj 包含 netstandard2.0，可作为 .NET 8 候选；[MIT 原文](https://github.com/dotnet/command-line-api/blob/v2.0.2/LICENSE.md) 允许商用/修改/闭源分发，须随分发保留版权及许可声明 | 只引用 NuGet 包并编写命令映射，不移植业务代码；预计解析适配约半天，不含 host；已查源码片段/工程/许可，未 restore、构建或运行 |
+| [System.CommandLine v2.0.2](https://github.com/dotnet/command-line-api/releases/tag/v2.0.2) | 已读目标 tag 的 `Command.cs`、`Option.cs`：子命令、类型化选项、验证器、解析及异步 action | csproj 包含 netstandard2.0，可作为 .NET 8 候选；[MIT 原文](https://github.com/dotnet/command-line-api/blob/v2.0.2/LICENSE.md) 允许商用/修改/闭源分发，须随分发保留版权及许可声明 | 只引用 NuGet 包并编写命令映射，不移植业务代码；预计解析适配约半天，不含 host；已完成 restore、CLI 构建/运行及随主应用发布验证 |
 | [Spectre.Console.Cli 0.49.1](https://github.com/spectreconsole/spectre.console/releases/tag/0.49.1) | 已读 `CommandApp.cs`：命令配置、异步执行与异常处理；支持更丰富终端体验 | csproj 明确含 net8.0；[MIT 原文](https://github.com/spectreconsole/spectre.console/blob/0.49.1/LICENSE.md) 要求保留版权及许可；该版本 CLI 引用 Spectre.Console，后者还包含 Wcwidth.Sources 源码依赖 | 要适配默认终端错误渲染，使输出符合 JSON 契约；预计半天至一天，不含 host；已查相关源码/工程/主许可，Wcwidth 及嵌入字体许可未完成核验，分发前须补齐 |
-| .NET 8 平台能力，无新增包 | 固定语法由小范围 switch 解析，JSON 由现有标准库处理；原 Store 处理业务 | 不移植第三方 CLI 库源码；沿用现有 .NET 发布和许可材料 | 最小依赖范围；平台 [PipeOptions 源码](https://github.com/dotnet/runtime/blob/v8.0.0/src/libraries/System.IO.Pipes/src/System/IO/Pipes/PipeOptions.cs) 已核实具有 CurrentUserOnly；尚未做 IPC 集成验证 |
+| .NET 8 平台能力，无新增包 | 固定语法由小范围 switch 解析，JSON 由现有标准库处理；原 Store 处理业务 | 不移植第三方 CLI 库源码；沿用现有 .NET 发布和许可材料 | 最小依赖范围；平台 [PipeOptions 源码](https://github.com/dotnet/runtime/blob/v8.0.0/src/libraries/System.IO.Pipes/src/System/IO/Pipes/PipeOptions.cs) 已核实具有 CurrentUserOnly；已通过隔离数据的 IPC 集成验证 |
 
-System.CommandLine 的目标项目仅为 netstandard2.0 条件声明 System.Memory 包依赖；发布时应以实际 NuGet 资产和锁定依赖为准，当前没有做完整传递依赖审计。Spectre 采用固定旧版本仅作为可核查比较基线，不推荐为本需求引入其终端渲染依赖。
+System.CommandLine 的目标项目仅为 netstandard2.0 条件声明 System.Memory 包依赖；发布时应以实际 NuGet 资产和锁定依赖为准，实际 net8.0-windows NuGet 资产仅含 System.CommandLine，无传递包。Spectre 采用固定旧版本仅作为可核查比较基线，不推荐为本需求引入其终端渲染依赖。
 
-推荐不移植候选库：本需求面向外部脚本，固定语法加 JSON 足够；若确认需要大量 `--title/--tag/--due` 参数、自动补全或更多命令族，再优先选 System.CommandLine。以上成本是设计估算，不是已验证工期。
+用户要求从两个候选库中选择后，确定引用 System.CommandLine 2.0.2 的 NuGet 包，只集成命令解析与帮助，保留 JSON 业务契约；不复制上游源码，不采用 Spectre 的终端渲染依赖。发布携带 MIT 版权和许可声明。以上成本是设计估算，不是已验证工期。
 
 ## 3. 架构及启动流程
 
@@ -60,8 +60,8 @@ System.CommandLine 的目标项目仅为 netstandard2.0 条件声明 System.Memo
 ```
 
 1. CLI 先解析和校验本地输入；`--help/--version`、语法错误不启动应用。
-2. 连接管道 `ToolBox.Tasks.v1.<当前用户SID>`；仅本机当前用户，服务端和客户端使用 `PipeOptions.CurrentUserOnly`，不接受用户指定远端服务器。
-3. 管道不存在时，通过 CLI 所在发布目录中的固定 `ToolBox.exe --task-host` 启动后台模式，`UseShellExecute=false`、无可见终端；不从 PATH 搜索应用、不拼 shell 命令。
+2. 连接管道 `ToolBox.Tasks.v1.<当前用户SID>`；仅本机当前用户，服务端 ACL 仅授权当前用户 SID 并拒绝网络登录，客户端使用 `PipeOptions.CurrentUserOnly`，不接受用户指定远端服务器。
+3. 管道不存在时，通过 CLI 所在发布目录中的固定 `ToolBox.exe --task-host` 启动后台模式，`UseShellExecute=true`、隐藏启动（固定 exe，无命令解释器或提权 verb）；避免继承 Agent 重定向输出句柄；不从 PATH 搜索应用、不拼 shell 命令。
 4. 沿用现有全局单实例 Mutex 争夺唯一实例；多个 CLI 冷启动最多产生一个存活 host，其他启动者退出，客户端等待同一管道就绪。Mutex 占用但管道长期未就绪时返回不可用，禁止绕过锁直接写文件。
 5. `--task-host` 只初始化 WPF Dispatcher、语言/必要资源、TodoStore、重复待办补算/调度和管道。不得创建 Splash/MainWindow/CompactToolbox/Workbench，不启动截图调度、OCR、剪贴板、热键或托盘。后台重复待办可更新状态，但不弹提醒窗口。
 6. host 一直保留至用户退出应用、注销或显式 `toolbox-cli host stop`；不安装 Windows 服务、不注册开机启动。`host stop` 仅允许后台模式，等待当前请求持久化后停机；界面已打开则拒绝，让用户从现有退出入口关闭。
@@ -155,7 +155,7 @@ requestId 只用于关联诊断，不承诺幂等重放。写请求已发出后�
 
 ## 8. 验证与验收设计
 
-以下是实现后的验收要求，本次均未执行，尚未作为 PENDING_TESTS 中的已交付功能测试项登记。
+以下是验收要求；自动检查已覆盖协议、Store、后台并发冷启动和持久化。实际界面同步、双主题、重复提醒及账号/部署组合保留在 PENDING_TESTS.md 人工验收。
 
 1. 临时独立测试数据下跑完整 create→list/get→update（含清空字段）→complete/reopen→delete→restore；JSON 可解析，退出码正确，重启后结果保留。
 2. 冷启动和多个 CLI 同时冷启动：不弹窗口，只有一个存活 host，后续双击只在该实例打开一组界面。
@@ -166,6 +166,6 @@ requestId 只用于关联诊断，不承诺幂等重放。写请求已发出后�
 
 最小集成试验先只做隔离数据下的后台启动、管道 ping/list 和正常双击唤出界面；确认生命周期可行后再接入写入。正式实现须留下可运行的协议/CRUD 集成检查，不能仅靠手工演示。
 
-## 9. 待确认决策
+## 9. 实施授权
 
-已确认的“Todo、未启动也可调用、自动后台不弹窗口”不重复询问。待用户一次确认：采用本地管道+原应用后台 host、固定命令+JSON 且不新增 CLI 依赖、delete 默认回收站，以及本设计列明的首版范围。确认前不编码或移植；若选择 System.CommandLine，只将命令解析部分替换为该包，更新设计后按确认范围实施。
+用户已要求选库安装移植、写计划后开始实施。按本设计的本地管道、后台 host、JSON 契约、delete 默认回收站和首版范围执行；命令解析选用 System.CommandLine 2.0.2，无需重复审批同一范围。

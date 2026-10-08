@@ -2,10 +2,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ToolBox.Core.Scheduling;
+using System.Text;
 
 namespace ToolBox.Core.Todo;
 
-public class TodoStore
+public partial class TodoStore
 {
     private static TodoStore? instance;
     public static TodoStore Instance => instance ??= new TodoStore();
@@ -16,20 +17,40 @@ public class TodoStore
     private readonly SemaphoreSlim writeLock = new(1, 1);
     // 保护 items/categories 的所有读改写操作；Cron 在后台线程触发，须与 UI 线程串行
     private readonly SemaphoreSlim stateLock = new(1, 1);
+    private StoreSnapshot? committedSnapshot;
+    private string? storageFailureCode;
+    private string? storageFailureMessage;
 
     public IReadOnlyList<TodoItem> Items => items;
     public IReadOnlyList<string> Categories => categories;
 
     public event Action? ItemsChanged;
 
-    private void NotifyChanged() => ItemsChanged?.Invoke();
-
-    private TodoStore()
+    private void NotifyChanged()
     {
-        filePath = Path.Combine(
+        try { ItemsChanged?.Invoke(); }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] 待办变更通知失败: {ex.Message}"); }
+    }
+
+    private TodoStore() : this(GetDefaultFilePath()) { }
+
+    internal TodoStore(string path)
+    {
+        filePath = Path.GetFullPath(path);
+        Load();
+        committedSnapshot = CaptureSnapshot();
+    }
+
+    private static string GetDefaultFilePath()
+    {
+#if DEBUG
+        var testRoot = Environment.GetEnvironmentVariable("TOOLBOX_TASK_TEST_ROOT");
+        if (!string.IsNullOrWhiteSpace(testRoot))
+            return Path.Combine(Path.GetFullPath(testRoot), "todos.json");
+#endif
+        return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "ToolBox", "todos.json");
-        Load();
     }
 
     public List<TodoItem> GetAll() => items.Where(t => !t.IsTrashed).ToList();
@@ -103,25 +124,31 @@ public class TodoStore
         await stateLock.WaitAsync();
         try
         {
-            if (!categories.Contains(category)) categories.Add(category);
-            var item = new TodoItem
-            {
-                ParentId = parentId,
-                Title = title,
-                Description = description,
-                Priority = priority,
-                Category = category,
-                Tags = tags ?? [],
-                DueDate = dueDate,
-                SessionId = sessionId
-            };
-            items.Add(item);
-            if (parentId != null) RecalculateAndAncestorsCore(parentId);
+            var item = AddCore(title, description, priority, category, tags, dueDate, sessionId, parentId);
             await SaveAsync();
             NotifyChanged();
             return item;
         }
         finally { stateLock.Release(); }
+    }
+
+    private TodoItem AddCore(string title, string description = "", int priority = 0, string category = "默认", List<string>? tags = null, DateTime? dueDate = null, string? sessionId = null, string? parentId = null)
+    {
+        if (!categories.Contains(category)) categories.Add(category);
+        var item = new TodoItem
+        {
+            ParentId = parentId,
+            Title = title,
+            Description = description,
+            Priority = priority,
+            Category = category,
+            Tags = tags ?? [],
+            DueDate = dueDate,
+            SessionId = sessionId
+        };
+        items.Add(item);
+        if (parentId != null) RecalculateAndAncestorsCore(parentId);
+        return item;
     }
 
     public async Task<bool> CompleteAsync(string id)
@@ -131,16 +158,24 @@ public class TodoStore
         {
             var item = items.FirstOrDefault(t => t.Id == id);
             if (item == null) return false;
-            item.IsCompleted = true;
-            item.CompletedAt = DateTime.UtcNow;
-            // 叶子节点勾选完成自动置进度 100；父节点进度由子任务聚合，不在此修改
-            if (!HasChildren(id)) item.Progress = 100;
-            RecalculateAndAncestorsCore(id);
+            CompleteCore(item);
             await SaveAsync();
             NotifyChanged();
             return true;
         }
         finally { stateLock.Release(); }
+    }
+
+    private bool CanCompleteCore(TodoItem item) =>
+        !items.Any(t => t.ParentId == item.Id && !t.IsTrashed && !t.IsCompleted);
+
+    private void CompleteCore(TodoItem item)
+    {
+        item.IsCompleted = true;
+        item.CompletedAt = DateTime.UtcNow;
+        // 叶子节点勾选完成自动置进度 100；父节点进度由子任务聚合，不在此修改
+        if (!HasChildren(item.Id)) item.Progress = 100;
+        RecalculateAndAncestorsCore(item.Id);
     }
 
     public async Task<bool> UncompleteAsync(string id)
@@ -150,15 +185,20 @@ public class TodoStore
         {
             var item = items.FirstOrDefault(t => t.Id == id);
             if (item == null) return false;
-            item.IsCompleted = false;
-            item.CompletedAt = null;
-            // 取消完成不重置进度（保持当前值，用户可手动调回）
-            RecalculateAndAncestorsCore(id);
+            UncompleteCore(item);
             await SaveAsync();
             NotifyChanged();
             return true;
         }
         finally { stateLock.Release(); }
+    }
+
+    private void UncompleteCore(TodoItem item)
+    {
+        item.IsCompleted = false;
+        item.CompletedAt = null;
+        // 取消完成不重置进度（保持当前值，用户可手动调回）
+        RecalculateAndAncestorsCore(item.Id);
     }
 
     // ─── 进度自动计算 ────────────────────────────────────────────────
@@ -495,34 +535,39 @@ public class TodoStore
         finally { stateLock.Release(); }
     }
 
-    public async Task<bool> UpdateAsync(string id, string? title = null, string? description = null, int? priority = null, string? category = null, List<string>? tags = null, DateTime? dueDate = null, int? progress = null)
+    public async Task<bool> UpdateAsync(string id, string? title = null, string? description = null, int? priority = null, string? category = null, List<string>? tags = null, DateTime? dueDate = null, int? progress = null, bool setDueDate = false)
     {
         await stateLock.WaitAsync();
         try
         {
             var item = items.FirstOrDefault(t => t.Id == id);
             if (item == null) return false;
-            if (title != null) item.Title = title;
-            if (description != null) item.Description = description;
-            if (priority.HasValue) item.Priority = priority.Value;
-            if (category != null)
-            {
-                if (!categories.Contains(category)) categories.Add(category);
-                item.Category = category;
-            }
-            if (tags != null) item.Tags = tags;
-            if (dueDate.HasValue) item.DueDate = dueDate;
-            // 父节点进度由子任务聚合，禁止手动覆盖；叶子手动进度需向上传播（父级为子进度平均值）
-            if (progress.HasValue && !HasChildren(id))
-            {
-                item.Progress = progress.Value;
-                RecalculateAndAncestorsCore(id);
-            }
+            UpdateCore(item, title, description, priority, category, tags, dueDate, progress, setDueDate);
             await SaveAsync();
             NotifyChanged();
             return true;
         }
         finally { stateLock.Release(); }
+    }
+
+    private void UpdateCore(TodoItem item, string? title = null, string? description = null, int? priority = null, string? category = null, List<string>? tags = null, DateTime? dueDate = null, int? progress = null, bool setDueDate = false)
+    {
+        if (title != null) item.Title = title;
+        if (description != null) item.Description = description;
+        if (priority.HasValue) item.Priority = priority.Value;
+        if (category != null)
+        {
+            if (!categories.Contains(category)) categories.Add(category);
+            item.Category = category;
+        }
+        if (tags != null) item.Tags = tags;
+        if (setDueDate || dueDate.HasValue) item.DueDate = dueDate;
+        // 父节点进度由子任务聚合，禁止手动覆盖；叶子手动进度需向上传播（父级为子进度平均值）
+        if (progress.HasValue && !HasChildren(item.Id))
+        {
+            item.Progress = progress.Value;
+            RecalculateAndAncestorsCore(item.Id);
+        }
     }
 
     // --- Trash system ---
@@ -533,9 +578,9 @@ public class TodoStore
         {
             var item = items.FirstOrDefault(t => t.Id == id);
             if (item == null) return false;
-            await TrashCoreAsync(id);
-            if (RecalculateAncestorsCore(id))
+            if (TrashSubtreeCore(id))
             {
+                RecalculateAncestorsCore(id);
                 await SaveAsync();
                 NotifyChanged();
             }
@@ -544,22 +589,24 @@ public class TodoStore
         finally { stateLock.Release(); }
     }
 
-    async Task<bool> TrashCoreAsync(string id)
+    private bool TrashSubtreeCore(string id)
     {
-        var item = items.FirstOrDefault(t => t.Id == id);
-        if (item == null) return false;
-        item.IsTrashed = true;
-        if (item.RepeatConfig != null)
-            UnregisterRepeatReminder(id);
-        foreach (var child in items.Where(t => t.ParentId == id).ToList())
+        bool changed = false;
+        var pending = new Stack<TodoItem>();
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var root = items.FirstOrDefault(t => t.Id == id);
+        if (root == null) return false;
+        pending.Push(root);
+        while (pending.Count > 0)
         {
-            if (child.RepeatConfig != null)
-                UnregisterRepeatReminder(child.Id);
-            await TrashCoreAsync(child.Id);
+            var item = pending.Pop();
+            if (!visited.Add(item.Id)) continue;
+            if (!item.IsTrashed) { item.IsTrashed = true; changed = true; }
+            if (item.RepeatConfig != null) UnregisterRepeatReminder(item.Id);
+            foreach (var child in items.Where(t => t.ParentId == item.Id))
+                pending.Push(child);
         }
-        await SaveAsync();
-        NotifyChanged();
-        return true;
+        return changed;
     }
 
     public async Task<bool> RestoreAsync(string id)
@@ -569,9 +616,9 @@ public class TodoStore
         {
             var item = items.FirstOrDefault(t => t.Id == id);
             if (item == null) return false;
-            await RestoreCoreAsync(id);
-            if (RecalculateAndAncestorsCore(id))
+            if (RestoreSubtreeCore(id))
             {
+                RecalculateAndAncestorsCore(id);
                 await SaveAsync();
                 NotifyChanged();
             }
@@ -580,18 +627,24 @@ public class TodoStore
         finally { stateLock.Release(); }
     }
 
-    async Task<bool> RestoreCoreAsync(string id)
+    private bool RestoreSubtreeCore(string id)
     {
-        var item = items.FirstOrDefault(t => t.Id == id);
-        if (item == null) return false;
-        item.IsTrashed = false;
-        if (item.RepeatConfig != null)
-            RegisterSingleRepeatReminder(item);
-        foreach (var child in items.Where(t => t.ParentId == id).ToList())
-            await RestoreCoreAsync(child.Id);
-        await SaveAsync();
-        NotifyChanged();
-        return true;
+        bool changed = false;
+        var pending = new Stack<TodoItem>();
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var root = items.FirstOrDefault(t => t.Id == id);
+        if (root == null) return false;
+        pending.Push(root);
+        while (pending.Count > 0)
+        {
+            var item = pending.Pop();
+            if (!visited.Add(item.Id)) continue;
+            if (item.IsTrashed) { item.IsTrashed = false; changed = true; }
+            if (item.RepeatConfig != null) RegisterSingleRepeatReminder(item);
+            foreach (var child in items.Where(t => t.ParentId == item.Id))
+                pending.Push(child);
+        }
+        return changed;
     }
 
     public async Task<bool> DeletePermanentlyAsync(string id)
@@ -601,25 +654,26 @@ public class TodoStore
         {
             // 先记录父级 id：删除后该 item 已不在列表中，无法再向上查找
             var parentId = items.FirstOrDefault(t => t.Id == id)?.ParentId;
-            var result = await DeletePermanentlyCoreAsync(id);
-            if (parentId != null && RecalculateAndAncestorsCore(parentId))
+            var removed = DeletePermanentlyCore(id);
+            if (removed)
             {
+                if (parentId != null) RecalculateAndAncestorsCore(parentId);
                 await SaveAsync();
                 NotifyChanged();
             }
-            return result;
+            return removed;
         }
         finally { stateLock.Release(); }
     }
 
-    async Task<bool> DeletePermanentlyCoreAsync(string id)
+    private bool DeletePermanentlyCore(string id)
     {
         var children = items.Where(t => t.ParentId == id).ToList();
+        bool changed = false;
         foreach (var child in children)
-            await DeletePermanentlyCoreAsync(child.Id);
+            changed |= DeletePermanentlyCore(child.Id);
         var removed = items.RemoveAll(t => t.Id == id);
-        if (removed > 0) { await SaveAsync(); NotifyChanged(); }
-        return removed > 0;
+        return changed || removed > 0;
     }
 
     public List<TodoItem> GetTrashed()
@@ -672,41 +726,253 @@ public class TodoStore
 
     private void Load()
     {
-        if (!File.Exists(filePath)) return;
+        string json;
         try
         {
-            var json = File.ReadAllText(filePath);
-            var data = JsonSerializer.Deserialize<TodoData>(json);
-            if (data != null)
+            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var reader = new StreamReader(stream);
+            json = reader.ReadToEnd();
+        }
+        catch (FileNotFoundException) { return; }
+        catch (DirectoryNotFoundException) { return; }
+        catch (UnauthorizedAccessException ex)
+        {
+            MarkLoadFailure("IO_ERROR", "Todo data could not be read; commands are disabled.", ex);
+            return;
+        }
+        catch (IOException ex)
+        {
+            MarkLoadFailure("IO_ERROR", "Todo data could not be read; commands are disabled.", ex);
+            return;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var jsonRoot = document.RootElement;
+            if (jsonRoot.ValueKind != JsonValueKind.Object
+                || !jsonRoot.TryGetProperty("items", out var itemArray)
+                || itemArray.ValueKind != JsonValueKind.Array
+                || (jsonRoot.TryGetProperty("categories", out var categoryArray) && categoryArray.ValueKind != JsonValueKind.Array))
+                throw new JsonException("Todo data must contain an items array and an optional categories array.");
+
+            var data = JsonSerializer.Deserialize<TodoData>(json)
+                ?? throw new JsonException("Todo data must be an object.");
+            ValidateLoadedData(data);
+            items.AddRange(data.Items);
+            if (data.Categories != null && data.Categories.Count > 0)
             {
-                items.AddRange(data.Items);
-                if (data.Categories != null && data.Categories.Count > 0)
-                {
-                    categories.Clear();
-                    categories.AddRange(data.Categories);
-                }
+                categories.Clear();
+                categories.AddRange(data.Categories);
             }
             // 自愈：历史数据可能存在"已完成但进度<100"的叶子（CSH-37 之前完成），
             // 加载后按"已完成=100"的规则重算所有父节点，保证聚合进度与完成状态一致
             foreach (var root in items.Where(t => t.ParentId == null).ToList())
                 RecalculateAndAncestorsCore(root.Id);
         }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
+        catch (JsonException ex)
+        {
+            MarkLoadFailure("DATA_CORRUPT", "Todo data is damaged; commands are disabled and the file was preserved.", ex);
+        }
+        catch (Exception ex)
+        {
+            MarkLoadFailure("DATA_CORRUPT", "Todo data could not be loaded; commands are disabled and the file was preserved.", ex);
+        }
+    }
+
+    private static void ValidateLoadedData(TodoData? data)
+    {
+        if (data?.Items == null || data.Items.Any(item => item == null))
+            throw new JsonException("Todo data contains an invalid items array.");
+        if (data.Categories?.Any(category => category == null) == true)
+            throw new JsonException("Todo data contains an invalid categories array.");
+
+        var parents = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var item in data.Items)
+        {
+            if (item.Id is not { Length: 12 } id || !id.All(char.IsAsciiHexDigit)
+                || item.Title == null || item.Description == null || item.Category == null
+                || item.Tags == null || item.Tags.Any(tag => tag == null)
+                || item.Priority is < 0 or > 2 || item.Progress is < 0 or > 100
+                || (item.RepeatConfig != null && !Enum.IsDefined(item.RepeatConfig.Frequency)))
+                throw new JsonException("Todo data contains an invalid task.");
+            if (item.ParentId != null && (item.ParentId.Length != 12 || !item.ParentId.All(char.IsAsciiHexDigit)))
+                throw new JsonException("Todo data contains an invalid parent ID.");
+            if (!parents.TryAdd(id, item.ParentId))
+                throw new JsonException("Todo data contains duplicate task IDs.");
+        }
+
+        var visited = new Dictionary<string, byte>(StringComparer.Ordinal);
+        foreach (var start in parents.Keys)
+        {
+            var path = new List<string>();
+            string? current = start;
+            while (current != null && parents.TryGetValue(current, out var parent))
+            {
+                if (visited.TryGetValue(current, out var state))
+                {
+                    if (state == 1) throw new JsonException("Todo data contains a parent cycle.");
+                    break;
+                }
+                visited[current] = 1;
+                path.Add(current);
+                current = parent;
+            }
+            foreach (var id in path) visited[id] = 2;
+        }
+    }
+
+    private void MarkLoadFailure(string code, string message, Exception ex)
+    {
+        items.Clear();
+        categories.Clear();
+        categories.Add("默认");
+        storageFailureCode = code;
+        storageFailureMessage = message;
+        System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}");
     }
 
     private async Task SaveAsync()
     {
+        EnsureStorageAvailable();
         await writeLock.WaitAsync();
+        string? temporaryPath = null;
         try
         {
             var dir = Path.GetDirectoryName(filePath);
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            var nextSnapshot = CaptureSnapshot();
             var data = new TodoData { Categories = categories.ToList(), Items = items.ToList() };
             var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(filePath, json);
+            var bytes = Encoding.UTF8.GetBytes(json);
+            temporaryPath = filePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                await stream.WriteAsync(bytes);
+                await stream.FlushAsync();
+                stream.Flush(flushToDisk: true);
+            }
+            if (File.Exists(filePath)) File.Replace(temporaryPath, filePath, null);
+            else File.Move(temporaryPath, filePath);
+            temporaryPath = null;
+            committedSnapshot = nextSnapshot;
         }
-        finally { writeLock.Release(); }
+        catch (Exception ex)
+        {
+            if (temporaryPath != null)
+            {
+                try { File.Delete(temporaryPath); }
+                catch { }
+            }
+            try
+            {
+                if (committedSnapshot != null) RestoreSnapshot(committedSnapshot);
+            }
+            catch (Exception rollbackError)
+            {
+                storageFailureCode = "IO_ERROR";
+                storageFailureMessage = "Todo state could not be restored after a failed save; restart the application.";
+                System.Diagnostics.Debug.WriteLine($"[ToolBox] {rollbackError.Message}");
+                throw new TaskCommandException(storageFailureCode, storageFailureMessage);
+            }
+            if (ex is TaskCommandException commandError) throw commandError;
+            throw new TaskCommandException("IO_ERROR", "Todo data could not be saved.", "storage");
+        }
+        finally
+        {
+            if (temporaryPath != null)
+            {
+                try { File.Delete(temporaryPath); }
+                catch { }
+            }
+            writeLock.Release();
+        }
     }
+
+    private void EnsureStorageAvailable()
+    {
+        if (storageFailureCode != null)
+            throw new TaskCommandException(storageFailureCode, storageFailureMessage ?? "Todo storage is unavailable.");
+    }
+
+    private StoreSnapshot CaptureSnapshot() => new(
+        categories.ToList(),
+        items.Select(item => new ItemSnapshot(item, CloneItem(item))).ToList());
+
+    private void RestoreSnapshot(StoreSnapshot snapshot)
+    {
+        foreach (var id in items.Where(item => item.RepeatConfig != null).Select(item => item.Id)
+                     .Concat(snapshot.Items.Where(entry => entry.State.RepeatConfig != null).Select(entry => entry.Reference.Id))
+                     .Distinct(StringComparer.Ordinal))
+            UnregisterRepeatReminder(id);
+
+        items.Clear();
+        categories.Clear();
+        categories.AddRange(snapshot.Categories);
+        foreach (var entry in snapshot.Items)
+        {
+            CopyItem(entry.State, entry.Reference);
+            items.Add(entry.Reference);
+        }
+        foreach (var item in items.Where(item => item.RepeatConfig != null && !item.IsTrashed))
+            RegisterSingleRepeatReminder(item);
+    }
+
+    private static TodoItem CloneItem(TodoItem item) => new()
+    {
+        Id = item.Id,
+        ParentId = item.ParentId,
+        Title = item.Title,
+        Description = item.Description,
+        IsCompleted = item.IsCompleted,
+        Priority = item.Priority,
+        Category = item.Category,
+        Tags = item.Tags.ToList(),
+        DueDate = item.DueDate,
+        Progress = item.Progress,
+        SessionId = item.SessionId,
+        CreatedAt = item.CreatedAt,
+        CompletedAt = item.CompletedAt,
+        IsTrashed = item.IsTrashed,
+        RepeatConfig = CloneRepeatConfig(item.RepeatConfig),
+        LastResetAt = item.LastResetAt
+    };
+
+    private static void CopyItem(TodoItem source, TodoItem target)
+    {
+        target.Id = source.Id;
+        target.ParentId = source.ParentId;
+        target.Title = source.Title;
+        target.Description = source.Description;
+        target.IsCompleted = source.IsCompleted;
+        target.Priority = source.Priority;
+        target.Category = source.Category;
+        target.Tags = source.Tags.ToList();
+        target.DueDate = source.DueDate;
+        target.Progress = source.Progress;
+        target.SessionId = source.SessionId;
+        target.CreatedAt = source.CreatedAt;
+        target.CompletedAt = source.CompletedAt;
+        target.IsTrashed = source.IsTrashed;
+        target.RepeatConfig = CloneRepeatConfig(source.RepeatConfig);
+        target.LastResetAt = source.LastResetAt;
+    }
+
+    private static RepeatConfig? CloneRepeatConfig(RepeatConfig? config) => config == null ? null : new RepeatConfig
+    {
+        Frequency = config.Frequency,
+        StartDate = config.StartDate,
+        EndDate = config.EndDate,
+        ReminderHour = config.ReminderHour,
+        ReminderMinute = config.ReminderMinute,
+        RepeatDayOfWeek = config.RepeatDayOfWeek,
+        RepeatDayOfMonth = config.RepeatDayOfMonth,
+        RepeatMonth = config.RepeatMonth,
+        RepeatDay = config.RepeatDay
+    };
+
+    private sealed record StoreSnapshot(List<string> Categories, List<ItemSnapshot> Items);
+    private sealed record ItemSnapshot(TodoItem Reference, TodoItem State);
 }
 
 internal class TodoData

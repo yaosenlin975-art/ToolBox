@@ -18,6 +18,16 @@ ToolBox 是一款 Windows 桌面截图+贴图工具，基于 .NET 8.0 WPF 构建
 
 ## 架构
 
+### Agent CLI 与本地后台
+
+`Project/Cli/` 是同一 solution 中的 console 工程，以 System.CommandLine 2.0.2（MIT）解析命令；构建和发布时与 ToolBox.exe、运行依赖及许可文件一起交付。共享协议源文件位于 `Core/Todo/`，不另建 DTO 类库。
+
+CLI 提供能力发现、待办 CRUD/状态/回收站、指定图片离线 OCR、截图标签只读查询。能力发现读取静态允许列表及 schema；其余请求经本机命名管道交给唯一 ToolBox 实例。后台启动参数 `--task-host` 不初始化窗口、热键、剪贴板监听或截图调度；普通启动向后台转发 `app.activate`，在同一实例初始化桌面。已打开界面时拒绝 `host stop`。
+
+管道名包含当前用户 SID；服务端 ACL 只允许当前用户并拒绝网络登录，客户端使用 CurrentUserOnly，仅连接本机。请求和响应为带版本/requestId 的 UTF-8 单行 JSON，单帧 JSON 上限 4 MiB，连接启动上限 10 秒、响应等待 30 秒；已发送请求超时或断连不重放。host 串行处理请求并派发 Dispatcher，待办命令在 Store 的 stateLock 内完成验证、快照和变更；保存采用同目录临时文件 flush+原子替换，失败恢复原对象状态，损坏数据拒绝命令。
+
+OCR 复用 Tesseract/WindowsOCR，仅读取本次显式指定的本地图片，拒绝网络路径/重解析点，限制文件与像素大小，禁止自动下载、翻译和历史写入。截图查询复用标签 Store，不启动缓存迁移/清理，公开 17 位截图标识而非绝对目录，按标识稳定分页。输入/输出、授权范围详见 `agent-cli-design.md`，待办契约见 `task-cli-design.md`，调用示例见 `task-cli-usage.md`。
+
 ### 目录结构
 
 ```
