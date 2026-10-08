@@ -11,6 +11,8 @@ public partial class TodoDetailPanel : UserControl
     private TodoItem? currentItem;
     private Action? onClosed;
 
+    public event Action? DismissRequested;
+
     public TodoDetailPanel()
     {
         InitializeComponent();
@@ -366,9 +368,10 @@ public partial class TodoDetailPanel : UserControl
     private async void DetailTrash_Click(object sender, RoutedEventArgs e)
     {
         if (currentItem == null) return;
-        await TodoStore.Instance.TrashAsync(currentItem.Id);
+        if (!await TodoStore.Instance.TrashAsync(currentItem.Id)) return;
         onClosed?.Invoke();
         HideDetail();
+        DismissRequested?.Invoke();
     }
 
     private async void DetailRestore_Click(object sender, RoutedEventArgs e)
@@ -382,9 +385,10 @@ public partial class TodoDetailPanel : UserControl
     private async void DeleteBtn_Click(object sender, RoutedEventArgs e)
     {
         if (currentItem == null) return;
-        await TodoStore.Instance.DeletePermanentlyAsync(currentItem.Id);
+        if (!await TodoStore.Instance.DeletePermanentlyAsync(currentItem.Id)) return;
         onClosed?.Invoke();
         HideDetail();
+        DismissRequested?.Invoke();
     }
 
     private async void DetailCategory_LostFocus(object sender, RoutedEventArgs e)

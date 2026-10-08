@@ -12,6 +12,7 @@ public partial class TodoDetailWindow : Window
     public TodoDetailWindow(TodoItem todoItem, Action? closedCallback = null)
     {
         InitializeComponent();
+        DetailPanel.DismissRequested += Close;
         item = todoItem;
         onClosed = closedCallback;
         DetailPanel.ShowDetail(item, () => Populate());

@@ -15,6 +15,7 @@ public partial class TodoView : UserControl
     public TodoView()
     {
         InitializeComponent();
+        DetailPanel.DismissRequested += HideDetail;
         TodoStore.Instance.ItemsChanged += () => Dispatcher.BeginInvoke(LoadTodos);
         LoadTodos();
     }
