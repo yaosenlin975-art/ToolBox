@@ -98,6 +98,20 @@ toolbox-cli.exe host stop
 
 待办仍保存到 `%APPDATA%\ToolBox\todos.json`。损坏文件不会自动覆盖成空数据；请先备份再恢复有效 JSON。保存失败会保留此前的文件并恢复内存状态；恢复失败后拒绝继续命令，须排除故障并重启。
 
+## Agent 技能安装
+
+cli-anything 适配技能源位于 `Docs/skills/cli-anything-toolbox/SKILL.md`；完整发布目录附带 `skills/cli-anything-toolbox/SKILL.md`。技能复用已有 CLI，业务命令默认输出 JSON，无需添加 --json。
+
+将 `cli-anything-toolbox` 文件夹复制到使用中的 Agent 技能目录。例如在发布目录执行：
+
+```powershell
+$skillHome = Join-Path $env:USERPROFILE '.agents/skills/cli-anything-toolbox'
+New-Item -ItemType Directory -Force -Path $skillHome | Out-Null
+Copy-Item -LiteralPath ./skills/cli-anything-toolbox/SKILL.md -Destination (Join-Path $skillHome 'SKILL.md')
+```
+
+Agent 重新加载技能后可使用 `$cli-anything-toolbox`。可通过 `TOOLBOX_CLI_PATH` 指定 toolbox-cli.exe 的完整路径，或使用已配置的 PATH；在本仓库也可使用 Project/bin/agent-cli-publish 下的完整发布包。技能本身不包含可执行程序，不会替代 ToolBox，也不授予额外数据访问权限。
+
 ## 构建与检查
 
 ```powershell

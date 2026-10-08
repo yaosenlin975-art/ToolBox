@@ -2,6 +2,11 @@
 
 开发者需手动测试验收的部分。
 
+- [ ] Agent 重新加载后发现 ToolBox 技能
+  - 步骤1：重新加载 Agent 技能目录或开启新会话，确认能找到 cli-anything-toolbox。
+  - 步骤2：请求“使用 $cli-anything-toolbox，仅查看 ToolBox 支持哪些 CLI 能力”。
+  - 预期结果：加载对应技能并调用真实 capabilities list，能看到当前 13 项能力；发现过程不创建待办、不读取截图内容、不启动后台。
+
 - [ ] CLI 后台转界面与待办同步（Light/Dark）
   - 步骤1：退出 ToolBox，使用 CLI 创建测试待办，再正常打开 ToolBox。
   - 步骤2：确认只有一组窗口/托盘图标；分别在 Light/Dark 主题下用 CLI 更新、完成、删除、恢复待办。

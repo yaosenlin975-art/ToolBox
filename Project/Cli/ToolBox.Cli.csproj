@@ -18,5 +18,7 @@
     <Compile Include="..\Core\Todo\TaskIpc.cs" Link="Shared\TaskIpc.cs" />
     <Compile Include="..\Core\Todo\AgentCapabilities.cs" Link="Shared\AgentCapabilities.cs" />
     <None Update="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\Docs\skills\cli-anything-toolbox\SKILL.md" Link="skills\cli-anything-toolbox\SKILL.md"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

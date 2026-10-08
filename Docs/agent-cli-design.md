@@ -105,3 +105,14 @@ toolbox-cli color sample --input request.json        # 未实现，待独立授�
 - 提醒、习惯/番茄钟、剪贴板、联网诊断按具体 Agent 场景选取，不一次性开放整个工具箱。
 
 本文件提供可审查的扩展范围；未获确认的新命令不进入当前实现，已经授权的 Todo 工作继续完成。
+
+## 8. cli-anything 技能适配
+
+用户已要求将 cli-anything 用于当前 ToolBox。复用已实现的 C# CLI 和已确认的能力范围，补齐 Agent 的发现和调用指导，不增加业务接口或权限。
+
+- 需求：Agent 能从技能找到真实可执行文件、读取 capabilities、提交 JSON 输入、处理结果和失败，不把 ToolBox 待办误认为 Multica issue。
+- 选型：采用插件的源码映射、真实后台验证和 SKILL.md 交付流程；现有 System.CommandLine 替代模板里的 Click，原生 JSON 替代 --json，保留单次命令调用。无需新增 Python/REPL/PyPI 依赖，不复制插件实现代码。
+- 文件：按项目文档约定，规范源位于 `Docs/skills/cli-anything-toolbox/SKILL.md`；CLI 工程将同一文件复制到构建/发布目录 `skills/cli-anything-toolbox/SKILL.md`，不维护两份源。
+- 接口和数据：技能含 YAML name/description 及自包含调用规则；命令 schema 以 capabilities 运行输出为准。业务仍通过现有 requestId/protocolVersion/ok/data/error 管道契约，不新增通用工具调用入口。
+- 流程：Agent 加载技能→定位完整发布目录→发现能力→按用户请求调用→核对退出码和 JSON→对未知写入结果先查询。技能安装到本机 Agent 的技能目录；不修改 PATH、不提权、不绕过 host 写 JSON。
+- 交付边界：指定文件 OCR、标签元数据和 Todo 的既有授权不扩大；屏幕采集、剪贴板、联网诊断和系统修复仍未开放。模板中的预览、导出、undo/redo、默认 REPL 不声明为已实现能力。

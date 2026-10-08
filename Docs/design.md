@@ -20,7 +20,7 @@ ToolBox 是一款 Windows 桌面截图+贴图工具，基于 .NET 8.0 WPF 构建
 
 ### Agent CLI 与本地后台
 
-`Project/Cli/` 是同一 solution 中的 console 工程，以 System.CommandLine 2.0.2（MIT）解析命令；构建和发布时与 ToolBox.exe、运行依赖及许可文件一起交付。共享协议源文件位于 `Core/Todo/`，不另建 DTO 类库。
+`Project/Cli/` 是同一 solution 中的 console 工程，以 System.CommandLine 2.0.2（MIT）解析命令；构建和发布时与 ToolBox.exe、运行依赖及许可文件一起交付。共享协议源文件位于 `Core/Todo/`，不另建 DTO 类库。Agent 技能源集中存放于 `Docs/skills/cli-anything-toolbox/SKILL.md`，CLI 工程以链接文件随构建/发布复制到 `skills/cli-anything-toolbox/SKILL.md`；技能指导调用现有命令，不改变业务接口或权限。
 
 CLI 提供能力发现、待办 CRUD/状态/回收站、指定图片离线 OCR、截图标签只读查询。能力发现读取静态允许列表及 schema；其余请求经本机命名管道交给唯一 ToolBox 实例。后台启动参数 `--task-host` 不初始化窗口、热键、剪贴板监听或截图调度；普通启动向后台转发 `app.activate`，在同一实例初始化桌面。已打开界面时拒绝 `host stop`。
 
