@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using ToolBox.Views.ClipboardHistory;
 using ToolBox.Views.Dashboard;
 using ToolBox.Views.NetworkDiagnosis;
@@ -16,11 +18,17 @@ public partial class WorkbenchWindow : Window
     private ClipboardView? clipboardView;
     private NetworkDiagnosisView? networkView;
     private SettingsView? settingsView;
+    private string? activePage;
+
+    private const double PageTransitionOffset = 5;
+    private const int PageTransitionDurationMs = 165;
 
     public WorkbenchWindow()
     {
         InitializeComponent();
         TheSidebar.NavigationRequested += OnNavigationRequested;
+        IsVisibleChanged += WorkbenchWindow_IsVisibleChanged;
+        SystemParameters.StaticPropertyChanged += SystemParametersChanged;
         LoadPage("dashboard");
     }
 
@@ -28,6 +36,17 @@ public partial class WorkbenchWindow : Window
 
     public void LoadPage(string page)
     {
+        object? content = page switch
+        {
+            "dashboard" => GetDashboard(),
+            "todos" => GetTodoView(),
+            "screenshots" => GetHistoryView(),
+            "clipboard" => GetClipboard(),
+            "network" => GetNetwork(),
+            "settings" => GetSettingsView(),
+            _ => null
+        };
+
         PageTitle.Text = page switch
         {
             "dashboard" => (FindResource("Lang_Page_Dashboard") as string) ?? "工作台",
@@ -41,16 +60,71 @@ public partial class WorkbenchWindow : Window
         TheHeader.Title = PageTitle.Text;
         TheSidebar.SetActive(page);
 
-        PageHost.Content = page switch
+        if (string.Equals(activePage, page, StringComparison.Ordinal))
         {
-            "dashboard" => GetDashboard(),
-            "todos" => GetTodoView(),
-            "screenshots" => GetHistoryView(),
-            "clipboard" => GetClipboard(),
-            "network" => GetNetwork(),
-            "settings" => GetSettingsView(),
-            _ => null
+            return;
+        }
+
+        activePage = page;
+        PageHost.Content = content;
+        PlayPageTransition();
+    }
+
+    private void PlayPageTransition()
+    {
+        FinishPageTransition();
+
+        if (!SystemParameters.ClientAreaAnimation || !IsVisible)
+        {
+            return;
+        }
+
+        var duration = TimeSpan.FromMilliseconds(PageTransitionDurationMs);
+        var fade = new DoubleAnimation(0, 1, duration)
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            FillBehavior = FillBehavior.Stop
         };
+        var slide = new DoubleAnimation(PageTransitionOffset, 0, duration)
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            FillBehavior = FillBehavior.Stop
+        };
+        PageHost.BeginAnimation(UIElement.OpacityProperty, fade, HandoffBehavior.SnapshotAndReplace);
+        PageHostTranslation.BeginAnimation(TranslateTransform.YProperty, slide, HandoffBehavior.SnapshotAndReplace);
+    }
+
+    private void FinishPageTransition()
+    {
+        PageHost.BeginAnimation(UIElement.OpacityProperty, null);
+        PageHostTranslation.BeginAnimation(TranslateTransform.YProperty, null);
+        PageHost.Opacity = 1;
+        PageHostTranslation.Y = 0;
+    }
+
+    private void SystemParametersChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SystemParameters.ClientAreaAnimation) && !SystemParameters.ClientAreaAnimation)
+        {
+            if (!Dispatcher.HasShutdownStarted)
+            {
+                Dispatcher.BeginInvoke(new Action(FinishPageTransition));
+            }
+        }
+    }
+
+    private void WorkbenchWindow_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (!IsVisible)
+        {
+            FinishPageTransition();
+        }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        SystemParameters.StaticPropertyChanged -= SystemParametersChanged;
+        base.OnClosed(e);
     }
 
     private ClipboardView GetClipboard()

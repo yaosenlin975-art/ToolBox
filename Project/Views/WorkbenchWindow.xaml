@@ -55,7 +55,11 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <shell:TopHeader x:Name="TheHeader" Grid.Row="0"/>
-                    <ContentControl x:Name="PageHost" Grid.Row="1"/>
+                    <ContentControl x:Name="PageHost" Grid.Row="1">
+                        <ContentControl.RenderTransform>
+                            <TranslateTransform x:Name="PageHostTranslation"/>
+                        </ContentControl.RenderTransform>
+                    </ContentControl>
                 </Grid>
             </Grid>
         </Grid>

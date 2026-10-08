@@ -133,7 +133,7 @@
             </Setter>
         </Style>
     </Window.Resources>
-    <Grid>
+    <Grid ClipToBounds="True">
     <!-- 合法例外：紧凑模式窗口整体直角设计（非圆角浮窗） -->
     <Border x:Name="RootBorder" Background="{DynamicResource BgElevatedBrush}" CornerRadius="0" BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1" PreviewMouseLeftButtonDown="RootBorder_PreviewMouseLeftButtonDown" PreviewMouseMove="RootBorder_PreviewMouseMove">
         <Grid>
@@ -202,16 +202,17 @@
                     HorizontalAlignment="Stretch" VerticalAlignment="Bottom"/>
         </Grid>
     </Border>
-    <!-- 靠边自动隐藏：20px 唤起竖条 + 箭头（放在外层 Grid，不随 RootBorder 翻译） -->
-    <Border x:Name="HiddenStrip" Width="20" HorizontalAlignment="Left" Visibility="Collapsed"
+    <!-- 窄握柄保留较宽命中区，不扩大到屏幕整条边。 -->
+    <Border x:Name="HiddenStrip" Width="12" HorizontalAlignment="Left" Visibility="Collapsed"
             Background="Transparent" IsHitTestVisible="True" MouseEnter="HiddenStrip_MouseEnter"
+            MouseLeave="HiddenStrip_MouseLeave" MouseLeftButtonDown="HiddenStrip_MouseLeftButtonDown"
             Cursor="Hand">
         <Grid Background="Transparent">
-            <Border x:Name="StripBar" Width="20" Background="{DynamicResource BgElevatedBrush}"
-                    BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,1,1" CornerRadius="0"/>
-            <TextBlock x:Name="StripArrow" FontSize="12" FontWeight="Bold"
+            <Border x:Name="StripBar" Width="6" Height="48" Background="{DynamicResource BgElevatedBrush}"
+                    BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1" CornerRadius="3"/>
+            <TextBlock x:Name="StripArrow" FontSize="8" FontWeight="Bold"
                        Foreground="{DynamicResource TextPrimaryBrush}"
-                       HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
                        IsHitTestVisible="False"/>
         </Grid>
     </Border>

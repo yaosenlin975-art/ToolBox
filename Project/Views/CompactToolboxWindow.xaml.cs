@@ -34,14 +34,21 @@ public partial class CompactToolboxWindow : Window
     private TodoItem? detailItem;
     private Point dragOrigin;
     private bool dragStarted;
+    private bool dragArmed;
+    private bool todoHeightDirty;
 
     // 靠边自动隐藏
-    private bool isHiddenAtEdge;
-    private bool isHideCountingDown;
-    private DispatcherTimer? hideTimer;
-    private bool isAnimating;
-    private bool hiddenAtLeftEdge;
-    private bool restoreRequested;
+    private enum EdgeState { Visible, HidePending, Hiding, Hidden, Showing }
+    private EdgeState edgeState;
+    private DockSide dockSide;
+    private DispatcherTimer? edgeTimer;
+    private long edgeTransition;
+    private bool isDragging;
+    private bool isResizing;
+    private HwndSource? windowSource;
+    private const double EdgeThreshold = 12;
+    private const double EdgeStripWidth = 12;
+    private long sizeTransition;
 
     public CompactToolboxWindow()
     {
@@ -51,6 +58,13 @@ public partial class CompactToolboxWindow : Window
         PositionWindow();
         SwitchToTab("todo");
         LoadTodos();
+        IsVisibleChanged += (_, _) => { StopSizeAnimation(true); ResetEdgePosition(); };
+        SizeChanged += (_, _) =>
+        {
+            if (edgeState != EdgeState.Visible && edgeState != EdgeState.HidePending)
+                ResetEdgePosition();
+        };
+        SystemParameters.StaticPropertyChanged += SystemParametersChanged;
 
         TodoStore.Instance.ItemsChanged += () => Dispatcher.BeginInvoke(LoadTodos);
         CacheManager.Instance.OnScrapCached += (_, _) => Dispatcher.Invoke(LoadScreenshots);
@@ -67,7 +81,7 @@ public partial class CompactToolboxWindow : Window
     protected override void OnActivated(EventArgs e)
     {
         base.OnActivated(e);
-        if (isHiddenAtEdge)
+        if (edgeState is EdgeState.Hidden or EdgeState.Hiding or EdgeState.Showing)
             RestoreFromEdge();
     }
 
@@ -81,6 +95,10 @@ public partial class CompactToolboxWindow : Window
             return;
         }
         base.OnClosing(e);
+        CancelHideTimer();
+        ++edgeTransition;
+        SystemParameters.StaticPropertyChanged -= SystemParametersChanged;
+        windowSource?.RemoveHook(WindowHook);
     }
 
     private void PositionWindow()
@@ -93,7 +111,8 @@ public partial class CompactToolboxWindow : Window
 
     public void SwitchToTab(string tab)
     {
-        if (isHiddenAtEdge)
+        StopSizeAnimation();
+        if (edgeState is EdgeState.Hidden or EdgeState.Hiding or EdgeState.Showing)
             RestoreFromEdge();
         // settings 不是一个面板：记进 currentTab 后，之后每次刷新面板都会顺手打开工作台并隐藏小窗，
         // 而此刻两个面板已 Collapsed，从工作台切回来只会得到空白窗口
@@ -102,6 +121,7 @@ public partial class CompactToolboxWindow : Window
             OpenWorkbench();
             return;
         }
+        bool tabChanged = currentTab != tab;
         currentTab = tab;
         if (isTodoCollapsed)
         {
@@ -149,6 +169,7 @@ public partial class CompactToolboxWindow : Window
                 LoadScreenshots();
                 break;
         }
+        if (tabChanged) AnimateContent(tab is "todo" or "todos" ? TodoPanel : ScreenshotPanel);
     }
 
     private void Tab_Click(object sender, RoutedEventArgs e)
@@ -383,6 +404,7 @@ public partial class CompactToolboxWindow : Window
 
     private void RootBorder_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        dragArmed = false;
         var source = e.OriginalSource as DependencyObject;
         while (source != null)
         {
@@ -395,18 +417,20 @@ public partial class CompactToolboxWindow : Window
         }
         dragOrigin = e.GetPosition(this);
         dragStarted = false;
+        dragArmed = true;
     }
 
     private void RootBorder_PreviewMouseMove(object sender, MouseEventArgs e)
     {
         if (e.LeftButton != MouseButtonState.Pressed) return;
+        if (!dragArmed) return;
         if (dragStarted) return;
         var pos = e.GetPosition(this);
         if (Math.Abs(pos.X - dragOrigin.X) >= SystemParameters.MinimumHorizontalDragDistance ||
             Math.Abs(pos.Y - dragOrigin.Y) >= SystemParameters.MinimumVerticalDragDistance)
         {
             dragStarted = true;
-            DragMove();
+            DragWindow();
         }
     }
 
@@ -421,13 +445,23 @@ public partial class CompactToolboxWindow : Window
             source = VisualTreeHelper.GetParent(source);
         }
         if (e.LeftButton == MouseButtonState.Pressed)
-            DragMove();
+            DragWindow();
+    }
+
+    private void DragWindow()
+    {
+        StopSizeAnimation();
+        ResetEdgePosition();
+        isDragging = true;
+        try { DragMove(); }
+        finally { isDragging = false; SnapAfterDrag(); }
     }
 
     // --- Todo collapse / expand ---
 
     private void TodoCollapse_Click(object sender, RoutedEventArgs e)
     {
+        StopSizeAnimation();
         isTodoCollapsed = !isTodoCollapsed;
 
         TopBar.Visibility = isTodoCollapsed ? Visibility.Collapsed : Visibility.Visible;
@@ -439,22 +473,20 @@ public partial class CompactToolboxWindow : Window
         {
             savedWidth = Width;
             savedHeight = Height;
-            FitTodoHeight();
+            FitTodoHeight(true);
         }
         else
         {
-            var bottom = Top + Height;
-            var right = Left + Width;
-            Width = savedWidth > 0 ? savedWidth : TodoSize.w;
-            Height = savedHeight > 0 ? savedHeight : TodoSize.h;
-            Top = bottom - Height;
-            Left = right - Width;
+            AnimateSize(savedWidth > 0 ? savedWidth : TodoSize.w,
+                savedHeight > 0 ? savedHeight : TodoSize.h, true);
         }
     }
 
-    private void FitTodoHeight()
+    private void FitTodoHeight(bool animate = false)
     {
         if (!isTodoCollapsed || currentTab != "todo") return;
+        if (edgeState == EdgeState.Hidden) { todoHeightDirty = true; return; }
+        todoHeightDirty = false;
 
         int count = TodoItemsPanel?.Children.Count ?? 0;
         if (count == 0) count = 1;
@@ -465,12 +497,47 @@ public partial class CompactToolboxWindow : Window
         double targetW = MaxFitWidth;
         if ((TodoItemsPanel?.Children.Count ?? 0) == 0) targetW = TodoSize.w;
 
-        var bottom = Top + Height;
-        var right = Left + Width;
-        Width = targetW;
-        Height = targetH;
-        Top = bottom - targetH;
-        Left = right - targetW;
+        AnimateSize(targetW, targetH, animate);
+    }
+
+    private void StopSizeAnimation(bool settle = false)
+    {
+        ++sizeTransition;
+        double height = settle ? (double)GetAnimationBaseValue(HeightProperty) : Height;
+        double top = settle ? (double)GetAnimationBaseValue(TopProperty) : Top;
+        BeginAnimation(HeightProperty, null);
+        BeginAnimation(TopProperty, null);
+        Height = height;
+        Top = top;
+    }
+
+    private void AnimateSize(double width, double height, bool animate)
+    {
+        if (edgeState is EdgeState.Hiding or EdgeState.Showing) ResetEdgePosition();
+        StopSizeAnimation();
+        CancelHideTimer();
+        double startHeight = Height, startTop = Top;
+        double targetTop = Top + Height - height;
+        double targetLeft = dockSide == DockSide.Left ? Left : Left + Width - width;
+        Width = width;
+        Left = targetLeft;
+        Height = height;
+        Top = targetTop;
+        if (!animate || !SystemParameters.ClientAreaAnimation) return;
+        long revision = sizeTransition;
+        var duration = TimeSpan.FromMilliseconds(180);
+        var heightAnimation = new DoubleAnimation(startHeight, height, duration)
+        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+        heightAnimation.Completed += (_, _) =>
+        {
+            if (revision != sizeTransition) return;
+            BeginAnimation(HeightProperty, null);
+            BeginAnimation(TopProperty, null);
+            ResetEdgePosition();
+        };
+        BeginAnimation(HeightProperty, heightAnimation);
+        BeginAnimation(TopProperty, new DoubleAnimation(startTop, targetTop, duration)
+        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
     }
 
     private async void QuickAddTodo_Click(object sender, RoutedEventArgs e)
@@ -555,167 +622,264 @@ public partial class CompactToolboxWindow : Window
 
     #region Auto-hide at screen edge
 
-    private Rect GetCurrentMonitorWorkArea()
+    private delegate bool MonitorCallback(IntPtr monitor, IntPtr dc, IntPtr rect, IntPtr data);
+    [DllImport("user32.dll")]
+    private static extern bool EnumDisplayMonitors(IntPtr dc, IntPtr clip, MonitorCallback callback, IntPtr data);
+
+    protected override void OnSourceInitialized(EventArgs e)
     {
+        base.OnSourceInitialized(e);
+        windowSource = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
+        windowSource?.AddHook(WindowHook);
+    }
+
+    private IntPtr WindowHook(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        // DPI/work-area changes are processed after WPF has applied the native update.
+        if (message is 0x02E0 or 0x007E or 0x001A)
+            Dispatcher.BeginInvoke(ResetEdgePosition);
+        if (message == 0x0231) { isResizing = true; StopSizeAnimation(); ResetEdgePosition(); }
+        if (message == 0x0232) { isResizing = false; Dispatcher.BeginInvoke(SnapAfterDrag); }
+        return IntPtr.Zero;
+    }
+
+    private void SystemParametersChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SystemParameters.ClientAreaAnimation))
+            Dispatcher.BeginInvoke(() =>
+            {
+                ResetEdgePosition();
+                StopSizeAnimation();
+                AnimateContent(currentTab is "todo" or "todos" ? TodoPanel : ScreenshotPanel);
+            });
+    }
+
+    private bool TryGetScreenGeometry(out Rect work, out Rect window, out double scaleX, out double scaleY)
+    {
+        work = window = Rect.Empty;
+        var dpi = VisualTreeHelper.GetDpi(this);
+        scaleX = dpi.DpiScaleX;
+        scaleY = dpi.DpiScaleY;
         var hwnd = new WindowInteropHelper(this).Handle;
-        var hMonitor = NativeMethods.MonitorFromWindow(hwnd, NativeMethods.MONITOR_DEFAULTTONEAREST);
-        var mi = new MONITORINFO { cbSize = Marshal.SizeOf(typeof(MONITORINFO)) };
-        NativeMethods.GetMonitorInfo(hMonitor, ref mi);
-        var r = mi.rcWork;
-        return new Rect(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top);
+        var monitor = NativeMethods.MonitorFromWindow(hwnd, NativeMethods.MONITOR_DEFAULTTONEAREST);
+        var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        if (!NativeMethods.GetMonitorInfo(monitor, ref info) ||
+            !NativeMethods.GetWindowRect(hwnd, out var nativeWindow)) return false;
+        work = new Rect(info.rcWork.Left, info.rcWork.Top,
+            info.rcWork.Right - info.rcWork.Left, info.rcWork.Bottom - info.rcWork.Top);
+        window = new Rect(nativeWindow.Left, nativeWindow.Top,
+            nativeWindow.Right - nativeWindow.Left, nativeWindow.Bottom - nativeWindow.Top);
+        return !work.IsEmpty && work.Width > 0 && work.Height > 0;
+    }
+
+    private bool IsOuterDock(Rect work, Rect window, DockSide side)
+    {
+        var monitors = new List<Rect>();
+        bool success = EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (monitor, _, _, _) =>
+        {
+            var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            if (!NativeMethods.GetMonitorInfo(monitor, ref info)) return false;
+            monitors.Add(new Rect(info.rcMonitor.Left, info.rcMonitor.Top,
+                info.rcMonitor.Right - info.rcMonitor.Left, info.rcMonitor.Bottom - info.rcMonitor.Top));
+            return true;
+        }, IntPtr.Zero);
+        return success && EdgeDockGeometry.IsOuterEdge(window, work, side, monitors);
     }
 
     public void ApplyAutoHide(bool enabled)
     {
         options.Data.AutoHideEnabled = enabled;
-        if (enabled) return;
-        CancelHideTimer();
-        restoreRequested = false;
-        if (isAnimating)
-        {
-            BeginAnimation(LeftProperty, null);
-            isAnimating = false;
-            isHiddenAtEdge = false;
-            var workArea = GetCurrentMonitorWorkArea();
-            Left = hiddenAtLeftEdge ? workArea.Left : workArea.Right - Width;
-            RootBorder.IsHitTestVisible = true;
-            HiddenStrip.Visibility = Visibility.Collapsed;
-        }
-        else if (isHiddenAtEdge)
-            RestoreFromEdge();
+        if (!enabled) ResetEdgePosition();
+        else SnapAfterDrag();
     }
 
-    private void StartHideTimer()
+    private bool HasActiveInteraction() => isDragging || isResizing || Mouse.Captured != null ||
+        Mouse.LeftButton == MouseButtonState.Pressed ||
+        (IsKeyboardFocusWithin && Keyboard.FocusedElement is TextBoxBase) ||
+        OwnedWindows.Cast<Window>().Any(w => w.IsVisible) ||
+        ContextMenu is { IsOpen: true } || HasOpenContextMenu(RootBorder);
+
+    private static bool HasOpenContextMenu(DependencyObject parent)
     {
-        hideTimer?.Stop();
-        isHideCountingDown = true;
-        hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-        hideTimer.Tick += (_, _) =>
-        {
-            hideTimer?.Stop();
-            isHideCountingDown = false;
-            HideWindow();
-        };
-        hideTimer.Start();
+        if (parent is FrameworkElement { ContextMenu.IsOpen: true }) return true;
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            if (HasOpenContextMenu(VisualTreeHelper.GetChild(parent, i))) return true;
+        return false;
+    }
+
+    private bool PointerInsideWindow()
+    {
+        return TryGetScreenGeometry(out _, out var window, out _, out _) &&
+            NativeMethods.GetCursorPos(out var point) && window.Contains(point.X, point.Y);
     }
 
     private void CancelHideTimer()
     {
-        hideTimer?.Stop();
-        hideTimer = null;
-        isHideCountingDown = false;
+        edgeTimer?.Stop();
+        edgeTimer = null;
+        if (edgeState == EdgeState.HidePending) edgeState = EdgeState.Visible;
+    }
+
+    private void StartEdgeTimer(int milliseconds, Action action)
+    {
+        CancelHideTimer();
+        long revision = edgeTransition;
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(milliseconds) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            if (!ReferenceEquals(edgeTimer, timer) || revision != edgeTransition) return;
+            edgeTimer = null;
+            action();
+        };
+        edgeTimer = timer;
+        timer.Start();
+    }
+
+    private void StartHideTimer()
+    {
+        if (!options.Data.AutoHideEnabled || !IsVisible || dockSide == DockSide.None ||
+            edgeState is not (EdgeState.Visible or EdgeState.HidePending)) return;
+        StartEdgeTimer(800, HideWindow);
+        edgeState = EdgeState.HidePending;
     }
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
     {
-        if (!options.Data.AutoHideEnabled || isHiddenAtEdge || isAnimating) return;
-        var workArea = GetCurrentMonitorWorkArea();
-        if (Left <= workArea.Left + 2 || Left + Width >= workArea.Right - 2)
-            StartHideTimer();
+        if (edgeState == EdgeState.Hidden) CancelHideTimer();
+        else StartHideTimer();
     }
 
     private void Window_MouseEnter(object sender, MouseEventArgs e)
     {
-        if (isHideCountingDown)
-            CancelHideTimer();
+        if (edgeState == EdgeState.Hiding) ShowWindow();
+        else if (edgeState != EdgeState.Hidden) CancelHideTimer();
     }
 
     private void HiddenStrip_MouseEnter(object sender, MouseEventArgs e)
     {
-        if (isAnimating)
-        {
-            restoreRequested = true;
-            return;
-        }
-        CancelHideTimer();
+        if (edgeState == EdgeState.Hidden)
+            StartEdgeTimer(120, () => { if (HiddenStrip.IsMouseOver) ShowWindow(); });
+        else if (edgeState == EdgeState.Hiding) ShowWindow();
+    }
+
+    private void HiddenStrip_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (edgeState == EdgeState.Hidden) CancelHideTimer();
+    }
+
+    private void HiddenStrip_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
         ShowWindow();
+        e.Handled = true;
+    }
+
+    private void SnapAfterDrag()
+    {
+        if (isDragging || isResizing || !IsVisible || edgeState is EdgeState.Hidden or EdgeState.Hiding) return;
+        CancelHideTimer();
+        if (!TryGetScreenGeometry(out var work, out var window, out var scale, out _)) return;
+        dockSide = EdgeDockGeometry.FindSide(window, work, EdgeThreshold * scale);
+        if (dockSide != DockSide.None && !IsOuterDock(work, window, dockSide)) dockSide = DockSide.None;
+        if (dockSide == DockSide.None || !options.Data.AutoHideEnabled) return;
+        MoveAtEdge(false);
     }
 
     private void ShowWindow()
     {
-        if (isAnimating || !isHiddenAtEdge) return;
-        isAnimating = true;
-        CancelHideTimer();
-
-        var workArea = GetCurrentMonitorWorkArea();
-        double targetLeft = hiddenAtLeftEdge ? workArea.Left : workArea.Right - Width;
-
-        var anim = new DoubleAnimation(targetLeft, TimeSpan.FromMilliseconds(300))
-        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
-
-        BeginAnimation(LeftProperty, anim);
-
-        RootBorder.IsHitTestVisible = true;
-        HiddenStrip.Visibility = Visibility.Collapsed;
-
-        DispatcherTimer? done = null;
-        done = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(310) };
-        done.Tick += (_, _) =>
-        {
-            done?.Stop();
-            Left = targetLeft;
-            BeginAnimation(LeftProperty, null);
-            isHiddenAtEdge = false;
-            isAnimating = false;
-        };
-        done.Start();
-    }
-
-    private void RestoreFromEdge()
-    {
-        CancelHideTimer();
-        if (!isHiddenAtEdge) return;
-        isHiddenAtEdge = false;
-        isAnimating = false;
-        BeginAnimation(LeftProperty, null);
-        var workArea = GetCurrentMonitorWorkArea();
-        Left = hiddenAtLeftEdge ? workArea.Left : workArea.Right - Width;
-        RootBorder.IsHitTestVisible = true;
-        HiddenStrip.Visibility = Visibility.Collapsed;
+        if (edgeState is EdgeState.Hidden or EdgeState.Hiding) MoveAtEdge(false);
     }
 
     private void HideWindow()
     {
-        if (isAnimating || isHiddenAtEdge) return;
-        isAnimating = true;
-        restoreRequested = false;
+        if (edgeState != EdgeState.HidePending) return;
+        edgeState = EdgeState.Visible;
+        if (!options.Data.AutoHideEnabled || !IsVisible || PointerInsideWindow()) return;
+        if (HasActiveInteraction()) { StartHideTimer(); return; }
+        if (!TryGetScreenGeometry(out var work, out var window, out var scale, out _)) return;
+        var side = EdgeDockGeometry.FindSide(window, work, 2 * scale);
+        if (side == DockSide.None || side != dockSide || !IsOuterDock(work, window, side)) return;
+        MoveAtEdge(true);
+    }
 
-        var workArea = GetCurrentMonitorWorkArea();
-        double screenCenter = workArea.Left + workArea.Width / 2;
-        double windowCenter = Left + Width / 2;
-        hiddenAtLeftEdge = windowCenter <= screenCenter;
-
-        const double stripWidth = 20;
-        double targetLeft = hiddenAtLeftEdge ? workArea.Left - Width + stripWidth : workArea.Right - stripWidth;
-
-        var anim = new DoubleAnimation(targetLeft, TimeSpan.FromMilliseconds(300))
-        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
-
-        BeginAnimation(LeftProperty, anim);
-
-        StripArrow.Text = hiddenAtLeftEdge ? "\u25B6" : "\u25C0";
-        HiddenStrip.HorizontalAlignment = hiddenAtLeftEdge ? HorizontalAlignment.Right : HorizontalAlignment.Left;
-        StripBar.BorderThickness = hiddenAtLeftEdge ? new Thickness(0, 1, 1, 1) : new Thickness(1, 1, 0, 1);
-        HiddenStrip.Visibility = Visibility.Visible;
-        RootBorder.IsHitTestVisible = false;
-
-        DispatcherTimer? done = null;
-        done = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(310) };
-        done.Tick += (_, _) =>
+    private void MoveAtEdge(bool hidden)
+    {
+        if (dockSide == DockSide.None || !TryGetScreenGeometry(out var work, out var window, out var scale, out _))
+        { ResetEdgePosition(); return; }
+        double current = Left;
+        CancelHideTimer();
+        long revision = ++edgeTransition;
+        BeginAnimation(LeftProperty, null);
+        Left = current;
+        double targetPixels = EdgeDockGeometry.TargetLeft(work, window.Width, dockSide, hidden, EdgeStripWidth * scale);
+        double target = current + (targetPixels - window.Left) / scale;
+        edgeState = hidden ? EdgeState.Hiding : EdgeState.Showing;
+        HiddenStrip.Visibility = Visibility.Collapsed;
+        RootBorder.Visibility = Visibility.Visible;
+        RootBorder.IsHitTestVisible = true;
+        void Finish()
         {
-            done?.Stop();
-            if (!options.Data.AutoHideEnabled) return;
-            Left = targetLeft;
+            if (revision != edgeTransition) return;
+            Left = target;
             BeginAnimation(LeftProperty, null);
-            isHiddenAtEdge = true;
-            isAnimating = false;
-            if (restoreRequested)
-            {
-                restoreRequested = false;
-                ShowWindow();
-            }
-        };
-        done.Start();
+            edgeState = hidden ? EdgeState.Hidden : EdgeState.Visible;
+            RootBorder.IsHitTestVisible = !hidden;
+            RootBorder.Visibility = hidden ? Visibility.Hidden : Visibility.Visible;
+            HiddenStrip.HorizontalAlignment = dockSide == DockSide.Left ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+            StripArrow.Text = dockSide == DockSide.Left ? "\u25B6" : "\u25C0";
+            HiddenStrip.Visibility = hidden ? Visibility.Visible : Visibility.Collapsed;
+            if (!hidden && todoHeightDirty) FitTodoHeight();
+            if (!hidden && !PointerInsideWindow()) StartHideTimer();
+        }
+        if (!SystemParameters.ClientAreaAnimation || Math.Abs(current - target) < 0.5) { Finish(); return; }
+        // Shorten reversals so returning through the edge never waits for a full slide.
+        double ratio = Math.Clamp(Math.Abs(target - current) / Math.Max(1, Width - EdgeStripWidth), 0.2, 1);
+        var animation = new DoubleAnimation(current, target, TimeSpan.FromMilliseconds((hidden ? 180 : 220) * ratio))
+        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+        animation.Completed += (_, _) => Finish();
+        BeginAnimation(LeftProperty, animation, HandoffBehavior.SnapshotAndReplace);
+    }
+
+    private void RestoreFromEdge() => ResetEdgePosition();
+
+    private void ResetEdgePosition()
+    {
+        CancelHideTimer();
+        ++edgeTransition;
+        double current = Left;
+        bool needsRestore = edgeState is EdgeState.Hidden or EdgeState.Hiding or EdgeState.Showing;
+        BeginAnimation(LeftProperty, null);
+        Left = current;
+        edgeState = EdgeState.Visible;
+        if (RootBorder == null) return;
+        RootBorder.IsHitTestVisible = true;
+        RootBorder.Visibility = Visibility.Visible;
+        HiddenStrip.Visibility = Visibility.Collapsed;
+        if (!TryGetScreenGeometry(out var work, out var window, out var sx, out var sy))
+        { if (needsRestore) PositionWindow(); return; }
+        double x = needsRestore && dockSide != DockSide.None
+            ? EdgeDockGeometry.TargetLeft(work, window.Width, dockSide, false, 0)
+            : Math.Clamp(window.Left, work.Left, Math.Max(work.Left, work.Right - window.Width));
+        double y = Math.Clamp(window.Top, work.Top, Math.Max(work.Top, work.Bottom - window.Height));
+        Left += (x - window.Left) / sx;
+        Top += (y - window.Top) / sy;
+        dockSide = EdgeDockGeometry.FindSide(new Rect(x, y, window.Width, window.Height), work, 2 * sx);
+        if (todoHeightDirty) FitTodoHeight();
+    }
+
+    private static void AnimateContent(FrameworkElement content)
+    {
+        content.BeginAnimation(OpacityProperty, null);
+        if (content.RenderTransform is not TranslateTransform transform)
+            content.RenderTransform = transform = new TranslateTransform();
+        transform.BeginAnimation(TranslateTransform.YProperty, null);
+        content.Opacity = 1;
+        transform.Y = 0;
+        if (!SystemParameters.ClientAreaAnimation) return;
+        content.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(160)) { FillBehavior = FillBehavior.Stop });
+        transform.BeginAnimation(TranslateTransform.YProperty,
+            new DoubleAnimation(5, 0, TimeSpan.FromMilliseconds(160))
+            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }, FillBehavior = FillBehavior.Stop });
     }
 
     #endregion
