@@ -21,15 +21,6 @@ public enum RepairStepStatus
     Skipped
 }
 
-/// <summary>修复步骤的执行方式。</summary>
-public enum RepairStepKind
-{
-    /// <summary>执行系统命令（ipconfig / netsh 等）。</summary>
-    Shell,
-    /// <summary>写 HKCU 注册表关闭系统代理（无需提权）。</summary>
-    DisableProxy
-}
-
 /// <summary>一条待执行命令。</summary>
 public sealed record RepairCommand(string File, string Args);
 
@@ -49,7 +40,6 @@ public sealed class RepairStep
     public string[] ErrorCodes { get; set; } = [];
     /// <summary>是否需要在提权（UAC）进程内执行。</summary>
     public bool RequiresElevation { get; init; }
-    public RepairStepKind Kind { get; init; } = RepairStepKind.Shell;
     /// <summary>按序执行的命令。</summary>
     public IReadOnlyList<RepairCommand> Commands { get; init; } = [];
 
@@ -78,7 +68,6 @@ public sealed record RepairSummary(int Succeeded, int Failed, int Skipped, bool 
 /// </summary>
 public static class NetworkRepairService
 {
-    private const string InternetSettingsKey = @"Software\Microsoft\Windows\CurrentVersion\Internet Settings";
     private const int ErrorCanceled = 1223; // ERROR_CANCELLED：用户取消 UAC
 
     /// <summary>单条命令执行超时（网络栈异常时 ipconfig/netsh 可能长时间挂起，超时后终止进程，避免修复区无限"执行中"）。</summary>
@@ -120,25 +109,8 @@ public static class NetworkRepairService
             });
         }
 
-        if (codes.Contains("NET-401"))
-        {
-            plan.Add(new RepairStep
-            {
-                Id = "proxy",
-                TitleKey = "Lang_Net_RepairProxy",
-                ErrorCodes = ["NET-401"],
-                Kind = RepairStepKind.DisableProxy
-            });
-            plan.Add(new RepairStep
-            {
-                Id = "winhttp",
-                TitleKey = "Lang_Net_RepairWinHttp",
-                ErrorCodes = ["NET-401"],
-                RequiresElevation = true,
-                Commands = [new RepairCommand("netsh", "winhttp reset proxy")]
-            });
-        }
-
+        // NET-401(系统代理) 不生成修复步骤：PRD AC-05 明确「不自动修改代理设置」，
+        // 公司网/VPN 依赖代理，静默关闭等于把用户的网络切断。
         if (codes.Contains("NET-001"))
             AddInterfaceResetStep(plan, "NET-001");
 
@@ -224,11 +196,7 @@ public static class NetworkRepairService
             progress.Report(step);
             try
             {
-                var ok = step.Kind switch
-                {
-                    RepairStepKind.DisableProxy => TryDisableProxy(),
-                    _ => await RunShellAsync(step, ct)
-                };
+                var ok = await RunShellAsync(step, ct);
                 if (ok)
                 {
                     step.Status = RepairStepStatus.Pass;
@@ -314,20 +282,6 @@ public static class NetworkRepairService
         }
         await Task.WhenAll(stdout, stderr);
         return p.ExitCode;
-    }
-
-    private static bool TryDisableProxy()
-    {
-        try
-        {
-            using var key = Registry.CurrentUser.CreateSubKey(InternetSettingsKey);
-            key?.SetValue("ProxyEnable", 0, RegistryValueKind.DWord);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     private static bool IsAdministrator()

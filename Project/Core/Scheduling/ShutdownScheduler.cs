@@ -66,6 +66,8 @@ public sealed class ShutdownScheduler
     /// <summary>设定指定时刻关机（已过则顺延到次日同一时刻）。</summary>
     public void ScheduleAt(DateTime target)
     {
+        // 顺延写在这里：调用方（含新的 CLI/管道入口）传进过去的时刻会立刻关机
+        while (target <= DateTime.Now) target = target.AddDays(1);
         lock (sync)
         {
             TargetTime = target;
@@ -108,9 +110,21 @@ public sealed class ShutdownScheduler
 
             if (remaining <= TimeSpan.Zero)
             {
-                State = ShutdownState.Executing;
-                timer.Change(Timeout.Infinite, Timeout.Infinite);
-                execute = true;
+                // 睡眠期间进程被冻结，唤醒后可能直接跨过目标时刻且从未给过 1 分钟警告。
+                // 没警告就 shutdown 等于偷袭用户未保存的工作，迟到一律按「错过」取消。
+                if (remaining < -WarningLead)
+                {
+                    Log($"missed shutdown target {TargetTime:yyyy-MM-dd HH:mm:ss}, cancelled without executing");
+                    State = ShutdownState.Idle;
+                    TargetTime = null;
+                    timer.Change(Timeout.Infinite, Timeout.Infinite);
+                }
+                else
+                {
+                    State = ShutdownState.Executing;
+                    timer.Change(Timeout.Infinite, Timeout.Infinite);
+                    execute = true;
+                }
             }
             else if (!warningShown && remaining <= WarningLead)
             {

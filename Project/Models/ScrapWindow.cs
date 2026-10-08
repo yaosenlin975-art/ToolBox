@@ -71,14 +71,6 @@ public class ScrapWindow : Window
     public Point StyleClickPointValue { get => styleClickPoint; set => styleClickPoint = value; }
     public bool InitializedValue { get => initialized; set => initialized = value; }
     public BitmapSource ImageViewSource => sourceBitmap;
-    public bool IsTopmost { get; set; }
-
-    public ScrapWindow SetTopmost(bool topmost)
-    {
-        IsTopmost = topmost;
-        Topmost = topmost;
-        return this;
-    }
 
     public ScrapWindow()
     {
@@ -87,6 +79,8 @@ public class ScrapWindow : Window
         AllowsTransparency = true;
         WindowStyle = WindowStyle.None;
         ShowInTaskbar = false;
+        // 默认置顶（贴图的基本用法）；样式「取消置顶」写 Topmost 后由 LayerManager 尊重该值，不再被刷新弹回
+        Topmost = true;
         Background = Brushes.Transparent;
 
         imageView = new System.Windows.Controls.Image();

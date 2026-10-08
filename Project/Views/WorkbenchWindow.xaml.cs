@@ -147,7 +147,10 @@ public partial class WorkbenchWindow : Window
 
     private void Shutdown()
     {
-        Application.Current.Shutdown();
+        // 必须走 MainWindow 的退出流程：它会置 IsShuttingDown（否则贴图被标记为非浮窗，
+        // 下次启动一张都不恢复）并释放托盘图标（否则通知区残留幽灵图标）。
+        if (App.MainWindow is { } host) host.Shutdown();
+        else Application.Current.Shutdown();
     }
 
     private void OnSwitchToCompact(object sender, RoutedEventArgs e)

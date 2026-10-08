@@ -86,8 +86,13 @@ public class ColorPickerService
     public BitmapSource CaptureZoomRegion(int centerX, int centerY)
     {
         var half = ZOOM_SOURCE_SIZE / 2;
-        var startX = centerX - half;
-        var startY = centerY - half;
+        // 光标贴屏幕边角时 30×30 源矩形会越出虚拟屏，BitBlt 失败抛 Win32Exception 且无人 catch
+        var left = NativeMethods.GetSystemMetrics(NativeMethods.SM_XVIRTUALSCREEN);
+        var top = NativeMethods.GetSystemMetrics(NativeMethods.SM_YVIRTUALSCREEN);
+        var right = left + NativeMethods.GetSystemMetrics(NativeMethods.SM_CXVIRTUALSCREEN);
+        var bottom = top + NativeMethods.GetSystemMetrics(NativeMethods.SM_CYVIRTUALSCREEN);
+        var startX = Math.Clamp(centerX - half, left, right - ZOOM_SOURCE_SIZE);
+        var startY = Math.Clamp(centerY - half, top, bottom - ZOOM_SOURCE_SIZE);
 
         using var src = new System.Drawing.Bitmap(ZOOM_SOURCE_SIZE, ZOOM_SOURCE_SIZE, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
         using (var g = System.Drawing.Graphics.FromImage(src))

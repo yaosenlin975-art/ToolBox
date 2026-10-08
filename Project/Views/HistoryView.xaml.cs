@@ -460,7 +460,7 @@ public partial class HistoryView : UserControl
         tagItem.Click += (_, _) => OpenTagEditor(vm);
         contextMenu.Items.Add(tagItem);
 
-        var deleteItem = new System.Windows.Controls.MenuItem { Header = (FindResource("Lang_Delete") as string) ?? "删除" };
+        var deleteItem = new System.Windows.Controls.MenuItem { Header = (FindResource("Lang_Remove") as string) ?? "删除" };
         deleteItem.Click += (_, _) => DeleteHistoryItem(vm);
         contextMenu.Items.Add(new Separator());
         contextMenu.Items.Add(deleteItem);

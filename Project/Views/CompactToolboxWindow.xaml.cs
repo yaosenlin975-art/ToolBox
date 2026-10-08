@@ -73,14 +73,23 @@ public partial class CompactToolboxWindow : Window
 
     private void PositionWindow()
     {
-        Left = SystemParameters.WorkArea.Width - Width - 20;
-        Top = SystemParameters.WorkArea.Height - Height - 20;
+        // WorkArea 是含偏移的工作区，只取 Width/Height 会在任务栏在上方/多屏时把窗口摆到屏外
+        var area = SystemParameters.WorkArea;
+        Left = area.Left + area.Width - Width - 20;
+        Top = area.Top + area.Height - Height - 20;
     }
 
     public void SwitchToTab(string tab)
     {
         if (isHiddenAtEdge)
             RestoreFromEdge();
+        // settings 不是一个面板：记进 currentTab 后，之后每次刷新面板都会顺手打开工作台并隐藏小窗，
+        // 而此刻两个面板已 Collapsed，从工作台切回来只会得到空白窗口
+        if (tab == "settings")
+        {
+            OpenWorkbench();
+            return;
+        }
         currentTab = tab;
         if (isTodoCollapsed)
         {
@@ -126,9 +135,6 @@ public partial class CompactToolboxWindow : Window
                 ScreenshotPanel.Visibility = Visibility.Visible;
                 TabScreenshot.Style = (Style)FindResource("CompactTabButtonActive");
                 LoadScreenshots();
-                break;
-            case "settings":
-                OpenWorkbench();
                 break;
         }
     }

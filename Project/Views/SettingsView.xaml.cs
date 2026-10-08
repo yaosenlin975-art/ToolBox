@@ -622,7 +622,7 @@ public partial class SettingsView : UserControl
         sldInactiveAlpha.IsEnabled = chkInactiveAlpha.IsChecked == true;
 
         result.Scrap.InactiveAlphaChange = chkInactiveAlpha.IsChecked == true;
-        (App.Current.MainWindow as MainWindow)?.RefreshScrapOpacity();
+        App.MainWindow?.RefreshScrapOpacity();
 
     }
 
@@ -639,7 +639,7 @@ public partial class SettingsView : UserControl
         txtInactiveAlphaValue.Text = v + "%";
 
         result.Scrap.InactiveAlphaValue = v;
-        (App.Current.MainWindow as MainWindow)?.RefreshScrapOpacity();
+        App.MainWindow?.RefreshScrapOpacity();
 
     }
 
@@ -654,7 +654,7 @@ public partial class SettingsView : UserControl
         sldMouseOverAlpha.IsEnabled = chkMouseOverAlpha.IsChecked == true;
 
         result.Scrap.MouseOverAlphaChange = chkMouseOverAlpha.IsChecked == true;
-        (App.Current.MainWindow as MainWindow)?.RefreshScrapOpacity();
+        App.MainWindow?.RefreshScrapOpacity();
 
     }
 
@@ -671,7 +671,7 @@ public partial class SettingsView : UserControl
         txtMouseOverAlphaValue.Text = v + "%";
 
         result.Scrap.MouseOverAlphaValue = v;
-        (App.Current.MainWindow as MainWindow)?.RefreshScrapOpacity();
+        App.MainWindow?.RefreshScrapOpacity();
 
     }
 
@@ -825,39 +825,29 @@ public partial class SettingsView : UserControl
 
 
 
-    private void TestConnection_Click(object sender, RoutedEventArgs e)
+    private async void TestConnection_Click(object sender, RoutedEventArgs e)
 
     {
 
-        if (cmbProvider.SelectedItem is string providerName && cmbModel.SelectedItem is string modelId)
+        if (cmbProvider.SelectedItem is not string providerName) return;
 
-        {
+        // 只测「已保存」的配置：Key/BaseUrl 要点保存才落盘，这里读的是 providers.json
 
-            ProviderManager.Instance.SetActiveModel(providerName, modelId);
+        var provider = ProviderManager.Instance.GetProvider(providerName);
 
-            var provider = ProviderManager.Instance.CreateActiveProvider();
+        var ok = provider != null && await provider.CheckConnectionAsync();
 
-            if (provider != null)
+        MessageWindow.Show(
 
-                MessageWindow.Show(
+            (FindResource("Lang_Test") as string) ?? "测试",
 
-                    (FindResource("Lang_Test") as string) ?? "测试",
+            ok
 
-                    (FindResource("Lang_ConnSuccess") as string) ?? "连接成功!",
+                ? (FindResource("Lang_ConnSuccess") as string) ?? "连接成功!"
 
-                    GetOwner());
+                : (FindResource("Lang_ConnFail") as string) ?? "连接失败，请检查配置",
 
-            else
-
-                MessageWindow.Show(
-
-                    (FindResource("Lang_Test") as string) ?? "测试",
-
-                    (FindResource("Lang_ConnFail") as string) ?? "连接失败，请检查配置",
-
-                    GetOwner());
-
-        }
+            GetOwner());
 
     }
 
@@ -1071,7 +1061,7 @@ public partial class SettingsView : UserControl
             titleRow.Children.Add(btnStack);
             cardStack.Children.Add(titleRow);
 
-            var nodesText = string.Join(" → ", chain.Nodes.Select(n => GetNodeEmoji(n.NodeType) + GetNodeDisplayName(n.NodeType)));
+            var nodesText = string.Join(" → ", chain.Nodes.Select(n => NodeFactory.GetLabel(n.NodeType)));
             cardStack.Children.Add(new TextBlock
             {
                 Text = string.IsNullOrEmpty(nodesText) ? "(空链)" : nodesText,
@@ -1090,28 +1080,6 @@ public partial class SettingsView : UserControl
         }
     }
 
-    private string GetNodeEmoji(string nodeType) => nodeType switch
-    {
-        "ocr" => "🔤 ",
-        "translate" => "🌐 ",
-        "copy" => "📋 ",
-        "save" => "💾 ",
-        "send_to_ai" => "🤖 ",
-        "open_editor" => "✏️ ",
-        _ => "• "
-    };
-
-    private string GetNodeDisplayName(string nodeType) => nodeType switch
-    {
-        "ocr" => "OCR 提取",
-        "translate" => "翻译文本",
-        "copy" => "复制到剪贴板",
-        "save" => "保存文件",
-        "send_to_ai" => "发送到 AI",
-        "open_editor" => "打开编辑器",
-        _ => nodeType
-    };
-
     private async void BtnAddChain_Click(object sender, RoutedEventArgs e)
     {
         var nameDialog = new InputWindow("新建动作链", "输入名称");
@@ -1120,13 +1088,21 @@ public partial class SettingsView : UserControl
             var name = nameDialog.Value?.Trim();
             if (string.IsNullOrEmpty(name)) return;
 
-            var nodeDialog = new InputWindow("选择节点", "输入节点类型 (逗号分隔)\\n可选: ocr, translate, copy, save, send_to_ai, open_editor");
+            var available = string.Join(", ", NodeFactory.GetAvailableNodeTypes().Keys);
+            var nodeDialog = new InputWindow("选择节点", $"输入节点类型 (逗号分隔)\n可选: {available}");
             if (await nodeDialog.ShowNonModalAsync(Window.GetWindow(this)) && !string.IsNullOrWhiteSpace(nodeDialog.Value))
             {
-                var nodeTypes = nodeDialog.Value?.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(s => s.Trim().ToLowerInvariant())
-                    .Where(s => !string.IsNullOrEmpty(s))
-                    .Take(20).ToList() ?? new List<string>();
+                var nodeTypes = nodeDialog.Value.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim())
+                    .Where(s => s.Length > 0)
+                    .Take(20).ToList();
+
+                var unknown = nodeTypes.Where(t => !NodeFactory.IsKnown(t)).ToList();
+                if (unknown.Count > 0)
+                {
+                    MessageWindow.Show("新建动作链", $"未知节点类型: {string.Join(", ", unknown)}\n可选: {available}", GetOwner());
+                    return;
+                }
 
                 var chain = new ActionChainDefinition
                 {

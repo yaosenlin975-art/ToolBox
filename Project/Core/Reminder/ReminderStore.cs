@@ -18,6 +18,8 @@ public class ReminderStore
     private readonly SemaphoreSlim writeLock = new(1, 1);
     // 保护 items 的所有读改写操作；Cron 在后台线程触发，须与 UI 线程串行
     private readonly SemaphoreSlim stateLock = new(1, 1);
+    // 加载失败后禁止保存：内存里是空集合，直写会把用户已有提醒全冲掉
+    private bool storageFault;
 
     public IReadOnlyList<ReminderItem> Items => items;
 
@@ -119,19 +121,36 @@ public class ReminderStore
                 items.AddRange(data);
             }
         }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] 加载提醒失败: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] 加载提醒失败: {ex.Message}");
+            // 内存里是空的，此时任何保存都会把整个 reminders.json 覆盖成空表
+            storageFault = true;
+        }
     }
 
     private async Task SaveAsync()
     {
+        if (storageFault) return;
         await writeLock.WaitAsync();
+        var tempPath = filePath + ".tmp";
         try
         {
             var dir = Path.GetDirectoryName(filePath);
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
             var json = JsonSerializer.Serialize(items, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(filePath, json);
+            await File.WriteAllTextAsync(tempPath, json);
+            if (File.Exists(filePath)) File.Replace(tempPath, filePath, null);
+            else File.Move(tempPath, filePath);
         }
-        finally { writeLock.Release(); }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] 保存提醒失败: {ex.Message}");
+        }
+        finally
+        {
+            try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
+            writeLock.Release();
+        }
     }
 }

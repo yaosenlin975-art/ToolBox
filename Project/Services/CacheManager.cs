@@ -124,15 +124,18 @@ public class CacheManager : IScrapAddedListener, IScrapRemovedListener, IScrapLo
         var directories = Directory.GetDirectories(CachePath, "*", SearchOption.TopDirectoryOnly);
         foreach (var dir in directories)
         {
-            var dirInfo = new DirectoryInfo(dir);
-            if (dirInfo.CreationTime < cutoff)
+            // 只清理贴图缓存目录（CacheItem 用 17 位时间戳命名）。同级的 Screenshots / Logs /
+            // clipboard_thumbnails / ocr 等命名目录不是缓存，按目录创建时间整目录删除会误删数据。
+            if (!DateTime.TryParseExact(Path.GetFileName(dir), "yyyyMMddHHmmssfff",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var created) || created >= cutoff)
+                continue;
+
+            try
             {
-                try
-                {
-                    Directory.Delete(dir, true);
-                }
-                catch { /* best-effort cleanup */ }
+                Directory.Delete(dir, true);
             }
+            catch { /* best-effort cleanup */ }
         }
     }
 
@@ -170,7 +173,8 @@ public class CacheManager : IScrapAddedListener, IScrapRemovedListener, IScrapLo
     public void ScrapImageChanged(object sender, ScrapEventArgs e)
     {
         var cacheItem = e.Scrap?.CacheItem;
-        var image = e.Scrap?.ImageViewSource;
+        // 写盘取原图而非当前显示图：缩略模式下 ImageViewSource 挂的是 50×50 裁切，直接存会把原图冲掉
+        var image = e.Scrap?.GetOriginalBitmap();
         if (cacheItem == null || image == null) return;
         cacheItem.SaveImage(image);
     }

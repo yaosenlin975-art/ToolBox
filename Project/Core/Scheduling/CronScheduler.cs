@@ -28,12 +28,29 @@ public class CronExpressionr : IDisposable
     public void Register(string id, string cronExpression, Action handler)
     {
         if (disposed) return;
+        if (TryParse(cronExpression) is not { } parsed) return;
         lock (gate)
         {
             UnregisterCore(id);
-            schedules[id] = CronExpression.Parse(cronExpression);
+            schedules[id] = parsed;
             handlers[id] = handler;
             ScheduleNextCore(id);
+        }
+    }
+
+    // 配置默认值与用户习惯写法是含秒的 6 段表达式，标准 5 段解析会抛异常；
+    // 解析失败必须静默跳过——启动路径 ApplyCurrent 里抛出会让应用再也打不开。
+    private static CronExpression? TryParse(string cronExpression)
+    {
+        try { return CronExpression.Parse(cronExpression); }
+        catch (FormatException)
+        {
+            try { return CronExpression.Parse(cronExpression, CronFormat.IncludeSeconds); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ToolBox] 忽略无效 Cron 表达式 \"{cronExpression}\": {ex.Message}");
+                return null;
+            }
         }
     }
 
@@ -102,6 +119,8 @@ public class CronExpressionr : IDisposable
         var autoReschedule = schedules.ContainsKey(id);
         StartTimerCore(id, delay, () =>
         {
+            // 一次性任务触发后立即注销条目：否则睡眠唤醒会对残留 one-shot 按 delay=0 立即补触发
+            if (!autoReschedule) Unregister(id);
             try { handler(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
             if (autoReschedule) ScheduleNext(id);

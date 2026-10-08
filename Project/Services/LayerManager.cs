@@ -68,14 +68,6 @@ public class LayerManager
         return this;
     }
 
-    public LayerManager SetTopMost(Window window)
-    {
-        if (windowLayers.ContainsKey(window))
-            windowLayers[window] = GetNextSortingOrder();
-        window.Topmost = true;
-        return this;
-    }
-
     public LayerManager RefreshLayer()
     {
         if (suspendCount > 0 || isRefreshing) return this;
@@ -88,7 +80,8 @@ public class LayerManager
 
             foreach (var kvp in sorted)
             {
-                if (kvp.Key is ScrapWindow scrap && scrap.IsVisible)
+                // 只维持已经置顶的贴图；无条件置 true 会让「取消置顶」在下次刷新时被弹回最上层
+                if (kvp.Key is ScrapWindow scrap && scrap.IsVisible && scrap.Topmost)
                     scrap.Topmost = true;
             }
         }

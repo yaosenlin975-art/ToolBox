@@ -137,9 +137,10 @@ public class ClipboardMonitor : IDisposable
                     new Action(OnClipboardChanged),
                     DispatcherPriority.Background);
             }
-            // 必须转发给下一个链窗口
+            // 必须转发给下一个链窗口（带超时，避免被挂起的第三方程序拖死 UI 线程）
             if (nextClipboardViewer != IntPtr.Zero)
-                NativeMethods.SendMessage(nextClipboardViewer, msg, wParam, lParam);
+                NativeMethods.SendMessageTimeout(nextClipboardViewer, msg, wParam, lParam,
+                    NativeMethods.SMTO_ABORTIFHUNG, 200, out _);
             handled = true;
         }
         else if (msg == NativeMethods.WM_CHANGECBCHAIN)
@@ -148,7 +149,8 @@ public class ClipboardMonitor : IDisposable
             if (wParam == nextClipboardViewer)
                 nextClipboardViewer = lParam;
             else if (nextClipboardViewer != IntPtr.Zero)
-                NativeMethods.SendMessage(nextClipboardViewer, msg, wParam, lParam);
+                NativeMethods.SendMessageTimeout(nextClipboardViewer, msg, wParam, lParam,
+                    NativeMethods.SMTO_ABORTIFHUNG, 200, out _);
             handled = true;
         }
         return IntPtr.Zero;

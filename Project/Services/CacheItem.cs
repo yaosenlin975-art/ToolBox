@@ -65,7 +65,17 @@ public class CacheItem
         var fullPath = Path.Combine(cacheItemPath, InfoFileName);
         if (!File.Exists(fullPath)) return null;
 
-        var json = File.ReadAllText(fullPath);
+        string json;
+        try
+        {
+            json = File.ReadAllText(fullPath);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] 读取缓存信息失败: {ex.Message}");
+            return null;
+        }
+
         try
         {
             return JsonSerializer.Deserialize<CacheItem>(json);
@@ -104,7 +114,8 @@ public class CacheItem
     public BitmapSource ReadImage()
     {
         var fullPath = Path.Combine(FolderPath, ImageFileName);
-        if (File.Exists(fullPath))
+        if (!File.Exists(fullPath)) return null;
+        try
         {
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
@@ -114,7 +125,12 @@ public class CacheItem
             bitmap.Freeze();
             return bitmap;
         }
-        return null;
+        catch (Exception ex)
+        {
+            // 坏 PNG（写盘被中断/磁盘满）只跳过这一条，不能让启动恢复整进程崩
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] 读取缓存图片失败: {ex.Message}");
+            return null;
+        }
     }
 
     public CacheItem SaveImage(BitmapSource image)
@@ -128,13 +144,21 @@ public class CacheItem
                 Directory.CreateDirectory(folderPath);
 
             var fullPath = Path.Combine(folderPath, ImageFileName);
-            if (File.Exists(fullPath))
-                File.Delete(fullPath);
-
-            using var stream = File.Create(fullPath);
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(image));
-            encoder.Save(stream);
+            var tempPath = fullPath + ".tmp";
+            try
+            {
+                using (var stream = File.Create(tempPath))
+                {
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(image));
+                    encoder.Save(stream);
+                }
+                ReplaceWithTemp(fullPath, tempPath);
+            }
+            finally
+            {
+                TryDelete(tempPath);
+            }
         }
         catch (Exception ex)
         {
@@ -152,8 +176,17 @@ public class CacheItem
                 Directory.CreateDirectory(folderPath);
 
             var fullPath = Path.Combine(folderPath, InfoFileName);
+            var tempPath = fullPath + ".tmp";
             var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(fullPath, json);
+            try
+            {
+                File.WriteAllText(tempPath, json);
+                ReplaceWithTemp(fullPath, tempPath);
+            }
+            finally
+            {
+                TryDelete(tempPath);
+            }
         }
         catch (Exception ex)
         {
@@ -162,11 +195,30 @@ public class CacheItem
         return this;
     }
 
+    // 直写目标文件会先截断再写，进程被杀就留下坏文件；临时文件写完再替换
+    private static void ReplaceWithTemp(string target, string temp)
+    {
+        if (File.Exists(target)) File.Replace(temp, target, null);
+        else File.Move(temp, target);
+    }
+
+    private static void TryDelete(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); } catch { }
+    }
+
     public CacheItem Delete()
     {
-        var folderPath = FolderPath;
-        if (Directory.Exists(folderPath))
-            Directory.Delete(folderPath, true);
+        try
+        {
+            var folderPath = FolderPath;
+            if (Directory.Exists(folderPath))
+                Directory.Delete(folderPath, true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ToolBox] Delete failed: {ex.Message}");
+        }
         return this;
     }
 }

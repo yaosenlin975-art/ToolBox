@@ -9,6 +9,13 @@ internal static class NativeMethods
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     public static extern int SendMessage(IntPtr h, int m, IntPtr w, IntPtr l);
 
+    // 剪贴板链转发用：上下游可能是挂起的第三方程序，SendMessage 无超时会冻住本进程 UI 线程
+    [DllImport("user32.dll")]
+    public static extern IntPtr SendMessageTimeout(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam,
+        uint flags, uint timeoutMs, out IntPtr lpdwResult);
+
+    public const uint SMTO_ABORTIFHUNG = 0x0002;
+
     // ── 剪贴板链(Clipboard Chain)API ──
     // 加入系统剪贴板链,返回下一个链窗口句柄(需保存以便消息转发)
     [DllImport("user32.dll", SetLastError = true)]

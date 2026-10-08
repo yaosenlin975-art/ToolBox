@@ -173,9 +173,11 @@ public static class DemoDiagnosisRunner
         Report((int)CheckSlot.DnsConfig);
         await DelayAsync(ct);
 
+        // 代理开启不是故障：未探测可达性就报 Warning，会连带生成「关闭系统代理」修复项，
+        // 公司网/VPN 用户点一次就断网（PRD AC-05 也禁止自动修改代理）。这里只作信息展示。
         var proxy = CheckProxyEnabled();
         Complete(items[(int)CheckSlot.Proxy],
-            !proxy.enabled ? DiagnosisItemStatus.Pass : DiagnosisItemStatus.Warning,
+            DiagnosisItemStatus.Pass,
             proxy.enabled ? proxy.info : string.Empty,
             netCode: "NET-401");
         Report((int)CheckSlot.Proxy);
