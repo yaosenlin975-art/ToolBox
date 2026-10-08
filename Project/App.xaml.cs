@@ -24,6 +24,48 @@ public partial class App : Application
     /// <summary>语言包切换完成通知（已渲染的代码构建内容借此重新本地化）。</summary>
     public static event Action? LanguageChanged;
 
+    private static DateTime lastCrashNotice = DateTime.MinValue;
+
+    /// <summary>
+    /// 兜底未处理异常：贴图、待办、剪贴板历史都活在同一个进程里，
+    /// 任何一个 UI 回调抛异常原本会让整个应用直接消失。
+    /// </summary>
+    private void InstallCrashGuards()
+    {
+        Dispatcher.UnhandledException += (_, args) =>
+        {
+            LogCrash(args.Exception, "Dispatcher");
+            args.Handled = true;
+            // 渲染/布局类异常容易连环复发，限频后再提示
+            if (DateTime.Now - lastCrashNotice < TimeSpan.FromSeconds(10)) return;
+            lastCrashNotice = DateTime.Now;
+            Views.Todo.TodoRepeatToast.ShowToast("⚠ 已拦截一次异常", args.Exception.Message);
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            LogCrash(args.ExceptionObject as Exception, "AppDomain");
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            LogCrash(args.Exception, "Task");
+            args.SetObserved();
+        };
+    }
+
+    private static void LogCrash(Exception? ex, string origin)
+    {
+        if (ex == null) return;
+        try
+        {
+            var dir = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ToolBox", "Logs");
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.AppendAllText(System.IO.Path.Combine(dir, "crash.log"),
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {origin}: {ex}\r\n");
+        }
+        catch { /* 日志失败不影响兜底本身 */ }
+        System.Diagnostics.Debug.WriteLine($"[ToolBox] 未处理异常({origin}): {ex.Message}");
+    }
+
     /// <summary>
     /// 切换界面语言资源字典，使设置中的语言修改即时生效，无需重启。
     /// </summary>
@@ -45,6 +87,8 @@ public partial class App : Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        InstallCrashGuards();
+
         // 启用进程级 DPI 感知，使 GDI（屏幕采集 CopyFromScreen）按物理像素工作，
         // 避免高 DPI 屏（125%/150%/200%）下截图从源头被降采样而变糊。
         // 若 WPF 运行时已设置更高等级的 DPI 感知，此调用会安全返回 false 而不产生副作用。

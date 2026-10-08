@@ -71,6 +71,18 @@ public partial class CompactToolboxWindow : Window
             RestoreFromEdge();
     }
 
+    // 同 WorkbenchWindow：实例被 App 永久缓存，真关闭后 Show()/Activate() 会抛 InvalidOperationException
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        if (!Dispatcher.HasShutdownStarted)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+        base.OnClosing(e);
+    }
+
     private void PositionWindow()
     {
         // WorkArea 是含偏移的工作区，只取 Width/Height 会在任务栏在上方/多屏时把窗口摆到屏外

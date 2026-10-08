@@ -110,6 +110,19 @@ public partial class WorkbenchWindow : Window
         if (e.ChangedButton == MouseButton.Left) DragMove();
     }
 
+    // 实例由 App 永久缓存且从不重建：Alt+F4 真关掉之后，托盘/热键再 Show() 就抛
+    // InvalidOperationException（句柄已销毁）。所以关闭一律转成隐藏。
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        if (!Dispatcher.HasShutdownStarted)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+        base.OnClosing(e);
+    }
+
     private void OnMinimize(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
     private void OnMaximize(object sender, RoutedEventArgs e)

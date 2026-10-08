@@ -121,6 +121,9 @@ public class CacheItem
             bitmap.BeginInit();
             bitmap.UriSource = new Uri(fullPath);
             bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            // WPF 的解码缓存按 URI 命中：贴图被画笔编辑/裁切后重写同一 Image.png，
+            // 不加这句会读到编辑前的旧像素（历史页预览与 OCR 都用这条路径）
+            bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
             bitmap.EndInit();
             bitmap.Freeze();
             return bitmap;
