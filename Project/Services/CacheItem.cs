@@ -21,7 +21,10 @@ public class CacheItem
     public int SortingOrder { get; set; }
     public bool IsFloating { get; set; }
 
-    public string FolderPath => Path.Combine(CacheManager.CachePath, CreateTime.ToString("yyyyMMddHHmmssfff"));
+    // 固定用 InvariantCulture 生成：CleanupExpired 按同一个格式反解目录名判过期，
+    // 换成非公历/非 ASCII 数字的区域设置会两边对不上，缓存目录只增不减且毫无提示
+    public string FolderPath => Path.Combine(CacheManager.CachePath,
+        CreateTime.ToString("yyyyMMddHHmmssfff", System.Globalization.CultureInfo.InvariantCulture));
 
     public bool IsValid
     {
@@ -117,13 +120,13 @@ public class CacheItem
         if (!File.Exists(fullPath)) return null;
         try
         {
+            // 自己开流、读完即关：用 UriSource 时坏图解码失败会把文件句柄一直握到 GC finalizer，
+            // 期间这张图的目录删不掉；按 URI 的解码缓存也会让改图后读到旧像素
+            using var stream = File.Open(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
-            bitmap.UriSource = new Uri(fullPath);
+            bitmap.StreamSource = stream;
             bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            // WPF 的解码缓存按 URI 命中：贴图被画笔编辑/裁切后重写同一 Image.png，
-            // 不加这句会读到编辑前的旧像素（历史页预览与 OCR 都用这条路径）
-            bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
             bitmap.EndInit();
             bitmap.Freeze();
             return bitmap;

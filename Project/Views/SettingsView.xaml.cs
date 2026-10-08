@@ -622,7 +622,6 @@ public partial class SettingsView : UserControl
         sldInactiveAlpha.IsEnabled = chkInactiveAlpha.IsChecked == true;
 
         result.Scrap.InactiveAlphaChange = chkInactiveAlpha.IsChecked == true;
-        App.MainWindow?.RefreshScrapOpacity();
 
     }
 
@@ -639,7 +638,6 @@ public partial class SettingsView : UserControl
         txtInactiveAlphaValue.Text = v + "%";
 
         result.Scrap.InactiveAlphaValue = v;
-        App.MainWindow?.RefreshScrapOpacity();
 
     }
 
@@ -654,7 +652,6 @@ public partial class SettingsView : UserControl
         sldMouseOverAlpha.IsEnabled = chkMouseOverAlpha.IsChecked == true;
 
         result.Scrap.MouseOverAlphaChange = chkMouseOverAlpha.IsChecked == true;
-        App.MainWindow?.RefreshScrapOpacity();
 
     }
 
@@ -671,7 +668,6 @@ public partial class SettingsView : UserControl
         txtMouseOverAlphaValue.Text = v + "%";
 
         result.Scrap.MouseOverAlphaValue = v;
-        App.MainWindow?.RefreshScrapOpacity();
 
     }
 
@@ -865,6 +861,10 @@ public partial class SettingsView : UserControl
         App.ApplyLanguage(result.Language);
 
         App.MainWindow?.ReRegisterHotkeys();
+
+        // ReRegisterHotkeys 会重新 Load 配置，贴图透明度读的是 MainWindow 那份 options，
+        // 所以生效点只能在保存之后；拖动滑杆时那份值还只在设置页的副本里
+        App.MainWindow?.RefreshScrapOpacity();
 
         Core.Scheduling.ScheduleManager.Apply(result.Data);
 

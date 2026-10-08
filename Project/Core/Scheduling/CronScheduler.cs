@@ -28,10 +28,12 @@ public class CronExpressionr : IDisposable
     public void Register(string id, string cronExpression, Action handler)
     {
         if (disposed) return;
-        if (TryParse(cronExpression) is not { } parsed) return;
+        var parsed = TryParse(cronExpression);
         lock (gate)
         {
+            // 无论解析成功与否都先摘掉旧表达式：否则解析失败时旧调度会继续触发，而界面显示的是新值
             UnregisterCore(id);
+            if (parsed == null) return;
             schedules[id] = parsed;
             handlers[id] = handler;
             ScheduleNextCore(id);
@@ -43,7 +45,7 @@ public class CronExpressionr : IDisposable
     private static CronExpression? TryParse(string cronExpression)
     {
         try { return CronExpression.Parse(cronExpression); }
-        catch (FormatException)
+        catch (Exception)
         {
             try { return CronExpression.Parse(cronExpression, CronFormat.IncludeSeconds); }
             catch (Exception ex)

@@ -83,7 +83,7 @@ public static class NetworkRepairService
 
     /// <summary>
     /// 按诊断结果中的失败/警告项错误码匹配修复动作（PRD 5.5 修复项清单 + CSH-10 场景）：
-    /// NET-201/NET-202 → 刷新 DNS 缓存（免提权，无需管理员权限）；NET-401 → 关闭系统代理 + 重置 WinHTTP 代理；
+    /// NET-201/NET-202 → 刷新 DNS 缓存（免提权，无需管理员权限）；NET-401 → 不自动修改代理，只给引导（PRD R3/AC-05）；
     /// NET-001 → 重置网络接口配置；NET-101 → 重启对应网络适配器；NET-301 → 重置 Winsock。
     /// </summary>
     public static List<RepairStep> BuildPlan(IEnumerable<DiagnosticItem> items)

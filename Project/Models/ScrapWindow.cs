@@ -109,14 +109,14 @@ public class ScrapWindow : Window
     public BitmapSource GetViewImage() => sourceBitmap;
 
     /// <summary>
-    /// 返回用于复制/保存的全分辨率原图。
-    /// 缩略图模式下 fullBitmap 保留了进入缩略图前的原始像素，
-    /// 非缩略图模式则直接返回当前显示的 sourceBitmap（即当前原图）。
-    /// 这样无论是否处于缩略图模式，写入剪贴板/保存的都是原始分辨率，不会被降采样。
+    /// 返回用于复制/保存/写缓存的全分辨率原图。
+    /// fullBitmap 保存着进入缩略图模式之前的原始像素，退出缩略图时清空；
+    /// 判据只看 fullBitmap，不能带上 isThumbnailMode——进入缩略图时 SetImage 先发事件、
+    /// 之后才置位标记，那时 sourceBitmap 已经是 50×50 裁切，按标记判会原图被冲掉。
     /// </summary>
     public BitmapSource GetOriginalBitmap()
     {
-        if (isThumbnailMode && fullBitmap != null)
+        if (fullBitmap != null)
             return fullBitmap;
         return sourceBitmap;
     }

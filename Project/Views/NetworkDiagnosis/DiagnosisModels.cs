@@ -173,11 +173,11 @@ public static class DemoDiagnosisRunner
         Report((int)CheckSlot.DnsConfig);
         await DelayAsync(ct);
 
-        // 代理开启不是故障：未探测可达性就报 Warning，会连带生成「关闭系统代理」修复项，
-        // 公司网/VPN 用户点一次就断网（PRD AC-05 也禁止自动修改代理）。这里只作信息展示。
+        // PRD R3/AC-05：代理检测只报 Warning 并给引导，不做自动修改。
+        // 企业网/VPN 依赖代理，历史上这里会连带生成「关闭系统代理」修复项，点一次就断网。
         var proxy = CheckProxyEnabled();
         Complete(items[(int)CheckSlot.Proxy],
-            DiagnosisItemStatus.Pass,
+            !proxy.enabled ? DiagnosisItemStatus.Pass : DiagnosisItemStatus.Warning,
             proxy.enabled ? proxy.info : string.Empty,
             netCode: "NET-401");
         Report((int)CheckSlot.Proxy);
@@ -187,7 +187,7 @@ public static class DemoDiagnosisRunner
 
     private static List<DiagnosticItem> BuildItems()
     {
-        // CanRepair：T2 修复器按错误码匹配修复动作（NET-001/101/201/202/301/401 均有对应修复步骤）
+        // CanRepair：T2 修复器按错误码匹配修复动作（NET-001/101/201/202/301 有对应修复步骤，NET-401 只给引导）
         return new List<DiagnosticItem>
         {
             new() { NameKey = "Lang_Net_Check_Adapters", CanRepair = true },

@@ -38,11 +38,13 @@ public static class NodeFactory
     public static bool IsKnown(string nodeType) => Resolve(nodeType) != null;
 
     public static string GetLabel(string nodeType) =>
-        Resolve(nodeType) is { } key ? NodeLabels[key] : nodeType;
+        Resolve(nodeType) is { } key && NodeLabels.TryGetValue(key, out var label) ? label : nodeType;
 
     public static IReadOnlyDictionary<string, string> GetAvailableNodeTypes() => NodeLabels;
 
-    private static readonly Dictionary<string, string> NodeLabels = new()
+    // 与 _registry 同样不区分大小写：Resolve 原样返回用户输入的写法（旧存档链里存在过全小写），
+    // 用区分大小写的字典索引会抛 KeyNotFoundException
+    private static readonly Dictionary<string, string> NodeLabels = new(StringComparer.OrdinalIgnoreCase)
     {
         ["CopyToClipboard"] = "📋 复制到剪贴板",
         ["CopyTextToClipboard"] = "📋 复制文本到剪贴板",

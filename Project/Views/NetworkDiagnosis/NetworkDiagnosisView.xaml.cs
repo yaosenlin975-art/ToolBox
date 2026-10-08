@@ -114,7 +114,7 @@ public partial class NetworkDiagnosisView : UserControl
 
             if (sessionStatus == DiagnosisSessionStatus.IssuesFound)
             {
-                // T2 修复器：按失败/警告项的 NET 错误码匹配修复动作（NET-201/202→DNS，NET-401→代理，NET-101/001→适配器，NET-301→Winsock）
+                // T2 修复器：按失败/警告项的 NET 错误码匹配修复动作（NET-201/202→DNS，NET-101/001→适配器，NET-301→Winsock；NET-401 代理只引导不自动改）
                 repairSteps = NetworkRepairService.BuildPlan(result);
                 repairNeedsRestart = repairSteps.Any(s => s.Id == "winsock");
                 if (repairSteps.Count > 0)

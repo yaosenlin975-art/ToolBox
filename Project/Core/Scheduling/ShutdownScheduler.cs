@@ -110,8 +110,9 @@ public sealed class ShutdownScheduler
 
             if (remaining <= TimeSpan.Zero)
             {
-                // 睡眠期间进程被冻结，唤醒后可能直接跨过目标时刻且从未给过 1 分钟警告。
-                // 没警告就 shutdown 等于偷袭用户未保存的工作，迟到一律按「错过」取消。
+                // 睡眠期间进程被冻结，唤醒后可能直接跨过目标时刻。迟到一律按「错过」取消而不补关机：
+                // 机器可能已被继续使用了几小时，此时立刻 shutdown 会打掉新开的工作；
+                // 代价是这台机器不会按原计划关机（状态会刷回 Idle，日志留痕）。
                 if (remaining < -WarningLead)
                 {
                     Log($"missed shutdown target {TargetTime:yyyy-MM-dd HH:mm:ss}, cancelled without executing");
