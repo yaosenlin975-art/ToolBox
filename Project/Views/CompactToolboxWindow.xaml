@@ -133,7 +133,7 @@
             </Setter>
         </Style>
     </Window.Resources>
-    <Grid ClipToBounds="True">
+    <Grid x:Name="RootGrid" ClipToBounds="True">
     <!-- 合法例外：紧凑模式窗口整体直角设计（非圆角浮窗） -->
     <Border x:Name="RootBorder" Background="{DynamicResource BgElevatedBrush}" CornerRadius="0" BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1" PreviewMouseLeftButtonDown="RootBorder_PreviewMouseLeftButtonDown" PreviewMouseMove="RootBorder_PreviewMouseMove">
         <Grid>
