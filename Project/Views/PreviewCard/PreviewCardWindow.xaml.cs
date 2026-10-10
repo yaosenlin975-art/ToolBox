@@ -82,7 +82,7 @@ public partial class PreviewCardWindow : Window
     {
         if (_isForceClosing) return this;
         var storyboard = (Storyboard)FindResource("SlideOutStoryboard");
-        storyboard.Begin(CardBorder);
+        storyboard.Begin(this);
         return this;
     }
 
@@ -102,14 +102,14 @@ public partial class PreviewCardWindow : Window
 
         // 播放入场动画
         var storyboard = (Storyboard)FindResource("SlideInStoryboard");
-        storyboard.Begin(CardBorder);
+        storyboard.Begin(this);
     }
 
     private void PositionAtBottomRight()
     {
         var workArea = SystemParameters.WorkArea;
         Left = workArea.Right - Width - 16;
-        Top = workArea.Bottom - Height - 16;
+        Top = workArea.Bottom - Height;
     }
 
     private void OnMouseEnter(object sender, MouseEventArgs e)
@@ -119,7 +119,7 @@ public partial class PreviewCardWindow : Window
 
         // 播放悬停放大动画
         var storyboard = (Storyboard)FindResource("HoverInStoryboard");
-        storyboard.Begin(CardBorder);
+        storyboard.Begin(this);
     }
 
     private void OnMouseLeave(object sender, MouseEventArgs e)
@@ -129,7 +129,7 @@ public partial class PreviewCardWindow : Window
 
         // 播放悬停恢复动画
         var storyboard = (Storyboard)FindResource("HoverOutStoryboard");
-        storyboard.Begin(CardBorder);
+        storyboard.Begin(this);
     }
 
     private void OnSlideOutCompleted(object? sender, EventArgs e)

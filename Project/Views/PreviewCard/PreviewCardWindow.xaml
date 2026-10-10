@@ -13,30 +13,30 @@
     <Window.Resources>
         <!-- 入场动画 -->
         <Storyboard x:Key="SlideInStoryboard">
-            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+            <DoubleAnimation Storyboard.TargetName="SlideTransform" Storyboard.TargetProperty="Y"
                              From="80" To="0" Duration="0:0:0.3">
                 <DoubleAnimation.EasingFunction>
                     <CubicEase EasingMode="EaseOut"/>
                 </DoubleAnimation.EasingFunction>
             </DoubleAnimation>
-            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+            <DoubleAnimation Storyboard.TargetName="CardBorder" Storyboard.TargetProperty="Opacity"
                              From="0" To="1" Duration="0:0:0.2"/>
         </Storyboard>
         <!-- 离场动画 -->
         <Storyboard x:Key="SlideOutStoryboard">
-            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+            <DoubleAnimation Storyboard.TargetName="CardBorder" Storyboard.TargetProperty="Opacity"
                              From="1" To="0" Duration="0:0:0.3"
                              Completed="OnSlideOutCompleted"/>
         </Storyboard>
         <!-- 悬停放大动画 -->
         <Storyboard x:Key="HoverInStoryboard">
-            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+            <DoubleAnimation Storyboard.TargetName="ScaleTransform" Storyboard.TargetProperty="ScaleX"
                              To="1.05" Duration="0:0:0.15">
                 <DoubleAnimation.EasingFunction>
                     <CubicEase EasingMode="EaseOut"/>
                 </DoubleAnimation.EasingFunction>
             </DoubleAnimation>
-            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+            <DoubleAnimation Storyboard.TargetName="ScaleTransform" Storyboard.TargetProperty="ScaleY"
                              To="1.05" Duration="0:0:0.15">
                 <DoubleAnimation.EasingFunction>
                     <CubicEase EasingMode="EaseOut"/>
@@ -44,9 +44,9 @@
             </DoubleAnimation>
         </Storyboard>
         <Storyboard x:Key="HoverOutStoryboard">
-            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+            <DoubleAnimation Storyboard.TargetName="ScaleTransform" Storyboard.TargetProperty="ScaleX"
                              To="1.0" Duration="0:0:0.15"/>
-            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+            <DoubleAnimation Storyboard.TargetName="ScaleTransform" Storyboard.TargetProperty="ScaleY"
                              To="1.0" Duration="0:0:0.15"/>
         </Storyboard>
     </Window.Resources>
@@ -80,7 +80,7 @@
             </Grid.RowDefinitions>
 
             <!-- 缩略图区域 -->
-            <Border Grid.Row="0" Margin="8,8,8,4"
+            <Border Grid.Row="0" Margin="8,0,8,4"
                     CornerRadius="{StaticResource RadiusMd}"
                     ClipToBounds="True">
                 <!-- 棋盘格背景表示透明区域 -->
@@ -108,7 +108,7 @@
                 <Image x:Name="ThumbnailImage"
                        Stretch="Uniform"
                        HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
+                       VerticalAlignment="Top"
                        MouseLeftButtonDown="OnThumbnailMouseDown"
                        Cursor="SizeAll"/>
             </Border>

@@ -5,6 +5,7 @@ using System.Runtime.Loader;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 internal static class UiSmoke
@@ -57,6 +58,7 @@ internal static class UiSmoke
                 timer.Start();
                 Dispatcher.PushFrame(frame);
                 checks++;
+                if (args.Contains("--preview-card")) CheckPreviewCard(assembly, theme);
             }
             if (args.Contains("--todo-dismiss")) CheckTodoDismiss(assembly, root);
             if (args.Contains("--edge-docking")) CheckEdgeDocking(assembly, root);
@@ -67,7 +69,77 @@ internal static class UiSmoke
         {
             if (!Dispatcher.CurrentDispatcher.HasShutdownStarted) app.Shutdown();
         }
-        if (args.Contains("--edge-docking")) Environment.Exit(0);
+        if (args.Contains("--edge-docking") || args.Contains("--preview-card")) Environment.Exit(0);
+    }
+
+    private static void CheckPreviewCard(Assembly assembly, string theme)
+    {
+        var windowType = assembly.GetType("ToolBox.Views.PreviewCard.PreviewCardWindow", true)!;
+        var workArea = SystemParameters.WorkArea;
+        int checks = 0;
+        foreach (var (width, height) in new[] { (1000, 100), (100, 1000) })
+        {
+            var window = (Window)Activator.CreateInstance(windowType)!;
+            window.Opacity = 0;
+            window.ShowActivated = false;
+            window.ShowInTaskbar = false;
+            window.Topmost = false;
+            window.IsHitTestVisible = false;
+            windowType.GetMethod("SetScreenshot")!.Invoke(window, new object[]
+            {
+                new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null)
+            });
+            window.Show();
+            try
+            {
+                if (!PumpUntil(() => window.IsLoaded && window.ActualHeight > 0, 2000))
+                    throw new InvalidOperationException("Timed out waiting for preview card layout.");
+                PumpFor(450);
+                var card = (Border)window.FindName("CardBorder")!;
+                var image = (Image)window.FindName("ThumbnailImage")!;
+                var imageTop = image.TransformToAncestor(window).Transform(new Point(0, 0)).Y;
+                var bottomGap = workArea.Bottom - window.Top - window.ActualHeight;
+                var cardBottom = card.TransformToAncestor(window).Transform(new Point(0, card.ActualHeight)).Y;
+                var cardGap = workArea.Bottom - window.Top - cardBottom;
+                var slide = (TranslateTransform)window.FindName("SlideTransform")!;
+                var scale = (ScaleTransform)window.FindName("ScaleTransform")!;
+                Console.WriteLine($"Preview card {theme} {width}x{height}: imageTop={imageTop:F1}, windowBottomGap={bottomGap:F1}, cardBottomGap={cardGap:F1}, slideY={slide.Y:F1}, imageScale={image.ActualWidth / image.ActualHeight:F2}");
+                Assert(Math.Abs(imageTop - card.BorderThickness.Top) < 1,
+                    $"{width}x{height} preview image starts at the card content top");
+                Assert(Math.Abs(bottomGap) < 2,
+                    "preview card window aligns its bottom with the work-area edge");
+                Assert(Math.Abs(cardGap) < 2,
+                    "preview card visible border reaches the work-area edge after animation");
+                Assert(Math.Abs(slide.Y) < 1,
+                    "preview card entrance animation returns to its resting position");
+                Assert(image.Stretch == Stretch.Uniform && Math.Abs(image.ActualWidth / image.ActualHeight - (double)width / height) < 0.01,
+                    $"{width}x{height} preview keeps the full image aspect ratio");
+                windowType.GetMethod("OnMouseEnter", BindingFlags.Instance | BindingFlags.NonPublic,
+                    null, new[] { typeof(object), typeof(System.Windows.Input.MouseEventArgs) }, null)!
+                    .Invoke(window, new object?[] { window, null });
+                PumpFor(220);
+                Assert(Math.Abs(scale.ScaleX - 1.05) < 0.01 && Math.Abs(scale.ScaleY - 1.05) < 0.01,
+                    "preview card hover animation reaches its enlarged scale");
+                windowType.GetMethod("OnMouseLeave", BindingFlags.Instance | BindingFlags.NonPublic,
+                    null, new[] { typeof(object), typeof(System.Windows.Input.MouseEventArgs) }, null)!
+                    .Invoke(window, new object?[] { window, null });
+                PumpFor(220);
+                Assert(Math.Abs(scale.ScaleX - 1) < 0.01 && Math.Abs(scale.ScaleY - 1) < 0.01,
+                    "preview card hover animation returns to its original scale");
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+
+        void Assert(bool condition, string name)
+        {
+            checks++;
+            if (!condition) throw new InvalidOperationException($"Failed preview card check: {name}");
+        }
+
+        Console.WriteLine($"Passed {checks} {theme} preview card layout checks.");
     }
 
     private static void CheckEdgeDocking(Assembly assembly, string root)
