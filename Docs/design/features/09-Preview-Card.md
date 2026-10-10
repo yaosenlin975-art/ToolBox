@@ -26,8 +26,8 @@
 
 独立的无边框弹出窗口（`PreviewCardWindow`），继承现有窗口模式：
 - `WindowStyle=None, AllowsTransparency=True, Topmost=True`
-- 200×150px（可配置），圆角 14，`ShadowFloat` 阴影
-- 屏幕右下角定位（考虑任务栏高度）
+- WPF `SizeToContent=WidthAndHeight` 按缩略图与按钮行的实际布局决定窗口大小，圆角与阴影沿用现有主题。缩略图在 182×108 DIP 范围内按比例完整显示，图片背景容器只包住图像；卡片最小宽度 134 DIP，以容纳三个按钮及现有间距，不固定窗口高度。
+- 布局完成后按实际窗口尺寸定位屏幕右下角，底边贴工作区底边，保留右侧 16 DIP 间距；图片设置接口不变，先设置图片再显示窗口。
 - `ShowActivated=False`（不抢焦点）
 
 ### 拖拽实现
@@ -45,7 +45,7 @@ DragDrop.DoDragDrop(this, dataObject, DragDropEffects.Copy);
 
 ### 动画
 
-- 入场：`TranslateTransform` Y 轴从 +150 到 0，300ms ease-out + `Opacity` 0→1, 200ms
+- 入场：`TranslateTransform` Y 轴从 +80 到 0，300ms ease-out + `Opacity` 0→1, 200ms
 - 离场：`Opacity` 1→0, 300ms ease-in
 - 鼠标悬浮：`ScaleTransform` 1.0→1.05, 150ms ease-out
 

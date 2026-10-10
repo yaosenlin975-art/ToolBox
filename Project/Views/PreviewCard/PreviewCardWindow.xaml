@@ -1,7 +1,6 @@
 <Window x:Class="ToolBox.Views.PreviewCard.PreviewCardWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Width="200" Height="150"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -51,7 +50,7 @@
         </Storyboard>
     </Window.Resources>
 
-    <Border x:Name="CardBorder" Width="200" Height="150"
+    <Border x:Name="CardBorder" MinWidth="134" RenderTransformOrigin="0.5,0.5"
             CornerRadius="{StaticResource RadiusLg}"
             Background="{DynamicResource BgElevatedBrush}"
             BorderBrush="{DynamicResource BorderDefaultBrush}"
@@ -70,17 +69,18 @@
         <Border.RenderTransform>
             <TransformGroup>
                 <TranslateTransform x:Name="SlideTransform" Y="80"/>
-                <ScaleTransform x:Name="ScaleTransform" CenterX="100" CenterY="75"/>
+                <ScaleTransform x:Name="ScaleTransform"/>
             </TransformGroup>
         </Border.RenderTransform>
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- 缩略图区域 -->
             <Border Grid.Row="0" Margin="8,0,8,4"
+                    HorizontalAlignment="Center"
                     CornerRadius="{StaticResource RadiusMd}"
                     ClipToBounds="True">
                 <!-- 棋盘格背景表示透明区域 -->
@@ -107,6 +107,8 @@
                 </Border.Background>
                 <Image x:Name="ThumbnailImage"
                        Stretch="Uniform"
+                       MaxWidth="182"
+                       MaxHeight="108"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Top"
                        MouseLeftButtonDown="OnThumbnailMouseDown"

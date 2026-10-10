@@ -27,10 +27,10 @@
 
 ### 预览卡显示
 
-- [ ] **AC1.1**：截图完成后，屏幕右下角滑入 PreviewCardWindow（200×150px, Topmost），入场动画 300ms ease-out（TranslateTransform Y 150→0 + Opacity 0→1）
+- [ ] **AC1.1**：截图完成后，屏幕右下角滑入 PreviewCardWindow（尺寸随图片比例及按钮行自适应，最大约 200×150 DIP、最小宽度 134 DIP，Topmost），入场动画 300ms ease-out（TranslateTransform Y 80→0 + Opacity 0→1）
 - [ ] **AC1.2**：预览卡背景为 BgElevatedBrush 95% 不透明度，圆角 14px，外阴影 ShadowFloat
-- [ ] **AC1.3**：缩略图区域（184×100px）以 Uniform 模式展示截图，背景棋盘格图案表示透明区域
-- [ ] **AC1.4**：缩略图下方显示三个操作按钮：✏️ 编辑 / 📌 贴图 / 📋 复制（IconButton 变体 24×24）
+- [ ] **AC1.3**：缩略图在 182×108 DIP 上限内以 Uniform 模式完整展示截图，容器尺寸跟随图片；棋盘格只表示图片内部透明区域，图片下方没有固定高度空区
+- [ ] **AC1.4**：缩略图下方显示三个操作按钮：✏️ 编辑 / 📌 贴图 / 📋 复制（IconButton 变体 28×28）
 
 ### 自动消失与悬停
 

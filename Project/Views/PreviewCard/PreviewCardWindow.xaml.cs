@@ -108,8 +108,8 @@ public partial class PreviewCardWindow : Window
     private void PositionAtBottomRight()
     {
         var workArea = SystemParameters.WorkArea;
-        Left = workArea.Right - Width - 16;
-        Top = workArea.Bottom - Height;
+        Left = workArea.Right - ActualWidth - 16;
+        Top = workArea.Bottom - ActualHeight;
     }
 
     private void OnMouseEnter(object sender, MouseEventArgs e)

@@ -77,7 +77,14 @@ internal static class UiSmoke
         var windowType = assembly.GetType("ToolBox.Views.PreviewCard.PreviewCardWindow", true)!;
         var workArea = SystemParameters.WorkArea;
         int checks = 0;
-        foreach (var (width, height) in new[] { (1000, 100), (100, 1000) })
+        foreach (var imageCase in new[]
+        {
+            (Name: "landscape", Width: 1600, Height: 900, Dpi: 96d),
+            (Name: "portrait", Width: 600, Height: 1200, Dpi: 120d),
+            (Name: "square", Width: 900, Height: 900, Dpi: 144d),
+            (Name: "extreme-wide", Width: 4000, Height: 50, Dpi: 96d),
+            (Name: "high-dpi-landscape", Width: 1600, Height: 900, Dpi: 192d)
+        })
         {
             var window = (Window)Activator.CreateInstance(windowType)!;
             window.Opacity = 0;
@@ -87,7 +94,7 @@ internal static class UiSmoke
             window.IsHitTestVisible = false;
             windowType.GetMethod("SetScreenshot")!.Invoke(window, new object[]
             {
-                new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null)
+                new WriteableBitmap(imageCase.Width, imageCase.Height, imageCase.Dpi, imageCase.Dpi, PixelFormats.Bgra32, null)
             });
             window.Show();
             try
@@ -97,35 +104,71 @@ internal static class UiSmoke
                 PumpFor(450);
                 var card = (Border)window.FindName("CardBorder")!;
                 var image = (Image)window.FindName("ThumbnailImage")!;
+                var thumbnailContainer = (Border)image.Parent;
+                var buttonPanel = ((Grid)card.Child).Children.OfType<StackPanel>().Single();
+                var buttons = buttonPanel.Children.OfType<Button>().ToArray();
                 var imageTop = image.TransformToAncestor(window).Transform(new Point(0, 0)).Y;
+                var rightGap = workArea.Right - window.Left - window.ActualWidth;
                 var bottomGap = workArea.Bottom - window.Top - window.ActualHeight;
                 var cardBottom = card.TransformToAncestor(window).Transform(new Point(0, card.ActualHeight)).Y;
                 var cardGap = workArea.Bottom - window.Top - cardBottom;
                 var slide = (TranslateTransform)window.FindName("SlideTransform")!;
                 var scale = (ScaleTransform)window.FindName("ScaleTransform")!;
-                Console.WriteLine($"Preview card {theme} {width}x{height}: imageTop={imageTop:F1}, windowBottomGap={bottomGap:F1}, cardBottomGap={cardGap:F1}, slideY={slide.Y:F1}, imageScale={image.ActualWidth / image.ActualHeight:F2}");
+                var thumbnailBounds = thumbnailContainer.TransformToAncestor(card).TransformBounds(
+                    new Rect(0, 0, thumbnailContainer.ActualWidth, thumbnailContainer.ActualHeight));
+                var buttonBounds = buttonPanel.TransformToAncestor(card).TransformBounds(
+                    new Rect(0, 0, buttonPanel.ActualWidth, buttonPanel.ActualHeight));
+                var expectedButtonWidth = buttons.Sum(button => button.ActualWidth + button.Margin.Left + button.Margin.Right);
+                Console.WriteLine($"Preview card {theme} {imageCase.Name} {imageCase.Width}x{imageCase.Height}@{imageCase.Dpi:F0}: image={image.ActualWidth:F1}x{image.ActualHeight:F1}, container={thumbnailContainer.ActualWidth:F1}x{thumbnailContainer.ActualHeight:F1}, card={card.ActualWidth:F1}x{card.ActualHeight:F1}, window={window.ActualWidth:F1}x{window.ActualHeight:F1}, rightGap={rightGap:F1}, bottomGap={bottomGap:F1}, slideY={slide.Y:F1}");
                 Assert(Math.Abs(imageTop - card.BorderThickness.Top) < 1,
-                    $"{width}x{height} preview image starts at the card content top");
+                    $"{imageCase.Name} preview image starts at the card content top");
+                Assert(Math.Abs(rightGap - 16) < 2,
+                    "preview card keeps its 16-DIP right edge offset");
                 Assert(Math.Abs(bottomGap) < 2,
                     "preview card window aligns its bottom with the work-area edge");
                 Assert(Math.Abs(cardGap) < 2,
                     "preview card visible border reaches the work-area edge after animation");
                 Assert(Math.Abs(slide.Y) < 1,
                     "preview card entrance animation returns to its resting position");
-                Assert(image.Stretch == Stretch.Uniform && Math.Abs(image.ActualWidth / image.ActualHeight - (double)width / height) < 0.01,
-                    $"{width}x{height} preview keeps the full image aspect ratio");
-                windowType.GetMethod("OnMouseEnter", BindingFlags.Instance | BindingFlags.NonPublic,
-                    null, new[] { typeof(object), typeof(System.Windows.Input.MouseEventArgs) }, null)!
-                    .Invoke(window, new object?[] { window, null });
-                PumpFor(220);
-                Assert(Math.Abs(scale.ScaleX - 1.05) < 0.01 && Math.Abs(scale.ScaleY - 1.05) < 0.01,
-                    "preview card hover animation reaches its enlarged scale");
-                windowType.GetMethod("OnMouseLeave", BindingFlags.Instance | BindingFlags.NonPublic,
-                    null, new[] { typeof(object), typeof(System.Windows.Input.MouseEventArgs) }, null)!
-                    .Invoke(window, new object?[] { window, null });
-                PumpFor(220);
-                Assert(Math.Abs(scale.ScaleX - 1) < 0.01 && Math.Abs(scale.ScaleY - 1) < 0.01,
-                    "preview card hover animation returns to its original scale");
+                Assert(image.Stretch == Stretch.Uniform && Math.Abs(image.ActualWidth / image.ActualHeight - (double)imageCase.Width / imageCase.Height) < 0.01,
+                    $"{imageCase.Name} preview keeps the full image aspect ratio");
+                Assert(Math.Abs(thumbnailContainer.ActualWidth - image.ActualWidth) < 1 &&
+                       Math.Abs(thumbnailContainer.ActualHeight - image.ActualHeight) < 1,
+                    $"{imageCase.Name} checkerboard container fits the thumbnail without empty space");
+                Assert(Math.Abs(thumbnailBounds.Left + thumbnailBounds.Width / 2 - card.ActualWidth / 2) < 1,
+                    $"{imageCase.Name} thumbnail is centered in the card");
+                Assert(Math.Abs(card.ActualHeight - thumbnailContainer.ActualHeight - thumbnailContainer.Margin.Bottom -
+                                buttonPanel.ActualHeight - buttonPanel.Margin.Bottom - card.BorderThickness.Top - card.BorderThickness.Bottom) < 1,
+                    $"{imageCase.Name} card height is the sum of thumbnail, controls, and spacing");
+                Assert(Math.Abs(window.ActualWidth - card.ActualWidth) < 1 && Math.Abs(window.ActualHeight - card.ActualHeight) < 1,
+                    "preview window size follows the card content");
+                Assert(card.ActualWidth >= 134 && card.ActualWidth <= 200 && card.ActualHeight <= 150,
+                    "preview card respects its button minimum and 200x150 size limits");
+                Assert(buttons.Length == 3 && buttons.All(button => Math.Abs(button.ActualWidth - 28) < 1 && Math.Abs(button.ActualHeight - 28) < 1) &&
+                       buttonPanel.ActualWidth + 1 >= expectedButtonWidth && buttonBounds.Left >= card.BorderThickness.Left - 1 &&
+                       buttonBounds.Right <= card.ActualWidth - card.BorderThickness.Right + 1,
+                    "preview card keeps all three controls visible without clipping");
+                if (imageCase.Name == "landscape")
+                {
+                    windowType.GetMethod("OnMouseEnter", BindingFlags.Instance | BindingFlags.NonPublic,
+                        null, new[] { typeof(object), typeof(System.Windows.Input.MouseEventArgs) }, null)!
+                        .Invoke(window, new object?[] { window, null });
+                    PumpFor(220);
+                    var hoverCenter = card.TransformToAncestor(window).Transform(new Point(card.ActualWidth / 2, card.ActualHeight / 2));
+                    Assert(Math.Abs(scale.ScaleX - 1.05) < 0.01 && Math.Abs(scale.ScaleY - 1.05) < 0.01,
+                        "preview card hover animation reaches its enlarged scale");
+                    Assert(Math.Abs(hoverCenter.X - window.ActualWidth / 2) < 1 && Math.Abs(hoverCenter.Y - window.ActualHeight / 2) < 1,
+                        "preview card hover stays centered at its measured size");
+                    windowType.GetMethod("OnMouseLeave", BindingFlags.Instance | BindingFlags.NonPublic,
+                        null, new[] { typeof(object), typeof(System.Windows.Input.MouseEventArgs) }, null)!
+                        .Invoke(window, new object?[] { window, null });
+                    PumpFor(220);
+                    var restoredCenter = card.TransformToAncestor(window).Transform(new Point(card.ActualWidth / 2, card.ActualHeight / 2));
+                    Assert(Math.Abs(scale.ScaleX - 1) < 0.01 && Math.Abs(scale.ScaleY - 1) < 0.01,
+                        "preview card hover animation returns to its original scale");
+                    Assert(Math.Abs(restoredCenter.X - window.ActualWidth / 2) < 1 && Math.Abs(restoredCenter.Y - window.ActualHeight / 2) < 1,
+                        "preview card returns to its measured center after hover");
+                }
             }
             finally
             {
