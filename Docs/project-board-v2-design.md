@@ -1,6 +1,6 @@
 # 项目看板 v2：事项协作与 Agent 技能设计
 
-状态：设计稿，技能协作契约见 §7.3–7.4（2026-10-15）；待确认采用路线。依据 [project-board-design.md](project-board-design.md) 的方案 A 首版实现。
+状态：已授权审查后实施（2026-10-15）；完整范围 R1–R8，审查后的统一契约见 §13。依据 [project-board-design.md](project-board-design.md) 的方案 A 首版实现。
 
 ## 1. 需求分析
 
@@ -207,12 +207,13 @@ UI：
 | 操作 | CLI | 语义 |
 |---|---|---|
 | `board.comment.add` | `board comment add --id <cardId> [--parent-id <commentId>] --body <text> [--actor <id>] [--session <id>] [--host <name>]` | 新增评论/回复；回复自动写 `routing`（目标 = 父评论 origin 或沿链最近的 origin）。用户回复（actor=local-user）时立即按 `routing.host` 触发投递：CLI 适配器直接调用；GUI 适配器唤起应用 + 剪贴板；正文 ≤ 16 KiB |
-| `board.comment.list` | `board comment list --id <cardId> [--include-deleted]` | 返回该卡片全部可见评论（扁平数组，含 parentId；由调用方组树） |
+| `board.comment.get` | `board comment get --comment-id <uuid>` | 返回评论、所属项目/卡片及 boardRevision/commentRevision |
+| `board.comment.list` | `board comment list --id <cardId> [--include-deleted] [--limit <1..100>] [--cursor <token>]` | 分页返回扁平评论数组，游标绑定 commentRevision |
 | `board.comment.update` | `board comment update --comment-id <uuid> --body <text> [--actor <id>]` | 仅作者可改；更新时间戳 |
 | `board.comment.delete` | `board comment delete --comment-id <uuid> [--actor <id>]` | 软删除；作者或本机用户可删 |
 | `board.comment.inbox` | `board comment inbox --session <id> [--limit <n>]` | 返回 `routing.sessionId == 自己且未确认` 的回复，按时间升序 |
 | `board.comment.ack` | `board comment ack --comment-id <uuid> --session <id>` | 写 `acknowledgedAt/acknowledgedBy`；非目标会话 → `CONFLICT` |
-| `board.comment.bind` | `board comment bind --comment-id <uuid> [--host <name>] [--session <id>] [--clear]` | 绑定/改绑/解绑评论来源；用于智能体无法自动取得会话 ID 或用户手动纠正来源 |
+| `board.comment.bind` | `board comment bind --comment-id <uuid> --actor <id> --host <name> [--session <id>] [--target-host <name>] [--target-session <id>] [--clear]` | 请求者身份与目标来源分开；clear 与目标互斥；只影响后续回复 |
 | `board.comment.deliver` | `board comment deliver --comment-id <uuid> [--confirm]` | 重试投递或按当前 `routing` 主动投递；返回本机投递状态（pending/delivered/failed + 错误摘要） |
 | `board.comment.delivery` | `board comment delivery --comment-id <uuid>` | 读取本机投递状态，不修改数据 |
 
@@ -226,7 +227,7 @@ UI：
 
 ### 5.5 协议与实现接线点
 
-- `TaskProtocol.IsBoardOperation`：加入 17 个新操作（认领与状态 5 个、评论 9 个、附件 3 个）。
+- `TaskProtocol.IsBoardOperation`：加入 18 个新操作（认领与状态 5 个、评论 10 个、附件 3 个）。
 - `ProjectBoardStore.ValidateRequest` 的 `OperationFields` 与 `ValidatePayloadTypes`：逐操作字段白名单与类型校验（uuid、Enum 状态、正文长度、ttl 范围、路径字符串）。
 - `ProjectBoardStore.ExecuteCoreAsync`：新增分支；共享 `CheckRevision`、`SaveBoard`、`EnsureResponseFits`。
 - 附件路径：新增与 `GetBoardPath` 同级的 `.toolbox/board-assets` 路径解析，沿用 `RejectReparsePoint`、根目录包含校验与原子改名；不放开 `.toolbox/` 之外写入。
@@ -416,7 +417,7 @@ UI：
 
 GitHub 候选固定提交、许可证及验证状态见 §3.1；2026-10-15 复核上游 README 的原子 claim、租约与心跳说明。未运行或构建候选。当前建议只参考行为契约，不复制代码、不安装依赖；采用路线由用户确认。
 
-当前交付为技能设计，CLI 四态与认领尚未实现。R4–R8 为本文其他设计范围，不是完成 R1–R3 技能所需的前置功能。发布技能须在所需 CLI 能力实现并验证后进行；此前不安装会调用未实现命令的技能。
+发布技能须在所需 CLI 能力实现并验证后进行；此前不安装会调用未实现命令的技能。完整实施包含 R1–R8。
 
 ## 8. 关键流程
 
@@ -528,3 +529,23 @@ agent 下回合：CLI 投递由宿主直接续接；未配置适配器时用 com
 1. WorkBuddy 与 Trae 的实际安装路径在实现时探测（两者注册表中的旧路径当前均失效）；无 CLI 已在 §5.7 给出替代通道，探测失败即固定为宿主内拉取 + app 模式，用户可通过本机配置或"选择可执行文件"手工指定。
 2. 适配器命令模板用 JSON 配置文件编辑，设置页只提供"打开配置文件"入口，不做表单编辑器。
 3. 自动投递默认每次发送前确认，可在设置中改为"总是发送"。
+
+## 13. 审查后实施契约
+
+本节统一前文冲突条款。实施范围保留 R1–R8，不复制第三方源码，不增加外部库。
+
+- 状态为 `notStarted/inProgress/pendingReview/closed`。状态只经 claim/release/submit/close/reopen 修改。通用 update/move 不能直接写状态；显式状态动作可原子携带目标列与 order，拖动映射列调用相同转换校验。每个状态至多映射一列；修改映射不回写已有卡片。
+- claim 所有者按 host/actor/session 全键比较。actor 为独立执行 UUID，session 可空。租约过期后普通任务修改须先重新 claim；本人有效 claim 才能续租、release、submit。close 只接受 pendingReview；reopen 只接受 pendingReview/closed，进行中撤回先 release。更新、移动、删除/恢复子树、改父项、附件写入、删列移卡统一检查受影响卡片的认领。评论允许协作写入，不取得任务执行权。
+- 任意深度使用扁平 parentId 与迭代遍历；关闭检查所有活动后代，不级联关闭。关闭的父项不能新增或接入未关闭子项。排序按 columnId/parentId 分组。软删不删除评论或图片。
+- schema v1 读取不落盘，首个成功写入保存 v2，保留原 ID/内容/位置/删除记录。原进行中卡片缺执行身份时状态置 notStarted，保留原列并返回迁移提示。旧版本拒绝 v2，发布说明要求升级前备份。
+- 评论增加 `board.comment.get`，共 18 个新操作。评论父项必须属于同一卡片。回复 routing 为创建时最近祖先 origin 的快照；bind 仅影响之后创建的回复，已有回复显示其固定目标，不静默重定向。作者按完整执行身份比较；local-user 可软删除。
+- 所有读响应提供 boardRevision/commentRevision。`revision` 仍是 board CAS，评论写额外接受 commentRevision CAS。评论变化只推进 commentRevision；内嵌时也保留此语义。board/card get/list 返回评论计数，不返回正文。评论分页按 createdAt/id 游标，游标绑定 commentRevision，版本变化返回 CONFLICT。
+- 候选序列化严格大于 2,097,152 字节或单卡评论严格超过 500 条时自动外置 `.toolbox/comments.json`，包含触发写入。迁移使用固定文件的一次性 journal、旧 board 备份与新文件 hash；两新 hash 完整则提交，否则恢复旧 board，仅清除 hash 匹配的临时文件；未知 hash 拒绝写入并保留证据。之后评论单独原子更新 sidecar。IPC 仍限制 4 MiB。
+- 图片按流限量并计算 hash，实际解码验证格式，再保存生成的 ID 路径；拒绝路径重解析与越界。添加保存失败清理新文件。删除先改名 tombstone 并写限定 journal，再删 metadata；恢复按 metadata 是否仍存在决定还原或清理，清理失败保留 journal。缺失/篡改只返回标记。
+- comment.add 只保存评论并建立待确认投递记录；默认 confirm，只有用户明确设置的本机 always 才自动提交。发送确认绑定正文与 routing 快照，修改后须重新确认。无 session 时绝不使用 --last/-c/--continue，降级 host+project inbox；Qoder 官方 CLI 命令使用 qoder，未安装时保留 GUI pull。
+- host-only inbox 领取按执行 actor 原子保留租约，ack 必须匹配目标和当前领取者；已投递不等于已处理。CLI 退出 0 记 submitted，ack 记 acknowledged；超时记 unknown，不自动重放。GUI 打开和复制分别由用户操作触发，不自动覆写剪贴板。
+- 宿主探测读取本机配置、PATH/npm、URL 协议和卸载注册项、版本目录，失败允许手工配置；失效重探。原生 exe/Node entry 使用参数数组；不把 cmd/ps1 shim 当 exe，不拼接任意 shell 文本，不加执行策略/权限绕过参数。宿主测试全部使用假进程，不续接真实会话。
+- 投递服务与存储分离，由共享 BoardAgentService 路由 comment.deliver/delivery，UI 与 IPC 走同一入口。Core Store 提供精确评论上下文查询；本机适配器与状态存 AppData。可用 hooks 的回注契约未验证时不安装，技能首步 pull。技能按用户授权的目标目录安装，不自动改宿主设置。
+- 所有看板 MessageBox 改为主题化 Confirm/Notify，字段校验内联。Esc 取消；普通输入 Enter 提交，危险确认默认取消，不把删除设为 Enter 默认动作。保留对话框/拖放开始时 boardId、revision 快照。界面区分未绑定与 host 已绑定但缺精确 session。
+
+审查结论：按本节修订后进入实现；运行与故障恢复验证按实施计划逐项记录。
