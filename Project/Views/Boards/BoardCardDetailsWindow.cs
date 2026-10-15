@@ -1155,7 +1155,7 @@ internal sealed class BoardCardDetailsWindow : Window
 
     private UIElement Section(string key, string fallback)
     {
-        var label = Label(Text(key, fallback), true, true); label.Margin = new Thickness(2, 8, 2, 6); return label;
+        var label = Label(Text(key, fallback), true, true); label.SetResourceReference(TextBlock.TextProperty, key); label.Margin = new Thickness(2, 8, 2, 6); return label;
     }
 
     private TextBlock Label(string value, bool bold = false, bool tertiary = false)

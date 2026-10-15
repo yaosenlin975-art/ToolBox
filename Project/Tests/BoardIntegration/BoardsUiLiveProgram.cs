@@ -175,7 +175,7 @@ internal static class BoardsUiLiveProgram
         object detailsSnapshot = Activator.CreateInstance(snapshotType, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
             binder: null, args: [boardId, latestBoard.Revision, latestBoard.CommentRevision], culture: null)!;
         ConstructorInfo detailsConstructor = detailsType.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Single();
-        var details = (Window)detailsConstructor.Invoke([window, latestBoard, registration, rootModel, detailsSnapshot]);
+        var details = (Window)detailsConstructor.Invoke([window, latestBoard, registration, rootModel, detailsSnapshot, null]);
         details.Opacity = 0;
         details.ShowActivated = false;
         details.ShowInTaskbar = false;

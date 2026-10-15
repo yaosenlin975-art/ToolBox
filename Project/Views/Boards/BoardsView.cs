@@ -66,7 +66,9 @@ public sealed class BoardsView : UserControl
         toolbar.SetResourceReference(Border.BackgroundProperty, "BgSecondaryBrush");
         toolbar.SetResourceReference(Border.BorderBrushProperty, "BorderBrush");
         var toolbarPanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        toolbarPanel.Children.Add(Label(Text("Lang_Board_Project", "Project")));
+        var projectLabel = Label(Text("Lang_Board_Project", "Project"));
+        projectLabel.SetResourceReference(TextBlock.TextProperty, "Lang_Board_Project");
+        toolbarPanel.Children.Add(projectLabel);
         projectSelector.Margin = new Thickness(8, 0, 8, 0);
         projectSelector.SelectionChanged += ProjectSelector_SelectionChanged;
         toolbarPanel.Children.Add(projectSelector);
