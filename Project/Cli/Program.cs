@@ -4,7 +4,7 @@ using ToolBox.Core.Todo;
 
 namespace ToolBox.Cli;
 
-internal static class Program
+internal static partial class Program
 {
     private static async Task<int> Main(string[] args)
     {
@@ -74,6 +74,8 @@ internal static class Program
         var screenshot = new Command("screenshot", "Search existing screenshot metadata.");
         screenshot.Subcommands.Add(CreateInputCommand("search", "Search screenshots by read-only metadata.", "screenshot.search", null));
         root.Subcommands.Add(screenshot);
+
+        AddBoardCommands(root);
         return root;
     }
 
@@ -147,7 +149,7 @@ internal static class Program
         }
     }
 
-    private static async Task<JsonElement> ReadInputAsync(string path, string operation, CancellationToken cancellationToken)
+    private static async Task<JsonElement> ReadInputAsync(string path, string operation, CancellationToken cancellationToken, bool validatePayload = true)
     {
         byte[] bytes;
         try
@@ -174,7 +176,7 @@ internal static class Program
                 throw new TaskCommandException("INVALID_ARGUMENT", "Input must be one JSON object.", "payload");
             TaskProtocol.RejectDuplicateProperties(document.RootElement);
             var payload = document.RootElement.Clone();
-            TaskProtocol.ValidatePayload(operation, payload);
+            if (validatePayload) TaskProtocol.ValidatePayload(operation, payload);
             return payload;
         }
         catch (JsonException)

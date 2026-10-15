@@ -64,6 +64,16 @@ public static class TaskProtocol
             throw new TaskCommandException("PROTOCOL_ERROR", "Unsupported protocol version.");
         if (!Guid.TryParse(request.RequestId, out _))
             throw new TaskCommandException("PROTOCOL_ERROR", "requestId must be a GUID.");
+        if (IsBoardOperation(request.Operation))
+        {
+            if (request.Id != null) Invalid("id is not accepted for this operation.", "id");
+            if (request.Status != null) Invalid("status is not accepted for this operation.", "status");
+            if (request.Arguments != null) Invalid("arguments are not accepted for this operation.", "arguments");
+            if (request.Payload is not { ValueKind: JsonValueKind.Object })
+                Invalid("A JSON object is required.", "payload");
+            RejectDuplicateProperties(request.Payload!.Value);
+            return;
+        }
         bool write = request.Operation is "task.create" or "task.update" or "ocr.file" or "screenshot.search";
         bool identified = request.Operation is "task.get" or "task.update" or "task.complete" or "task.reopen" or "task.delete" or "task.restore";
         if (!write && !identified && request.Operation is not ("task.list" or "host.stop" or "app.activate"))
@@ -91,6 +101,13 @@ public static class TaskProtocol
         }
         else if (request.Payload != null) Invalid("payload is not accepted for this operation.", "payload");
     }
+
+    public static bool IsBoardOperation(string operation) => operation is
+        "project.register" or "project.list" or "project.get" or "project.unregister" or
+        "board.get" or
+        "board.column.list" or "board.column.create" or "board.column.update" or "board.column.delete" or "board.column.move" or
+        "board.card.list" or "board.card.get" or "board.card.create" or "board.card.update" or "board.card.move" or
+        "board.card.delete" or "board.card.restore" or "board.card.add-to-todo";
 
     public static void ValidatePayload(string operation, JsonElement payload)
     {

@@ -15,7 +15,8 @@
 | 网络诊断 | 检查网络环境并提供相应修复入口 |
 | 定时工具 | 定时截图、日报与定时关机 |
 | 迷你窗口 | 快速查看待办和截图，支持折叠、靠边隐藏与握柄唤起 |
-| Agent CLI | 能力发现、待办操作、指定图片本地 OCR、截图标签查询 |
+| 项目看板 | 数据随项目目录保存，支持列和卡片管理、拖放排序、回收站及复制到个人待办 |
+| Agent CLI | 能力发现、个人待办、项目看板、指定图片本地 OCR、截图标签查询 |
 
 迷你窗口靠近或部分超出屏幕外侧的任意一边，静置后先对齐工作区，再自动收起；指针留在窗口内时只回靠，移开后才收起。悬停或点击窄握柄可展开。动画支持中途反向，并遵循 Windows 的动画效果开关。页面切换、折叠和按钮也提供轻量反馈。
 
@@ -75,6 +76,8 @@ $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 
 CLI 在 ToolBox 未运行时会自动启动无窗口后台；之后正常打开 ToolBox 会在同一实例中显示界面。纯后台模式不启动截图、剪贴板监听或全局热键。
 
+项目看板使用 `project` 和 `board` 命令，个人待办继续使用 `task`。首次初始化使用 `project register --path <目录> --init`；已有看板登记时省略 `--init`。项目数据位于 `.toolbox/board.json`，取消登记不删除文件。
+
 详细命令、错误处理与能力边界见 [CLI 使用说明](Docs/task-cli-usage.md)。Agent 可使用 [cli-anything-toolbox 技能](Docs/skills/cli-anything-toolbox/SKILL.md)，发布包中也会附带 `skills/cli-anything-toolbox/SKILL.md`；按所用 Agent 的技能目录约定安装，并配置实际的 CLI 路径。
 
 ## 数据与联网
@@ -114,6 +117,8 @@ dotnet run --project .\Project\Tests\Motion\MotionChecks.csproj
 
 - [总设计](Docs/design.md)
 - [Agent CLI 设计](Docs/agent-cli-design.md)
+- [项目看板设计](Docs/project-board-design.md)
+- [项目看板实施计划](Docs/project-board-plan.md)
 - [动效与靠边隐藏设计](Docs/motion-edge-hide-design.md)
 - [变更日志](Docs/CHANGELOG.md)
 - [人工验收清单](Docs/PENDING_TESTS.md)

@@ -484,3 +484,10 @@ Layer 0: 全屏截图 CaptureWindow (覆盖层)
 ## 截图预览卡尺寸
 
 PreviewCardWindow 使用 WPF SizeToContent 按缩略图与按钮行测量窗口，不固定外框宽高。缩略图在 182×108 DIP 内以 Uniform 保持整图比例，棋盘容器包住图像；卡片最小宽度 134 DIP，保证按钮行可用。完成布局后以 ActualWidth/ActualHeight 定位工作区右下角，底边贴工作区，右侧保留 16 DIP；缩放中心使用相对中心。接口与截图数据保持不变，先设置图片再显示窗口。详见 design/features/09-Preview-Card.md。
+
+
+## 项目文件夹看板
+
+工作台 BoardsView 管理已登记项目的列、卡片、排序与回收站。看板数据存入项目 `.toolbox/board.json`；本机 `project-boards.json` 保存目录登记和个人待办关联。boardId、columnId、cardId 使用稳定 UUID，revision 与文件哈希检测过期写入及外部修改。
+
+WPF 与 project/board CLI 经同一 ProjectBoardStore 处理；命名管道沿用唯一后台宿主。Store 串行读改写、校验路径边界与数据格式，采用同目录临时文件原子替换，通过 Changed 通知界面刷新。加入个人待办复制快照，完成状态独立；pending 关联阻止失败后重复创建。结构与接口见 project-board-design.md。

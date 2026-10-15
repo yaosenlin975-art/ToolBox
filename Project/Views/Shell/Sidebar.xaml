@@ -58,6 +58,13 @@
                 <RadioButton x:Name="NavTodos" GroupName="Nav"
                              Style="{StaticResource NavItemStyle}" Tag="{StaticResource IconChecklist}"
                              AutomationProperties.Name="{DynamicResource Lang_Page_Todos}" Checked="OnNavChecked"/>
+                <RadioButton x:Name="NavBoards" GroupName="Nav"
+                             Style="{StaticResource NavItemStyle}"
+                             AutomationProperties.Name="{DynamicResource Lang_Page_Boards}" ToolTip="{DynamicResource Lang_Page_Boards}" Checked="OnNavChecked">
+                    <RadioButton.Tag>
+                        <Geometry>M 3,4 H 10 V 11 H 3 Z M 12,4 H 21 V 8 H 12 Z M 12,10 H 21 V 20 H 12 Z M 3,13 H 10 V 20 H 3 Z</Geometry>
+                    </RadioButton.Tag>
+                </RadioButton>
                 <RadioButton x:Name="NavScreenshots" GroupName="Nav"
                              Style="{StaticResource NavItemStyle}" Tag="{StaticResource IconCamera}"
                              AutomationProperties.Name="{DynamicResource Lang_Page_Screenshots}" Checked="OnNavChecked"/>

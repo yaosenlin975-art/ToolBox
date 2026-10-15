@@ -7,6 +7,7 @@ using ToolBox.Views.ClipboardHistory;
 using ToolBox.Views.Dashboard;
 using ToolBox.Views.NetworkDiagnosis;
 using ToolBox.Views.Todo;
+using ToolBox.Views.Boards;
 
 namespace ToolBox.Views;
 
@@ -18,6 +19,7 @@ public partial class WorkbenchWindow : Window
     private ClipboardView? clipboardView;
     private NetworkDiagnosisView? networkView;
     private SettingsView? settingsView;
+    private BoardsView? boardsView;
     private string? activePage;
 
     private const double PageTransitionOffset = 5;
@@ -27,6 +29,7 @@ public partial class WorkbenchWindow : Window
     {
         InitializeComponent();
         TheSidebar.NavigationRequested += OnNavigationRequested;
+        App.LanguageChanged += OnLanguageChanged;
         IsVisibleChanged += WorkbenchWindow_IsVisibleChanged;
         SystemParameters.StaticPropertyChanged += SystemParametersChanged;
         LoadPage("dashboard");
@@ -40,6 +43,7 @@ public partial class WorkbenchWindow : Window
         {
             "dashboard" => GetDashboard(),
             "todos" => GetTodoView(),
+            "boards" => GetBoardsView(),
             "screenshots" => GetHistoryView(),
             "clipboard" => GetClipboard(),
             "network" => GetNetwork(),
@@ -51,6 +55,7 @@ public partial class WorkbenchWindow : Window
         {
             "dashboard" => (FindResource("Lang_Page_Dashboard") as string) ?? "工作台",
             "todos" => (FindResource("Lang_Page_Todos") as string) ?? "待办管理",
+            "boards" => (FindResource("Lang_Page_Boards") as string) ?? "项目看板",
             "screenshots" => (FindResource("Lang_Page_Screenshots") as string) ?? "截图历史",
             "clipboard" => (FindResource("Lang_Page_Clipboard") as string) ?? "剪贴板",
             "network" => (FindResource("Lang_Page_Network") as string) ?? "网络诊断",
@@ -124,7 +129,15 @@ public partial class WorkbenchWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         SystemParameters.StaticPropertyChanged -= SystemParametersChanged;
+        App.LanguageChanged -= OnLanguageChanged;
         base.OnClosed(e);
+    }
+
+    private void OnLanguageChanged()
+    {
+        if (activePage != "boards") return;
+        PageTitle.Text = FindResource("Lang_Page_Boards") as string ?? "项目看板";
+        TheHeader.Title = PageTitle.Text;
     }
 
     private ClipboardView GetClipboard()
@@ -144,6 +157,13 @@ public partial class WorkbenchWindow : Window
     {
         todoView ??= new TodoView();
         return todoView;
+    }
+
+    private BoardsView GetBoardsView()
+    {
+        boardsView ??= new BoardsView();
+        boardsView.Refresh();
+        return boardsView;
     }
 
     private HistoryView GetHistoryView()

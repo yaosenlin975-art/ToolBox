@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="TodoStoreStub.cs" />
+    <Compile Include="..\..\Core\Boards\ProjectBoardModels.cs" Link="ProjectBoardModels.cs" />
+    <Compile Include="..\..\Core\Boards\ProjectBoardStore.cs" Link="ProjectBoardStore.cs" />
+    <Compile Include="..\..\Core\Todo\TaskProtocol.cs" Link="TaskProtocol.cs" />
+  </ItemGroup>
+</Project>

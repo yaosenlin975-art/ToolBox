@@ -51,7 +51,7 @@
 
 ## 4. 建议的 Agent 接口
 
-先提供可发现性，再逐个增加经过确认的命令族。已实现能力发现、task、ocr file、screenshot search；capture/color 仍为后续建议：
+先提供可发现性，再逐个增加经过确认的命令族。已实现能力发现、task、project、board、ocr file、screenshot search；项目看板接口见 project-board-design.md；capture/color 仍为后续建议：
 
 ```text
 toolbox-cli capabilities list

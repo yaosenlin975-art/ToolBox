@@ -80,6 +80,101 @@ public static class AgentCapabilities
             ["id", "parentId", "title", "description", "isCompleted", "priority", "category", "tags", "dueDate", "progress", "createdAt", "completedAt", "isTrashed", "isRepeating", "repeatConfig", "lastResetAt"], ["restores the task in the local store"],
             ["A same-user ToolBox host must be available; the CLI may start it without showing a window."]),
 
+        LocalBoardCapability("project.register", "Register a local project directory.", ObjectSchema(
+            new Dictionary<string, object?>
+            {
+                ["path"] = new { type = "string", format = "absolute-path", minLength = 1 },
+                ["init"] = new { type = "boolean", @default = false },
+                ["replacePath"] = new { type = "boolean", @default = false }
+            }, ["path"]),
+            ["boardId", "name", "path"], ["writes the local project registry", "may initialize a board in the requested directory"],
+            "The same-user ToolBox host and requested directory must be accessible; initialization is opt-in."),
+
+        LocalBoardCapability("project.list", "List locally registered projects.", EmptyObjectSchema(),
+            ["[].boardId", "[].name", "[].path"], ["reads the local project registry"],
+            "A same-user ToolBox host must be available; the local project registry is read when invoked."),
+
+        LocalBoardCapability("project.get", "Read a registered project by ID, path, or current working directory.", ObjectSchema(
+            ProjectContextProperties(), anyOf: ["project", "cwd"]),
+            ["boardId", "name", "path"], ["reads the local project registry"],
+            "A same-user ToolBox host and a resolvable registered project must be available."),
+
+        LocalBoardCapability("project.unregister", "Unregister a local project.", ObjectSchema(
+            ProjectContextProperties(), anyOf: ["project", "cwd"]),
+            ["boardId", "name", "path"], ["removes the project mapping from the local registry"],
+            "A same-user ToolBox host and a resolvable registered project must be available."),
+
+        LocalBoardCapability("board.get", "Read the complete board for a registered project.", ObjectSchema(
+            ProjectContextProperties(), anyOf: ["project", "cwd"]),
+            ["schemaVersion", "boardId", "name", "revision", "columns[]", "cards[]"], ["reads the project board"],
+            "A same-user ToolBox host and a resolvable project board must be available."),
+
+        LocalBoardCapability("board.column.list", "List columns for a project board.", ObjectSchema(
+            ProjectContextProperties(), anyOf: ["project", "cwd"]),
+            ["columns", "revision"], ["reads the project board"],
+            "A same-user ToolBox host and a resolvable project board must be available."),
+
+        LocalBoardCapability("board.column.create", "Create a column on a project board.", ObjectSchema(
+            WithProjectContext(["title", "order", "revision"]), ["title"]),
+            ["column", "revision"], ["writes the project board"],
+            "A same-user ToolBox host, a resolvable project board, and a valid title must be available."),
+
+        LocalBoardCapability("board.column.update", "Update a column title or position.", ObjectSchema(
+            WithProjectContext(["id", "title", "order", "revision"]), ["id"], anyOf: ["title", "order"]),
+            ["column", "revision"], ["writes the project board"],
+            "A same-user ToolBox host and a resolvable project board must be available; submit the latest revision when supplied."),
+
+        LocalBoardCapability("board.column.delete", "Delete a column, optionally moving its cards to another column.", ObjectSchema(
+            WithProjectContext(["id", "targetColumnId", "revision"]), ["id"]),
+            ["column", "revision"], ["deletes a project board column", "requires targetColumnId when the column contains cards"],
+            "A same-user ToolBox host and a resolvable project board must be available; deleting a populated column requires a valid target column."),
+
+        LocalBoardCapability("board.column.move", "Move a column to a new position.", ObjectSchema(
+            WithProjectContext(["id", "order", "revision"]), ["id", "order"]),
+            ["column", "revision"], ["writes column order in the project board"],
+            "A same-user ToolBox host and a resolvable project board must be available; submit the latest revision when supplied."),
+
+        LocalBoardCapability("board.card.list", "List cards on a project board, including deleted cards when requested.", ObjectSchema(
+            WithProjectContext(["columnId", "includeDeleted"])),
+            ["cards", "revision"], ["reads the project board"],
+            "A same-user ToolBox host and a resolvable project board must be available."),
+
+        LocalBoardCapability("board.card.get", "Read one card by ID.", ObjectSchema(
+            WithProjectContext(["id"]), ["id"]),
+            ["card", "revision"], ["reads the project board"],
+            "A same-user ToolBox host and a resolvable project board must be available."),
+
+        LocalBoardCapability("board.card.create", "Create a card on a project board.", ObjectSchema(
+            WithProjectContext(["title", "description", "priority", "tags", "dueDate", "columnId", "order", "revision"]), ["title"]),
+            ["card", "revision"], ["writes the project board"],
+            "A same-user ToolBox host, a resolvable project board, and a valid title must be available."),
+
+        LocalBoardCapability("board.card.update", "Update supplied card fields.", ObjectSchema(
+            WithProjectContext(["id", "title", "description", "priority", "tags", "dueDate", "columnId", "order", "revision"]), ["id"],
+            anyOf: ["title", "description", "priority", "tags", "dueDate", "columnId", "order"]),
+            ["card", "revision"], ["writes the project board"],
+            "A same-user ToolBox host and a resolvable project board must be available; submit the latest revision when supplied."),
+
+        LocalBoardCapability("board.card.move", "Move a card to a column and position.", ObjectSchema(
+            WithProjectContext(["id", "targetColumnId", "order", "revision"]), ["id", "targetColumnId"]),
+            ["card", "revision"], ["writes the project board"],
+            "A same-user ToolBox host and a resolvable project board must be available; the destination column must exist."),
+
+        LocalBoardCapability("board.card.delete", "Move a card to the board recycle bin.", ObjectSchema(
+            WithProjectContext(["id", "revision"]), ["id"]),
+            ["card", "revision"], ["soft-deletes the card on the project board"],
+            "A same-user ToolBox host and a resolvable project board must be available."),
+
+        LocalBoardCapability("board.card.restore", "Restore a card from the board recycle bin.", ObjectSchema(
+            WithProjectContext(["id", "revision"]), ["id"]),
+            ["card", "revision"], ["restores the card on the project board"],
+            "A same-user ToolBox host and a resolvable project board must be available."),
+
+        LocalBoardCapability("board.card.add-to-todo", "Copy a board card into personal Todo.", ObjectSchema(
+            WithProjectContext(["id", "revision"]), ["id"]),
+            ["todoId"], ["creates a personal Todo linked to the board card", "repeated requests use the saved card-to-Todo association"],
+            "A same-user ToolBox host, a resolvable project board, and the personal Todo store must be available."),
+
         Create("host.stop", "Stop the existing background task host.", EmptyObjectSchema(),
             [], ["stops the background ToolBox host if running"], []),
 
@@ -140,10 +235,54 @@ public static class AgentCapabilities
         "task.create" or "ocr.file" or "screenshot.search" => " --input <json-file|->",
         "task.update" => " <id> --input <json-file|-> (id is positional; omit it from JSON)",
         "task.list" => " [--status <status>]",
+        "project.register" => " --path <directory> [--init] [--replace-path]",
+        "project.get" or "project.unregister" => " [--project <project>] [--cwd <directory>]",
+        "board.get" or "board.column.list" => " [--project <project>] [--cwd <directory>]",
+        "board.column.create" => " [--project <project>] [--cwd <directory>] --title <title> [--order <n>] [--revision <revision>]",
+        "board.column.update" => " [--project <project>] [--cwd <directory>] --id <uuid> --input <json-file|-> [--revision <revision>]",
+        "board.column.delete" => " [--project <project>] [--cwd <directory>] --id <uuid> [--target-column-id <uuid>] [--revision <revision>]",
+        "board.column.move" => " [--project <project>] [--cwd <directory>] --id <uuid> --order <n> [--revision <revision>]",
+        "board.card.get" or "board.card.delete" or "board.card.restore" or "board.card.add-to-todo" => " [--project <project>] [--cwd <directory>] --id <uuid> [--revision <revision>]",
+        "board.card.update" => " [--project <project>] [--cwd <directory>] --id <uuid> --input <json-file|-> [--revision <revision>]",
+        "board.card.create" => " [--project <project>] [--cwd <directory>] --input <json-file|->",
+        "board.card.move" => " [--project <project>] [--cwd <directory>] --id <uuid> --target-column-id <uuid> [--order <n>] [--revision <revision>]",
+        "board.card.list" => " [--project <project>] [--cwd <directory>] [--column-id <uuid>] [--include-deleted]",
         "capabilities.get" => " <name>",
         "task.get" or "task.complete" or "task.reopen" or "task.delete" or "task.restore" => " <id>",
         _ => ""
     });
+
+    private static AgentCapability LocalBoardCapability(string name, string description, JsonElement inputSchema,
+        string[] outputFields, string[] effects, string requirement) =>
+        Create(name, description, inputSchema, outputFields, effects, [requirement]);
+
+    private static Dictionary<string, object?> ProjectContextProperties() => new()
+    {
+        ["project"] = new { type = "string", minLength = 1 },
+        ["cwd"] = new { type = "string", format = "absolute-path", minLength = 1 }
+    };
+
+    private static Dictionary<string, object?> WithProjectContext(string[] fields)
+    {
+        var properties = ProjectContextProperties();
+        foreach (string field in fields)
+        {
+            properties[field] = field switch
+            {
+                "id" or "columnId" or "targetColumnId" => new { type = "string", format = "uuid" },
+                "title" => new { type = "string", minLength = 1 },
+                "description" => new { type = "string" },
+                "priority" => new { type = "integer", minimum = 0, maximum = 2 },
+                "tags" => new { type = "array", items = new { type = "string" } },
+                "dueDate" => new { type = new[] { "string", "null" }, format = "date-time" },
+                "order" => new { type = "integer" },
+                "revision" => new { type = "integer", format = "int64" },
+                "includeDeleted" => new { type = "boolean", @default = false },
+                _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown board schema field.")
+            };
+        }
+        return properties;
+    }
 
     private static JsonElement EmptyObjectSchema() => ObjectSchema(new Dictionary<string, object?>());
 

@@ -126,3 +126,29 @@ dotnet publish Project/ToolBox.csproj -c Release -o ./Project/bin/agent-cli-publ
 构建/发布会将 CLI 的运行文件与 System.CommandLine 2.0.2 一同放入桌面输出目录；分发时保留 `THIRD-PARTY-NOTICES.txt` 中的 MIT 声明。
 
 仅 Debug 构建支持开发检查环境变量 `TOOLBOX_TASK_TEST_ROOT`，同时隔离待办/标签文件、管道和单实例锁。集成脚本自动设置该变量，Release 始终忽略它并使用原用户目录。该变量不隔离完整桌面模式的其他设置，因此自动集成脚本只验证后台模式；双主题和实际界面唤出按 PENDING_TESTS 人工验收。
+
+
+## 项目文件夹看板
+
+项目命令使用 `project`，项目卡片使用 `board`，个人待办使用 `task`。请求参数可从 `capabilities get <operation>` 查询。
+
+```powershell
+.\toolbox-cli.exe capabilities get project.register
+.\toolbox-cli.exe project list
+# 用户要求初始化项目看板时执行
+.\toolbox-cli.exe project register --path 'D:\Projects\My App' --init
+.\toolbox-cli.exe board get --project 'D:\Projects\My App'
+.\toolbox-cli.exe board card create --project 'D:\Projects\My App' --title '实现登录校验'
+.\toolbox-cli.exe board card list --project 'D:\Projects\My App'
+```
+
+- `project register` 登记目录；已有 `.toolbox/board.json` 时省略 `--init`。重复 boardId 换路径需明确 `--replace-path`。
+- `board column` 提供 list/create/update/delete/move；`board card` 提供 list/get/create/update/move/delete/restore/add-to-todo。
+- `--project` 接受登记 ID 或路径；未指定时从 `--cwd` 或客户端当前目录寻找最近的已登记项目。
+- 新命令接受 `--input <文件|->` 和 `--json`，默认输出 JSON。JSON 与 flags 的同名字段不可同时提供。
+- 卡片和列使用 UUID；移动与排序的快照写入可附 `--revision`。CONFLICT 后重新读取再决定修改。
+- `--tags` 后多值设置标签，无值清空；`--clear-due-date` 清空日期。
+- `card delete` 软删除，`restore` 恢复；删除有卡片的列需指定 `--target-column-id`，取消项目登记不删除文件。
+- `add-to-todo` 返回个人 Todo ID，复制快照后状态独立。关联保存失败时按错误中的 ID 核对，pending 状态不自动重试创建。
+
+完整参数与边界见 [Agent 技能](skills/cli-anything-toolbox/SKILL.md)；存储与接口见 [项目看板设计](project-board-design.md)。

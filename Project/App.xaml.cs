@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Windows;
+using ToolBox.Core.Boards;
 using ToolBox.Core.Todo;
 
 namespace ToolBox;
@@ -164,6 +165,8 @@ public partial class App : Application
         cancellationToken.ThrowIfCancellationRequested();
         if (request.Operation == "ocr.file") return await AgentOcrCommand.ExecuteAsync(request, cancellationToken);
         if (request.Operation == "screenshot.search") return AgentScreenshotCommand.Execute(request);
+        if (TaskProtocol.IsBoardOperation(request.Operation))
+            return await ProjectBoardStore.Instance.ExecuteAsync(request);
         return await TodoStore.Instance.ExecuteTaskAsync(request);
     }
 

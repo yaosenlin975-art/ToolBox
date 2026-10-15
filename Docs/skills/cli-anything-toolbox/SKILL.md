@@ -1,6 +1,6 @@
 ---
 name: cli-anything-toolbox
-description: Use for requests to manage ToolBox desktop app todos, OCR an explicitly named local image, or search existing screenshot tags and metadata. Do not use for Multica issues or Codex chat tasks.
+description: Use for requests to manage ToolBox desktop app todos or folder-based project boards, OCR an explicitly named local image, or search existing screenshot tags and metadata. Do not use for Multica issues or Codex chat tasks.
 ---
 
 # ToolBox CLI
@@ -39,7 +39,7 @@ The CLI and host communicate through the current Windows user's local pipe. The 
 
 ## Discover before invoking
 
-At the start of a workflow, read `capabilities list`, then `capabilities get <exact-name>` for the capability whose inputs you need. Reuse that metadata within the workflow while the CLI version is unchanged. These return static JSON metadata without starting the host or reading user data. Treat `inputSchema`, `command`, `outputFields`, `effects`, and `availability` as the source of truth. `runtimeChecked: false` means engine/runtime conditions are checked only when the capability runs. The CLI already returns JSON by default; do not add `--json`. `--help` and `--version` are text exceptions and do not start the app.
+At the start of a workflow, read `capabilities list`, then `capabilities get <exact-name>` for the capability whose inputs you need. Reuse that metadata within the workflow while the CLI version is unchanged. These return static JSON metadata without starting the host or reading user data. Treat `inputSchema`, `command`, `outputFields`, `effects`, and `availability` as the source of truth. `command` gives a valid invocation form; use `--help` for the complete flag list. `runtimeChecked: false` means engine/runtime conditions are checked only when the capability runs. The CLI returns JSON by default. New `project` and `board` commands also accept `--json`; do not add it to existing `task`, `ocr`, `screenshot`, or `capabilities` commands. `--help` and `--version` are text exceptions and do not start the app.
 
 ```powershell
 $stdout = & $toolboxCli capabilities list
@@ -54,7 +54,7 @@ if ($exitCode -ne 0 -or -not $capability.ok) { throw 'Could not read task.create
 $capability.data.inputSchema
 ```
 
-The complete command set is:
+The original command set is:
 
 | Operation | CLI syntax | Effect |
 |---|---|---|
@@ -139,10 +139,49 @@ $verified = Invoke-ToolBoxCli -Exe $toolboxCli -CliArgs @('task', 'get', $id)
 
 `screenshot.search` searches tags/rating/color metadata only. It does not OCR-search text or return the original image. Each item exposes a 17-digit `cacheKey`, tags, rating, notes, and tagged time, not the internal image path. Pass `nextCursor` as the next page's cursor and keep the same filters; `null` means no next page. Results use ordinal key order and do not provide a snapshot if data changes between pages.
 
+## Project folder boards
+
+Use `project` and `board` for project cards; use `task` for personal todos. Read the requested operation with `capabilities get <exact-name>` before calling it.
+
+| Operation | CLI syntax |
+|---|---|
+| `project.register` | `project register --path <folder> [--init] [--replace-path]` |
+| `project.list` | `project list` |
+| `project.get` / `project.unregister` | `project get|unregister [--project <board-id-or-path>]` |
+| `board.get` | `board get [--project <board-id-or-path>]` |
+| `board.column.list` | `board column list` |
+| `board.column.create` | `board column create --title <title> [--order <index>]` |
+| `board.column.update` | `board column update --id <uuid> [--title <title>] [--order <index>]` |
+| `board.column.move` | `board column move --id <uuid> --order <index>` |
+| `board.column.delete` | `board column delete --id <uuid> [--target-column-id <uuid>]` |
+| `board.card.list` | `board card list [--column-id <uuid>] [--include-deleted]` |
+| `board.card.get` | `board card get --id <uuid>` |
+| `board.card.create` | `board card create --title <title> [--column-id <uuid>]` |
+| `board.card.update` | `board card update --id <uuid> [update fields]` |
+| `board.card.move` | `board card move --id <uuid> --target-column-id <uuid> [--order <index>]` |
+| `board.card.delete` / `board.card.restore` | `board card delete|restore --id <uuid>` |
+| `board.card.add-to-todo` | `board card add-to-todo --id <uuid>` |
+
+Board commands accept `--project <board-id-or-path>`; otherwise they resolve the nearest registered project containing `--cwd <folder>` or the CLI working directory. Use an explicit project when the agent's current directory is not the intended project. `project register` resolves relative paths on the CLI side.
+
+New commands accept `--input <json-file|->` and `--json`. JSON fields and command flags can be combined only when field names do not overlap. Board mutations accept `--revision <number>`; read `board get` and send its revision for edits based on that snapshot. A CONFLICT requires re-reading the board before deciding the next edit.
+
+Card create/update fields: `title`, `description`, `priority` (0–2), `tags` (string array), `dueDate` (ISO date or null), `columnId`, `order`. Flags use `--due-date` or `--clear-due-date`; `--tags` accepts multiple values and no values clears tags. IDs are stable UUIDs. Card list/get results and mutations include the board revision. Boards must fit the existing 4 MiB protocol response limit; oversized writes fail before persistence.
+
+Initialize `.toolbox/board.json` only when the user requests a new project board. Register an existing board without `--init`. Do not initialize sample projects for discovery. `--replace-path` changes a duplicate board ID's local registration only when the user intends to move/rebind it.
+
+`project unregister` removes local registration only. `board card delete` soft-deletes a card; `restore` recovers it. Deleting a populated column requires a target column and moves all cards, including deleted cards. The final column cannot be deleted.
+
+`add-to-todo` copies a snapshot into personal todos and returns `todoId`; status changes are independent. Repeated successful calls return the local association. If Todo creation succeeded but association persistence failed, do not replay: inspect the returned Todo ID and the reported pending/conflict state.
+
+The host caches only its most recent 256 request IDs. After a timeout, cache eviction, or host restart, query the result before deciding any new write. Stop board writes before Git checkout or direct external editing of board.json, then reload; external programs do not share the host write transaction.
+
+All mutations go through the existing local host. Do not edit `.toolbox/board.json` or the local project registry directly, scan source files, run project scripts, or register unrelated folders.
+
 ## Errors, retries, and boundaries
 
 Business commands return one JSON object on stdout: success has `ok: true` and `data`; failure has `ok: false` and `error.code/message` (sometimes `field`). Diagnostics go to stderr. Exit codes: `0` success, `2` invalid command/input, `3` missing task/capability/file, `4` conflict/oversized result/OCR engine unavailable, `5` host unavailable/timeout/access denied, `6` I/O/data corruption/persistence failure, `7` protocol/internal error.
 
 Startup waits up to 10 seconds; a request waits up to 30 seconds. A JSON request or response is limited to 4 MiB. If a write times out or disconnects after sending, first query for its result; never automatically replay an unknown write or retry `create`, which could duplicate a task. The CLI does not replay write requests.
 
-Use the CLI for task and screenshot metadata access. Do not edit ToolBox JSON stores or file-access allow-lists, bypass the host/pipe, elevate privileges, or expand file, screen, clipboard, or network access beyond the user's request. Respect current-user boundaries. This skill does not authorize broader access or repair actions.
+Use the CLI for task, registered project-board, and screenshot metadata access. Do not edit ToolBox JSON stores or file-access allow-lists, bypass the host/pipe, elevate privileges, or expand file, screen, clipboard, or network access beyond the user's request. Respect current-user boundaries. This skill does not authorize broader access or repair actions.

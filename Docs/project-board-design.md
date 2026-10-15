@@ -1,6 +1,6 @@
 # 项目文件夹看板调研与设计
 
-状态：调研与设计，待选型及实现范围确认。查阅日期：2026-10-14。
+状态：2026-10-15 方案 A 首版已实现。查阅日期：2026-10-14。
 
 ## 已确认需求
 
@@ -20,7 +20,7 @@
 
 ## 方案说明
 
-### A：原生 WPF 看板与现有 CLI 扩展（初步推荐）
+### A：原生 WPF 看板与现有 CLI 扩展（已采用）
 
 复用 ToolBox 导航、主题、后台宿主、能力发现和 CLI。项目数据、看板列、卡片排序使用独立模型。GitHub 候选用于评估可复用范围；是否移植代码须经用户选择。
 
@@ -34,7 +34,7 @@
 
 嵌入完整 Web 看板，增加项目路径绑定和 CLI 适配。服务数据库若为唯一数据源，必须另补项目目录携带数据的机制；仅将文件夹路径填入项目描述不能满足目录数据要求。
 
-## 建议首版范围（待确认）
+## 已确认首版范围
 
 - 登记任意本地目录，不强制 Git 仓库；一个目录一个看板。
 - 工作台项目切换、看板列、卡片详情、列内排序与跨列移动。
@@ -60,7 +60,7 @@
     "description": "",
     "columnId": "列UUID",
     "order": 0,
-    "priority": "normal",
+    "priority": 0,
     "tags": [],
     "dueDate": null,
     "createdAt": "UTC时间",
@@ -85,13 +85,13 @@ toolbox-cli board card list|get|create|update|move|delete|restore --project <项
 toolbox-cli board card add-to-todo --project <项目> --id <卡片ID>
 ```
 
-具体参数在选型确认后固定。现有 `task` 命令继续操作个人待办。`capabilities` 增加看板能力；每个变更返回卡片稳定 ID、当前 revision 及结构化结果。
+具体 flags 以 CLI --help 为准；capabilities.command 给出有效调用形式，inputSchema 描述参数。现有 `task` 命令继续操作个人待办。`capabilities` 增加看板能力；每个变更返回卡片稳定 ID、当前 revision 及结构化结果。
 
 - `--json` 提供机器可读结果；失败通过非零退出码及结构化错误返回。
 - 路径有空格时支持完整引用；显式 `--project` 优先。未指定项目时查找当前目录最近的已登记项目根，不跨出该根读取其他文件。
 - `column.delete` 对有卡片的列要求显式目标列；不隐式删除卡片。
 - `card.delete` 为软删除；`project.unregister` 只取消登记，不删除项目目录或看板文件。
-- 宿主会话内写入请求采用 requestId 去重；跨宿主重启的去重需在实现方案中单独固定。过期 revision 返回 CONFLICT，不覆盖新数据。
+- 宿主缓存最近 256 条请求的 requestId 与响应；超出窗口或宿主重启后，调用方先查询结果再决定操作，不盲目重放。过期 revision 返回 CONFLICT，不覆盖新数据。界面对话框打开和拖拽开始时捕获项目与 revision，提交时不替换为刷新后的版本。
 
 ## 关键流程
 
@@ -105,11 +105,11 @@ toolbox-cli board card add-to-todo --project <项目> --id <卡片ID>
 
 CLI 或 WPF View → 同一后台宿主 → 校验项目、字段、revision → 更新内存与排序 → 同目录临时文件原子替换 → 返回结果并刷新看板。
 
-Git checkout、文件缺失、外部文件修改或反序列化失败时重新校验；发现不一致返回冲突或数据错误，不用内存旧值覆盖项目文件。
+每次读写重新校验文件与 schema，提交前检查已知文件哈希；检测到外部变更返回冲突，损坏文件不覆盖。校验与原子替换之间不具备跨外部编辑器的文件事务；Git checkout 或直接编辑 board.json 前停止看板写入，完成后重新读取。初始化使用无覆盖的原子移动，目标被并发创建时返回冲突。持久化前校验看板及响应大小，超限失败不提交。整板须可在现有 4 MiB IPC 响应中返回；超限的外部看板文件拒绝写入并保留原文件。
 
 ### 加入个人待办
 
-读取卡片快照 → 调用现有 Todo 创建入口 → 在本机索引记录关联 → 返回 Todo ID。重复调用使用本机关联避免重复创建；目录中的看板数据不携带个人待办内容。
+读取卡片快照 → 持久化 pending 关联 → 调用现有 Todo 创建入口 → 保存 Todo ID 关联 → 返回 Todo ID。正常重复调用返回已有 Todo ID。Todo 创建明确失败时清除 pending；创建成功但最终关联写入失败时返回已创建 ID，保留 pending 并拒绝自动重放。目录中的看板数据不携带个人待办内容。
 
 ### 应用未启动
 
@@ -144,10 +144,10 @@ CLI 启动现有后台宿主 → 加载项目登记 → 执行看板命令 → �
 - Signboard：[CLI 文档](https://github.com/cdevroe/signboard/blob/1.7.4/docs/signboard-cli.md)、[package.json](https://github.com/cdevroe/signboard/blob/1.7.4/package.json)、[MCP 文档](https://github.com/cdevroe/signboard/blob/1.7.4/MCP_README.md)。
 - PLANKA：[Card create controller](https://github.com/plankanban/planka/blob/v2.2.1/server/api/controllers/cards/create.js)、[Compose](https://github.com/plankanban/planka/blob/v2.2.1/docker-compose.yml)、[许可证](https://github.com/plankanban/planka/blob/v2.2.1/LICENSE.md)。
 
-## 推荐与待确认决策
+## 选型结论
 
-推荐采用 A：原生 WPF 看板、项目内 JSON 数据及现有 ToolBox CLI/后台宿主扩展。参考 Markban 的目录组织与 kanban-rs 的命令结构，不直接移植候选代码，不引入额外服务运行时。
+采用 A：原生 WPF 看板、项目内 JSON 数据及现有 ToolBox CLI/后台宿主扩展。参考 Markban 的目录组织与 kanban-rs 的命令结构，不直接移植候选代码，不引入额外服务运行时。
 
 若优先复用现成 Web UI，选择 B 并先对 Ordna 做最小试验：Windows 上启动项目目录 Core/Web、确认自定义数据目录及全部 CRUD，再用 WebView2 加载，验证关闭界面后的后台调用。
 
-实施前确认选型及首版范围，包括登记目录内 `.toolbox/` 的读写范围。选择移植候选代码或完整项目时，同时确认 LICENSE、NOTICE、licenses 等文件的保留范围。
+已确认方案 A、首版范围及登记目录内 `.toolbox/` 的读写范围。选择移植候选代码或完整项目时，同时确认 LICENSE、NOTICE、licenses 等文件的保留范围。
