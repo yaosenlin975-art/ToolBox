@@ -22,9 +22,9 @@ ToolBox 是一款 Windows 桌面截图+贴图工具，基于 .NET 8.0 WPF 构建
 
 ### Agent CLI 与本地后台
 
-`Project/Cli/` 是同一 solution 中的 console 工程，以 System.CommandLine 2.0.2（MIT）解析命令；构建和发布时与 ToolBox.exe、运行依赖及许可文件一起交付。共享协议源文件位于 `Core/Todo/`，不另建 DTO 类库。Agent 技能源集中存放于 `Docs/skills/cli-anything-toolbox/SKILL.md`，CLI 工程以链接文件随构建/发布复制到 `skills/cli-anything-toolbox/SKILL.md`；技能指导调用现有命令，不改变业务接口或权限。
+`Project/Cli/` 是同一 solution 中的 console 工程，以 System.CommandLine 2.0.2（MIT）解析命令；构建和发布时与 ToolBox.exe、运行依赖及许可文件一起交付。共享协议源文件位于 `Core/Todo/`（看板存储与投递另见 `Core/Boards/`、`Core/BoardAgents/`），不另建 DTO 类库。Agent 技能源集中存放于 `Docs/skills/`（`cli-anything-toolbox` 与 `toolbox-board`），CLI 工程以链接文件随构建/发布复制到 `skills/`；技能指导调用现有命令，不改变业务接口或权限。
 
-CLI 提供能力发现、待办 CRUD/状态/回收站、指定图片离线 OCR、截图标签只读查询。能力发现读取静态允许列表及 schema；其余请求经本机命名管道交给唯一 ToolBox 实例。后台启动参数 `--task-host` 不初始化窗口、热键、剪贴板监听或截图调度；普通启动向后台转发 `app.activate`，在同一实例初始化桌面。已打开界面时拒绝 `host stop`。
+CLI 提供能力发现、待办 CRUD/状态/回收站、项目登记与看板 CRUD/协作（四态认领、评论、附件）、指定图片离线 OCR、截图标签只读查询。能力发现读取静态允许列表及 schema；其余请求经本机命名管道交给唯一 ToolBox 实例。后台启动参数 `--task-host` 不初始化窗口、热键、剪贴板监听或截图调度；普通启动向后台转发 `app.activate`，在同一实例初始化桌面。已打开界面时拒绝 `host stop`。
 
 管道名包含当前用户 SID；服务端 ACL 只允许当前用户并拒绝网络登录，客户端使用 CurrentUserOnly，仅连接本机。请求和响应为带版本/requestId 的 UTF-8 单行 JSON，单帧 JSON 上限 4 MiB，连接启动上限 10 秒、响应等待 30 秒；已发送请求超时或断连不重放。host 串行处理请求并派发 Dispatcher，待办命令在 Store 的 stateLock 内完成验证、快照和变更；保存采用同目录临时文件 flush+原子替换，失败恢复原对象状态，损坏数据拒绝命令。
 
@@ -67,6 +67,16 @@ Project/
 │   │   ├── AgentCapabilities.cs / AgentOcrCommand.cs / AgentScreenshotCommand.cs  # 能力发现与只读查询
 │   │   ├── RepeatCalculator.cs / RepeatConfig.cs  # 重复规则计算
 │   │   └── SmartDateParser.cs         # 自然语言日期解析
+│   ├── Boards/                        # 项目看板存储（schema v2，见「项目文件夹看板」）
+│   │   ├── ProjectBoardModels.cs      # 列/卡片/认领/附件/评论模型
+│   │   ├── ProjectBoardStore.cs       # 串行读写、校验、原子替换、v1→v2 迁移
+│   │   ├── ProjectBoardComments.cs    # 评论、双 revision、sidecar 外置与迁移 journal
+│   │   └── ProjectBoardAttachments.cs # 图片附件、SHA256 去重、删除 journal 与恢复
+│   ├── BoardAgents/                   # 宿主发现与评论投递（本机配置/状态）
+│   │   ├── BoardAgentService.cs       # 适配器、投递确认、失效重探
+│   │   ├── BoardCommandService.cs     # UI 与 IPC 共享的看板命令分发
+│   │   ├── BoardAgentModels.cs        # 适配器与投递状态模型
+│   │   └── WindowsBoardAgentDiscoveryPlatform.cs  # PATH/注册表/目录探测
 │   ├── Reminder/                      # 定时提醒（CRH/CSH-28）
 │   │   ├── ReminderItem.cs / ReminderStore.cs  # 提醒模型与 reminders.json 持久化（原子替换 + 读失败禁写）
 │   │   └── ReminderScheduler.cs       # 到点注册与右下角通知
@@ -125,6 +135,7 @@ Project/
 │   ├── Capture/CaptureWindow.cs       # 截图选区
 │   ├── Dashboard/                     # 仪表盘（统计卡片 + 快捷入口）
 │   ├── Todo/                          # 待办视图、共享详情面板、重复提醒卡片、日历（⚠ 日历未接线）
+│   ├── Boards/                        # 看板视图（BoardsView）、卡片详情（BoardCardDetailsWindow）、主题化弹窗（ProjectBoardDialogs）
 │   ├── Clipboard/                     # 剪贴板工作台页 + Ctrl+Shift+V 浮窗
 │   ├── Ocr/                           # OCR 结果浮层、选字 Adorner、翻译入口
 │   ├── Color/                         # 取色覆盖层、取色历史、取色 Toast
@@ -448,6 +459,8 @@ Layer 0: 全屏截图 CaptureWindow (覆盖层)
 | 截图标签 | `%AppData%/ToolBox/screenshot_tags.json` |
 | 供应商配置 | `%AppData%/ToolBox/providers.json`（API Key 明文，待改 DPAPI） |
 | 活跃模型 | `%AppData%/ToolBox/active_model.json` |
+| 看板宿主适配器配置 | `%AppData%/ToolBox/board-agents.json`（本机，不入项目目录） |
+| 看板投递状态 | `%AppData%/ToolBox/board-deliveries.json`（本机） |
 | 活动记录（日报数据源） | `%AppData%/ToolBox/Data/activity/{yyyy-MM-dd}.jsonl` |
 | 日报/周报 | `%AppData%/ToolBox/Data/reports/{daily,weekly}/*.md` |
 | 截图缓存（贴图恢复源） | `%LocalAppData%/ToolBox/{17位时间戳}/` |
@@ -488,6 +501,20 @@ PreviewCardWindow 使用 WPF SizeToContent 按缩略图与按钮行测量窗口�
 
 ## 项目文件夹看板
 
-工作台 BoardsView 管理已登记项目的列、卡片、排序与回收站。看板数据存入项目 `.toolbox/board.json`；本机 `project-boards.json` 保存目录登记和个人待办关联。boardId、columnId、cardId 使用稳定 UUID，revision 与文件哈希检测过期写入及外部修改。
+工作台 `BoardsView` 管理已登记项目的列、卡片、排序与回收站；卡片详情由 `BoardCardDetailsWindow` 承载，看板内全部确认/提示弹窗走主题化 `ProjectBoardDialogs.Confirm/Notify`，不再使用系统 MessageBox。看板数据存入项目 `.toolbox/board.json`；本机 `project-boards.json` 保存目录登记和个人待办关联。boardId、columnId、cardId 使用稳定 UUID，revision 与文件哈希检测过期写入及外部修改。
 
-WPF 与 project/board CLI 经同一 ProjectBoardStore 处理；命名管道沿用唯一后台宿主。Store 串行读改写、校验路径边界与数据格式，采用同目录临时文件原子替换，通过 Changed 通知界面刷新。加入个人待办复制快照，完成状态独立；pending 关联阻止失败后重复创建。结构与接口见 project-board-design.md。
+WPF 与 `project`/`board` CLI 经同一 `ProjectBoardStore` 处理；命名管道沿用唯一后台宿主。Store 串行读改写、校验路径边界与数据格式，采用同目录临时文件原子替换，通过 Changed 通知界面刷新。加入个人待办复制快照，完成状态独立；pending 关联阻止失败后重复创建。首版结构与接口见 project-board-design.md。
+
+### v2 协作模型（已落地）
+
+完整需求、候选调研、适配器配置与冻结契约见 project-board-v2-design.md（R1–R8 为范围，冲突以该文件 §13 为准），本节只记录当前设计要点，不重复该文件。
+
+- **存储与模型**：`board.json` `schemaVersion=2`；卡片新增 `status / parentId / assignee / claim / attachments / comments` 字段。状态为 `notStarted / inProgress / pendingReview / closed` 四态，只经 claim/release/submit/close/reopen 修改；列可带可选 `status` 映射，通用 update/move 不能直接写状态或清 claim。层级用扁平 `parentId` 迭代遍历（任意深度，禁自引用与环）；关闭父项须全部活动后代已关闭，不级联关闭；删除/恢复按子树处理，恢复需祖先未删除。
+- **原子认领与租约**：`claim` 在存储锁内一次校验 revision、文件哈希、状态、所有者与到期时间后写入；同身份重复调用为续租心跳，他人有效租约返回 `CONFLICT/CLAIMED_BY_OTHER`（结构化带 owner 与 expiresAt）。租约默认 30 分钟、允许 5–480；过期不自动改状态，只允许重新认领，`--available` 把过期租约视为可认领。
+- **评论与双 revision**：评论随卡片内嵌 `board.json`；所有读响应给出 `boardRevision` 与 `commentRevision`，评论写额外接受 `commentRevision` CAS。回复的 `routing` 是创建时最近祖先 `origin` 的快照，`bind` 只影响之后创建的回复；`ack` 是已处理事实，自动投递成功不等于已确认。
+- **评论自动外置与迁移 journal**：候选序列化严格大于 2 MiB（2,097,152 字节）或单卡评论严格超过 500 条时，触发写入即把评论外置到 `.toolbox/comments.json`（`commentsExternal=true`，独立 revision）。迁移用一次性 journal + 旧 board 备份 + 新文件 hash：两新 hash 齐备则提交，否则回滚旧 board 并只清除 hash 匹配的临时文件，未知 hash 拒绝写入并保留证据。之后评论在 sidecar 上单独原子更新；IPC 仍限 4 MiB。
+- **图片附件**：元数据内嵌卡片 `attachments`，图片本体存项目内 `.toolbox/board-assets/<cardId>/<attachmentId>.<ext>`。允许 `png/jpg/jpeg/gif/bmp`、单张 ≤ 10 MiB；按 SHA256 去重（同卡片同哈希直接返回已有项）；先写临时文件再原子改名，路径拒绝重解析点与越界。删除先写限定 `attachments.journal.json`（tombstone + 文件当前 hash）再删元数据；读取时按 journal 恢复——删除已完成则清理、未完成则按 hash 还原、未知或不符 hash 的条目不自动清除。卡片软删除不删除图片，缺失/篡改只返回 `exists`/`missing` 标记。
+- **宿主适配器与投递**：回复投递由共享 `BoardAgentService` 路由（UI 与 IPC 同一入口）；适配器配置存本机 `%AppData%/ToolBox/board-agents.json`，投递状态（`needsConfirmation / queued / sending / submitted / acknowledged / failed / unknown / manualPullRequired` + 错误摘要）存 `%AppData%/ToolBox/board-deliveries.json`，两者都不写入项目目录、不入 Git。宿主发现按本机配置 → PATH/npm → URL 协议与卸载注册表 → 版本目录 → 常见目录兜底，失败进入 `mode=none` 并允许手工指定；原生 exe 与 Node 入口用参数数组传递、消息优先走 stdin，不拼接 shell、不加权限绕过参数、不把 cmd/ps1 shim 当 exe。无 CLI 的 GUI 宿主走宿主内拉取（技能首步 `comment inbox` 后 `ack`）或按 URI 协议/可执行路径手工唤起（`ResolveLaunch`），未确认前标 `manualPullRequired`。
+- **CLI**：`board.*` 共 32 项能力（`capabilities list` 合计 49 项），其中状态 5 项（claim/release/submit/close/reopen）、评论 10 项（add/get/list/update/delete/inbox/ack/bind/deliver/delivery）、附件 3 项（add/list/remove）；列/卡片既有命令扩展 `--actor/--host/--session/--parent-id/--clear-parent-id/--status/--available/--mine/--ttl-minutes/--transition/--comment-revision` 等字段。完整参数以 `--help` 与 `capabilities get` 为准。
+- **技能**：新增 `Docs/skills/toolbox-board/SKILL.md`（随 `ToolBox.Cli.csproj` 链接复制到发布包 `skills/toolbox-board/SKILL.md`）承载看板协作流程；`cli-anything-toolbox` 的看板章节收敛为指向该技能的指针。CLI/host 版本为 2.1.0。
+- **v1→v2 兼容**：v1 读取时在内存迁移（不落盘，下次成功写入保存 v2）；旧版“进行中”缺执行身份时置 `notStarted` 并返回迁移提示。旧版 ToolBox 读到 v2 按未知 schema 拒绝并保留原文件（`DATA_CORRUPT`），降级前需备份。

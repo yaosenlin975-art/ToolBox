@@ -21,7 +21,7 @@ Resolve an existing registration with `project get --project <directory>` or the
 
 Generate one UUID actor for each independent executing agent and retain it across its commands and continuation context. Supply `--actor <uuid>` and `--host <actual-host>` on writes. `TOOLBOX_BOARD_ACTOR` may retain that same actor in the agent's own process context; reuse an inherited value only when your continuation context identifies it as your own generated actor. Otherwise generate a fresh UUID and pass it explicitly. Every child agent uses a different actor. A shared host name, model name, user name or session ID is insufficient as execution identity.
 
-When a genuine host session ID is available, also supply `--session <id>` consistently. In Codex this may be `CODEX_THREAD_ID`. Otherwise omit session rather than inventing one. Never adopt another card's owner as yourself. If you lose your original actor, use a new actor and respect the existing claim.
+When a genuine host session ID is available, also supply `--session <id>` consistently. A write that omits `--session` while the claim recorded one is a different identity and is rejected as `CLAIMED_BY_OTHER`, even for your own claim. In Codex this may be `CODEX_THREAD_ID`. Otherwise omit session rather than inventing one. Never adopt another card's owner as yourself. If you lose your original actor, use a new actor and respect the existing claim.
 
 The CLI's identity fields coordinate cooperating agents; they do not authenticate a process or grant filesystem permission.
 

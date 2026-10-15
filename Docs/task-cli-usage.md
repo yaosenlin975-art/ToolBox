@@ -100,7 +100,7 @@ toolbox-cli.exe host stop
 
 ## Agent 技能安装
 
-cli-anything 适配技能源位于 `Docs/skills/cli-anything-toolbox/SKILL.md`；完整发布目录附带 `skills/cli-anything-toolbox/SKILL.md`。技能复用已有 CLI，业务命令默认输出 JSON，无需添加 --json。
+cli-anything 适配技能源位于 `Docs/skills/cli-anything-toolbox/SKILL.md`，看板协作技能源位于 `Docs/skills/toolbox-board/SKILL.md`；完整发布目录附带 `skills/cli-anything-toolbox/SKILL.md` 与 `skills/toolbox-board/SKILL.md`。技能复用已有 CLI，业务命令默认输出 JSON，无需添加 --json。
 
 将 `cli-anything-toolbox` 文件夹复制到使用中的 Agent 技能目录。例如在发布目录执行：
 
@@ -110,7 +110,7 @@ New-Item -ItemType Directory -Force -Path $skillHome | Out-Null
 Copy-Item -LiteralPath ./skills/cli-anything-toolbox/SKILL.md -Destination (Join-Path $skillHome 'SKILL.md')
 ```
 
-Agent 重新加载技能后可使用 `$cli-anything-toolbox`。可通过 `TOOLBOX_CLI_PATH` 指定 toolbox-cli.exe 的完整路径，或使用已配置的 PATH；在本仓库也可使用 Project/bin/agent-cli-publish 下的完整发布包。技能本身不包含可执行程序，不会替代 ToolBox，也不授予额外数据访问权限。
+Agent 重新加载技能后可使用 `$cli-anything-toolbox`。看板协作技能同理安装到 `toolbox-board`（把上例路径中的 `cli-anything-toolbox` 换为 `toolbox-board`）。可通过 `TOOLBOX_CLI_PATH` 指定 toolbox-cli.exe 的完整路径，或使用已配置的 PATH；在本仓库也可使用 Project/bin/agent-cli-publish 下的完整发布包。技能本身不包含可执行程序，不会替代 ToolBox，也不授予额外数据访问权限。
 
 ## 构建与检查
 
@@ -151,4 +151,63 @@ dotnet publish Project/ToolBox.csproj -c Release -o ./Project/bin/agent-cli-publ
 - `card delete` 软删除，`restore` 恢复；删除有卡片的列需指定 `--target-column-id`，取消项目登记不删除文件。
 - `add-to-todo` 返回个人 Todo ID，复制快照后状态独立。关联保存失败时按错误中的 ID 核对，pending 状态不自动重试创建。
 
-完整参数与边界见 [Agent 技能](skills/cli-anything-toolbox/SKILL.md)；存储与接口见 [项目看板设计](project-board-design.md)。
+### 四态与认领
+
+```powershell
+.\toolbox-cli.exe board card claim   --project <项目> --id <卡片> --actor <agent> --host <宿主> [--session <会话>] [--ttl-minutes 30]
+.\toolbox-cli.exe board card release --project <项目> --id <卡片> --actor <agent> --host <宿主>
+.\toolbox-cli.exe board card submit  --project <项目> --id <卡片> --actor <agent> --host <宿主>
+.\toolbox-cli.exe board card close   --project <项目> --id <卡片> --actor <agent> --host <宿主>
+.\toolbox-cli.exe board card reopen  --project <项目> --id <卡片> --actor <agent> --host <宿主>
+```
+
+- claim/release/submit/close/reopen 必须解析出 actor：显式 `--actor` 或环境变量 `TOOLBOX_BOARD_ACTOR`，两者都缺返回 `INVALID_ARGUMENT`（退出码 2）。`--host` 是必填的显式宿主标识，不会被推断。
+- 默认租约 30 分钟，`--ttl-minutes` 允许 5–480；同 actor 重复 claim 为续租心跳。他人有效租约返回 `CONFLICT/CLAIMED_BY_OTHER`（退出码 4），`data` 带 `claimedBy` 与 `expiresAt`。
+- 转换可一并携带目标列与排序：`--column-id`/`--order` 与状态同次提交。
+- `board card list` 支持 `--status`、`--parent-id`、`--roots-only`、`--available`（未开始或租约过期）、`--mine`（需同时给 `--actor` 与 `--host`）。`board card create`/`update` 用 `--parent-id` 设父项、`--clear-parent-id` 解除；父项须存在且未删除，改父项做环检测（`CYCLE_DETECTED` 归 `CONFLICT`）。
+
+### 评论与回复
+
+```powershell
+.\toolbox-cli.exe board comment add    --project <项目> --id <卡片> --body <文本> [--parent-id <评论>] [--actor <agent>] [--host <宿主>] [--session <会话>]
+.\toolbox-cli.exe board comment list   --project <项目> --id <卡片> [--include-deleted] [--limit 50] [--cursor <游标>]
+.\toolbox-cli.exe board comment get    --project <项目> --comment-id <评论>
+.\toolbox-cli.exe board comment update --project <项目> --comment-id <评论> --body <文本> [--actor <agent>]
+.\toolbox-cli.exe board comment delete --project <项目> --comment-id <评论> [--actor <agent>]
+```
+
+```powershell
+.\toolbox-cli.exe board comment inbox    --project <项目> --host <宿主> --actor <agent> [--session <会话>] [--limit 20]
+.\toolbox-cli.exe board comment ack      --project <项目> --comment-id <评论> --claim-id <收件租约> --actor <agent> --host <宿主>
+.\toolbox-cli.exe board comment bind     --project <项目> --comment-id <评论> --actor <agent> --host <宿主> [--target-host <宿主>] [--target-session <会话>] [--clear]
+.\toolbox-cli.exe board comment deliver  --project <项目> --comment-id <评论> [--confirm --confirmation-token <hash>] [--verified-unknown]
+.\toolbox-cli.exe board comment delivery --project <项目> --comment-id <评论>
+```
+
+- 评论正文 UTF-8 ≤ 16 KiB。评论写接受 `--comment-revision`（评论集 CAS）；列表 `--limit` 为 1–100，游标绑定 commentRevision，版本变化返回 `CONFLICT`。
+- 回复 routing 取父评论 origin 快照；`bind` 只影响之后创建的回复。`inbox` 须同时给 `--host` 与 `--actor`（`--session` 可选），按时间升序返回未确认回复。
+- `deliver` 默认需确认：先用 `board comment delivery` 取 confirmation hash，授权后传 `--confirm --confirmation-token <hash>`；超时后结果未知需先核对，再传 `--verified-unknown` 重试。
+
+### 图片附件
+
+```powershell
+.\toolbox-cli.exe board attachment add    --project <项目> --id <卡片> --file <绝对路径> [--actor <agent>]
+.\toolbox-cli.exe board attachment list   --project <项目> --id <卡片>
+.\toolbox-cli.exe board attachment remove --project <项目> --attachment-id <附件> [--actor <agent>]
+```
+
+- 仅接受本地绝对路径（相对路径按客户端工作目录解析），拒绝重解析点与越界；扩展名限 `png/jpg/jpeg/gif/bmp`，单张 ≤ 10 MiB；同卡片同 SHA256 直接返回已有项。
+- `list` 返回元数据与 `exists` 计算字段（文件缺失或哈希不符时标记）。
+
+### 看板错误码与退出码
+
+| 退出码 | 场景 |
+|---|---|
+| 2 INVALID_ARGUMENT | 缺 actor/必填字段、ttl 越界（非 5–480）、非法 status/transition、正文超 16 KiB |
+| 3 NOT_FOUND | 项目/卡片/列/评论/附件不存在，或指定文件不存在 |
+| 4 CONFLICT | 他人有效认领 `CLAIMED_BY_OTHER`、环 `CYCLE_DETECTED`、revision/hash 冲突、父项有未关闭子项、结果超限 `RESULT_TOO_LARGE` |
+| 6 IO_ERROR / DATA_CORRUPT | 附件写入或删除失败、旧版读取 v2 或数据损坏 |
+
+- 所有读响应都带 `boardRevision` 与 `commentRevision`；收到 `CONFLICT` 后重新读取再决定，不盲目重放。单次 IPC 上限仍为 4 MiB。
+
+完整参数与边界见 [Agent 技能](skills/cli-anything-toolbox/SKILL.md) 与 [看板技能](skills/toolbox-board/SKILL.md)；存储与接口见 [项目看板设计](project-board-design.md)、[看板 v2 设计](project-board-v2-design.md)。

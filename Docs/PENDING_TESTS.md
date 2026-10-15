@@ -7,6 +7,28 @@
   - 步骤2：跨列拖动、列内排序，通过菜单移动，打开卡片详情和回收站；在实际使用的缩放设置下重复。
   - 预期结果：卡片位置与 CLI 查询一致，主题可读，菜单、按钮与详情可操作。
 
+- [ ] 项目看板 v2 真实 WPF 中英/双主题目视复核
+  - 步骤1：打开看板与卡片详情，分别在中文/English、Light/Dark 组合下检查状态徽标、认领徽标、子事项树、图片区、评论区与会话来源标签。
+  - 步骤2：查看证据截图集中的 6 张（`C:\Users\Administrator\AppData\Local\Temp\ToolBox Board UI Check 3f813fbfee7f4ecd8ec3cb79a2e83fcb`），与实际界面逐项对照。
+  - 预期结果：四态徽标、来源标签、评论层级与子项进度和实际数据一致；两种主题下颜色可读，文字无遮挡或截断。
+
+- [ ] toolbox-board 技能真实跑通一次认领→评论→提交（设计 §10）
+  - 步骤1：把 `toolbox-board` 技能安装到 `C:\Users\Administrator\.codex\skills\`（复制 `Docs/skills/toolbox-board/SKILL.md`，发布包中为 `skills/toolbox-board/SKILL.md`）。
+  - 步骤2：在测试项目中由 Agent 执行：定位 CLI → `board card list --available` → `board card claim` → `board comment add` → `board card submit`。
+  - 步骤3：用 CLI 复核卡片状态与评论（`board card get`、`board comment list`）。
+  - 预期结果：认领成功响应确认 owner 为本人；评论写入成功；提交后卡片为待验收；每一步退出码 0 且 `ok:true`。
+
+- [ ] 图片附件在看板卡片与详情窗口的实际显示与预览
+  - 步骤1：对一张卡片执行 `board attachment add --file <绝对路径>`（png/jpg/jpeg/gif/bmp 各一张，含一张接近 10 MiB 的图）。
+  - 步骤2：在浅色/深色主题下查看看板卡片与卡片详情窗口的图片区。
+  - 步骤3：执行 `board attachment remove`，再查看卡片与详情。
+  - 预期结果：卡片显示附件数，详情窗口缩略图按比例显示、点击可预览；移除后缩略图与附件数同步消失，卡片软删除但未移除时图片仍在。
+
+- [ ] 旧版本 ToolBox 读取 v2 看板文件应拒绝并保留原文件
+  - 步骤1：用旧版本 ToolBox（读不了 v2）打开一个含 v2 `board.json` 的项目，触发看板读取。
+  - 步骤2：核对项目内 `.toolbox/board.json` 内容。
+  - 预期结果：旧版本按未知 schema 拒绝（`DATA_CORRUPT`），不覆盖、不改写原文件；升级或重新初始化后再读取可正常加载。
+
 - [ ] 项目目录与 Git 工作流
   - 步骤1：在已备份的测试项目中提交 `.toolbox/board.json`；停止看板写入后切换分支，再在 ToolBox 重新读取。
   - 步骤2：复制或移动项目目录，重新登记；按预期选择替换路径或保留原项目。
