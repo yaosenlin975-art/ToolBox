@@ -8,7 +8,7 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>ToolBox</RootNamespace>
     <AssemblyName>ToolBox</AssemblyName>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
     <TaskCliProject>$(MSBuildProjectDirectory)\Cli\ToolBox.Cli.csproj</TaskCliProject>
     <TaskCliOutputDir>$(MSBuildProjectDirectory)\Cli\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\</TaskCliOutputDir>
     <TaskCliPublishDir>$(MSBuildProjectDirectory)\obj\TaskCliPublish\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\$(SelfContained)\</TaskCliPublishDir>

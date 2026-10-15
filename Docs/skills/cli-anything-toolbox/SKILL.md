@@ -141,42 +141,7 @@ $verified = Invoke-ToolBoxCli -Exe $toolboxCli -CliArgs @('task', 'get', $id)
 
 ## Project folder boards
 
-Use `project` and `board` for project cards; use `task` for personal todos. Read the requested operation with `capabilities get <exact-name>` before calling it.
-
-| Operation | CLI syntax |
-|---|---|
-| `project.register` | `project register --path <folder> [--init] [--replace-path]` |
-| `project.list` | `project list` |
-| `project.get` / `project.unregister` | `project get|unregister [--project <board-id-or-path>]` |
-| `board.get` | `board get [--project <board-id-or-path>]` |
-| `board.column.list` | `board column list` |
-| `board.column.create` | `board column create --title <title> [--order <index>]` |
-| `board.column.update` | `board column update --id <uuid> [--title <title>] [--order <index>]` |
-| `board.column.move` | `board column move --id <uuid> --order <index>` |
-| `board.column.delete` | `board column delete --id <uuid> [--target-column-id <uuid>]` |
-| `board.card.list` | `board card list [--column-id <uuid>] [--include-deleted]` |
-| `board.card.get` | `board card get --id <uuid>` |
-| `board.card.create` | `board card create --title <title> [--column-id <uuid>]` |
-| `board.card.update` | `board card update --id <uuid> [update fields]` |
-| `board.card.move` | `board card move --id <uuid> --target-column-id <uuid> [--order <index>]` |
-| `board.card.delete` / `board.card.restore` | `board card delete|restore --id <uuid>` |
-| `board.card.add-to-todo` | `board card add-to-todo --id <uuid>` |
-
-Board commands accept `--project <board-id-or-path>`; otherwise they resolve the nearest registered project containing `--cwd <folder>` or the CLI working directory. Use an explicit project when the agent's current directory is not the intended project. `project register` resolves relative paths on the CLI side.
-
-New commands accept `--input <json-file|->` and `--json`. JSON fields and command flags can be combined only when field names do not overlap. Board mutations accept `--revision <number>`; read `board get` and send its revision for edits based on that snapshot. A CONFLICT requires re-reading the board before deciding the next edit.
-
-Card create/update fields: `title`, `description`, `priority` (0–2), `tags` (string array), `dueDate` (ISO date or null), `columnId`, `order`. Flags use `--due-date` or `--clear-due-date`; `--tags` accepts multiple values and no values clears tags. IDs are stable UUIDs. Card list/get results and mutations include the board revision. Boards must fit the existing 4 MiB protocol response limit; oversized writes fail before persistence.
-
-Initialize `.toolbox/board.json` only when the user requests a new project board. Register an existing board without `--init`. Do not initialize sample projects for discovery. `--replace-path` changes a duplicate board ID's local registration only when the user intends to move/rebind it.
-
-`project unregister` removes local registration only. `board card delete` soft-deletes a card; `restore` recovers it. Deleting a populated column requires a target column and moves all cards, including deleted cards. The final column cannot be deleted.
-
-`add-to-todo` copies a snapshot into personal todos and returns `todoId`; status changes are independent. Repeated successful calls return the local association. If Todo creation succeeded but association persistence failed, do not replay: inspect the returned Todo ID and the reported pending/conflict state.
-
-The host caches only its most recent 256 request IDs. After a timeout, cache eviction, or host restart, query the result before deciding any new write. Stop board writes before Git checkout or direct external editing of board.json, then reload; external programs do not share the host write transaction.
-
-All mutations go through the existing local host. Do not edit `.toolbox/board.json` or the local project registry directly, scan source files, run project scripts, or register unrelated folders.
+Use the dedicated `toolbox-board` skill for project board CRUD, four-state progress, atomic claims, comments, replies and image attachments. Discover the installed board capabilities before invoking commands. Personal todos continue to use the `task` commands in this skill.
 
 ## Errors, retries, and boundaries
 

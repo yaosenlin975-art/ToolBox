@@ -67,7 +67,10 @@ internal static partial class Program
                 (command => AddStringField(command, "project", "--project", "Project board ID or path.")),
                 AddRevisionField,
                 (command => AddStringField(command, "id", "--id", "Column ID.")),
-                (command => AddStringField(command, "targetColumnId", "--target-column-id", "Column to receive its cards."))
+                (command => AddStringField(command, "targetColumnId", "--target-column-id", "Column to receive its cards.")),
+                AddActorField,
+                AddHostField,
+                AddSessionField
             ]);
         AddBoardCommand(columns, "move", "Move a board column.", "board.column.move",
             required: ["id", "order"], fields:

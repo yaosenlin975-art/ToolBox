@@ -125,7 +125,7 @@ public static class AgentCapabilities
             "A same-user ToolBox host and a resolvable project board must be available; submit the latest revision when supplied."),
 
         LocalBoardCapability("board.column.delete", "Delete a column, optionally moving its cards to another column.", ObjectSchema(
-            WithProjectContext(["id", "targetColumnId", "revision"]), ["id"]),
+            WithProjectContext(["id", "targetColumnId", "revision", "actor", "host", "session"]), ["id"]),
             ["column", "revision", "boardRevision", "commentRevision"], ["deletes a project board column", "requires targetColumnId when the column contains cards"],
             "A same-user ToolBox host and a resolvable project board must be available; deleting a populated column requires a valid target column."),
 
@@ -242,12 +242,12 @@ public static class AgentCapabilities
 
         LocalBoardCapability("board.comment.deliver", "Deliver a reply using the saved routing snapshot.", ObjectSchema(
             WithProjectContext(["commentId", "confirm", "verifiedUnknown", "confirmationToken", "revision", "commentRevision"]), ["commentId"]),
-            ["commentId", "delivery", "confirmationHash"], ["may send comment text to the routed host after confirmation"],
+            ["delivery", "delivery.confirmationHash", "revision", "boardRevision", "commentRevision"], ["may send comment text to the routed host after confirmation"],
             "The same-user ToolBox host, board agent service, and an applicable host adapter must be available."),
 
         LocalBoardCapability("board.comment.delivery", "Read local delivery state and the current confirmation hash.", ObjectSchema(
             WithProjectContext(["commentId", "revision", "commentRevision"]), ["commentId"]),
-            ["commentId", "delivery", "confirmationHash"], ["reads local delivery state"],
+            ["delivery", "delivery.confirmationHash", "revision", "boardRevision", "commentRevision"], ["reads local delivery state"],
             "The same-user ToolBox host and board agent service must be available."),
 
         LocalBoardCapability("board.attachment.add", "Attach an explicitly named local image to a card.", ObjectSchema(
@@ -330,7 +330,7 @@ public static class AgentCapabilities
         "board.get" or "board.column.list" => " [--project <project>] [--cwd <directory>]",
         "board.column.create" => " [--project <project>] [--cwd <directory>] --title <title> [--order <n>] [--status <status>] [--revision <revision>]",
         "board.column.update" => " [--project <project>] [--cwd <directory>] --id <uuid> [--title <title>|--order <n>|--status <status>|--clear-status] [--revision <revision>]",
-        "board.column.delete" => " [--project <project>] [--cwd <directory>] --id <uuid> [--target-column-id <uuid>] [--revision <revision>]",
+        "board.column.delete" => " [--project <project>] [--cwd <directory>] --id <uuid> [--target-column-id <uuid>] [--revision <revision>] [--actor <id>] [--host <host>] [--session <id>]",
         "board.column.move" => " [--project <project>] [--cwd <directory>] --id <uuid> --order <n> [--revision <revision>]",
         "board.card.get" or "board.card.add-to-todo" => " [--project <project>] [--cwd <directory>] --id <uuid> [--revision <revision>]",
         "board.card.delete" or "board.card.restore" => " [--project <project>] [--cwd <directory>] --id <uuid> [--actor <id>] [--host <name>] [--session <id>] [--revision <revision>]",
