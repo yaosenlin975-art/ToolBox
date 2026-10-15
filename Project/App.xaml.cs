@@ -166,7 +166,7 @@ public partial class App : Application
         if (request.Operation == "ocr.file") return await AgentOcrCommand.ExecuteAsync(request, cancellationToken);
         if (request.Operation == "screenshot.search") return AgentScreenshotCommand.Execute(request);
         if (TaskProtocol.IsBoardOperation(request.Operation))
-            return await ProjectBoardStore.Instance.ExecuteAsync(request);
+            return await ToolBox.Core.BoardAgents.BoardCommandService.Instance.ExecuteAsync(request, cancellationToken);
         return await TodoStore.Instance.ExecuteTaskAsync(request);
     }
 

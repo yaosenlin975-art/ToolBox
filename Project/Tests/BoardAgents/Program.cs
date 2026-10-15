@@ -1,5 +1,8 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
+using ToolBox.Core.Boards;
 using ToolBox.Core.BoardAgents;
+using ToolBox.Core.Todo;
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -15,7 +18,13 @@ var tests = new (string Name, Func<Task> Run)[]
     ("registry install location never launches uninstaller", RegistryInstallLocationAsync),
     ("registered URL protocol resolves an explicit launch target", UrlProtocolLaunchAsync),
     ("recovered sending becomes unknown without replay", RecoveredSendingIsUnknownAsync),
-    ("changed event runs outside gate and isolates handlers", ChangedEventIsolatedAsync)
+    ("changed event runs outside gate and isolates handlers", ChangedEventIsolatedAsync),
+    ("delivery query returns confirmation without queueing", DeliveryQueryHasNoSendSideEffectAsync),
+    ("comment add queues only a local confirmation and returns delivery", CommentAddCreatesConfirmationAsync),
+    ("saved comment remains successful when delivery setup fails", SavedCommentSurvivesDeliveryFailureAsync),
+    ("comment acknowledgement updates local delivery independently", CommentAckUpdatesDeliveryAsync),
+    ("stale confirmation and invalid delivery payload are rejected", StaleConfirmationAndPayloadValidationAsync),
+    ("unknown retry requires verification and request id is idempotent", CommandUnknownRetryIsVerifiedAndIdempotentAsync)
 };
 
 int failed = 0;
@@ -47,6 +56,209 @@ static Task HashBindsContextAsync()
     Assert(hash != BoardAgentService.GetConfirmationHash(context with { Session = "session-other" }), "session was omitted from hash");
     Assert(hash != BoardAgentService.GetConfirmationHash(context with { Body = "body-other" }), "body was omitted from hash");
     return Task.CompletedTask;
+}
+
+static async Task DeliveryQueryHasNoSendSideEffectAsync()
+{
+    using var fixture = new Fixture();
+    var runner = new FakeRunner(new BoardAgentProcessResult(0, false, string.Empty));
+    await using var agents = fixture.CreateService(new FakePlatform(fixture.Root, fixture.Root, []), runner);
+    ProjectBoardCommentContext context = CreateBoardContext(fixture.ProjectRoot);
+    int commentQueries = 0;
+    var command = new BoardCommandService((request, _) =>
+    {
+        if (request.Operation == "board.comment.get")
+        {
+            commentQueries++;
+            AssertPayloadFields(request, "project", "commentId");
+            return Task.FromResult(TaskResponse.Success(request, context));
+        }
+        if (request.Operation == "board.card.get") return Task.FromResult(TaskResponse.Success(request, new { card = new { deletedAt = (DateTime?)null } }));
+        return Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "unexpected operation"));
+    }, agents);
+
+    TaskResponse response = await command.ExecuteAsync(BoardRequest("board.comment.delivery", new { project = "demo", commentId = context.Comment.Id }));
+    var result = response.Data as BoardCommentDeliveryResult;
+    Assert(response.Ok && result?.Delivery?.Status == BoardAgentDeliveryStatuses.NeedsConfirmation, "read did not return a virtual confirmation state");
+    Assert(result!.Delivery!.ConfirmationHash == BoardAgentService.GetConfirmationHash(ToAgentContext(context)), "read returned the wrong confirmation hash");
+    TaskResponse unconfirmed = await command.ExecuteAsync(BoardRequest("board.comment.deliver", new { project = "demo", commentId = context.Comment.Id }));
+    Assert(((BoardCommentDeliveryResult)unconfirmed.Data!).Delivery?.Status == BoardAgentDeliveryStatuses.NeedsConfirmation, "unconfirmed delivery did not return needsConfirmation");
+    string deliveryPath = Path.Combine(Path.GetDirectoryName(agents.GetConfigPath())!, "board-deliveries.json");
+    Assert(commentQueries == 2 && runner.Calls.Count == 0 && !File.Exists(deliveryPath), "read or unconfirmed delivery queued or ran a host process");
+}
+
+static async Task SavedCommentSurvivesDeliveryFailureAsync()
+{
+    using var fixture = new Fixture();
+    await using var agents = fixture.CreateService(new FakePlatform(fixture.Root, fixture.Root, []), new FakeRunner());
+    ProjectBoardCommentContext context = CreateBoardContext(fixture.ProjectRoot);
+    var command = new BoardCommandService((request, _) =>
+    {
+        if (request.Operation == "board.comment.add")
+            return Task.FromResult(TaskResponse.Success(request, new
+            {
+                comment = context.Comment,
+                revision = context.BoardRevision,
+                boardRevision = context.BoardRevision,
+                commentRevision = context.CommentRevision
+            }));
+        if (request.Operation == "board.comment.get") return Task.FromResult(TaskResponse.Failure(request, "IO_ERROR", "fake read failure"));
+        return Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "unexpected operation"));
+    }, agents);
+
+    TaskResponse response = await command.ExecuteAsync(BoardRequest("board.comment.add", new { project = "demo", id = context.CardId, body = context.Comment.Body }));
+    Assert(response.Ok, "a delivery setup failure changed the already-saved comment result to failure");
+    Assert(response.Warnings?.Any(warning => warning.Contains("saved", StringComparison.OrdinalIgnoreCase)) == true, "delivery setup failure was not returned as a warning");
+}
+
+static async Task CommentAddCreatesConfirmationAsync()
+{
+    using var fixture = new Fixture();
+    var runner = new FakeRunner(new BoardAgentProcessResult(0, false, string.Empty));
+    await using var agents = fixture.CreateService(new FakePlatform(fixture.Root, fixture.Root, []), runner);
+    ProjectBoardCommentContext context = CreateBoardContext(fixture.ProjectRoot);
+    await agents.SetManualHostPathAsync("claude", Touch(Path.Combine(fixture.Root, "claude", "claude.exe")));
+    var command = new BoardCommandService((request, _) => request.Operation switch
+    {
+        "board.comment.add" => Task.FromResult(TaskResponse.Success(request, new
+        {
+            comment = context.Comment,
+            revision = context.BoardRevision,
+            boardRevision = context.BoardRevision,
+            commentRevision = context.CommentRevision
+        })),
+        "board.comment.get" => Task.FromResult(TaskResponse.Success(request, context)),
+        _ => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "unexpected operation"))
+    }, agents);
+
+    TaskResponse response = await command.ExecuteAsync(BoardRequest("board.comment.add", new { project = "demo", id = context.CardId, body = context.Comment.Body }));
+    Assert(response.Ok && runner.Calls.Count == 0, "comment add sent a host message without an explicit confirmation");
+    using JsonDocument data = JsonDocument.Parse(JsonSerializer.Serialize(response.Data, TaskProtocol.Options));
+    Assert(data.RootElement.GetProperty("comment").GetProperty("id").GetString() == context.Comment.Id.ToString("D"), "comment result shape was not preserved");
+    Assert(data.RootElement.GetProperty("delivery").GetProperty("status").GetString() == BoardAgentDeliveryStatuses.NeedsConfirmation, "default delivery confirmation was not attached to the add result");
+}
+
+static async Task CommentAckUpdatesDeliveryAsync()
+{
+    using var fixture = new Fixture();
+    var runner = new FakeRunner(new BoardAgentProcessResult(0, false, string.Empty));
+    await using var agents = fixture.CreateService(new FakePlatform(fixture.Root, fixture.Root, []), runner);
+    ProjectBoardCommentContext context = CreateBoardContext(fixture.ProjectRoot);
+    BoardAgentCommentContext agentContext = ToAgentContext(context);
+    string hash = BoardAgentService.GetConfirmationHash(agentContext);
+    await agents.SetManualHostPathAsync("claude", Touch(Path.Combine(fixture.Root, "claude", "claude.exe")));
+    await agents.EnqueueAsync(agentContext, hash);
+    await agents.DrainAsync();
+
+    var command = new BoardCommandService((request, _) =>
+    {
+        if (request.Operation == "board.comment.ack") return Task.FromResult(TaskResponse.Success(request, new { comment = context.Comment, revision = context.BoardRevision }));
+        if (request.Operation == "board.comment.get") return Task.FromResult(TaskResponse.Success(request, context));
+        return Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "unexpected operation"));
+    }, agents);
+    TaskResponse response = await command.ExecuteAsync(BoardRequest("board.comment.ack", new { project = "demo", commentId = context.Comment.Id }));
+
+    Assert(response.Ok, "the board acknowledgement failed");
+    Assert((await agents.GetDeliveryAsync(agentContext))?.Status == BoardAgentDeliveryStatuses.Acknowledged, "ack did not independently update local delivery state");
+    Assert(runner.Calls.Count == 1, "ack started a second host process");
+}
+
+static async Task StaleConfirmationAndPayloadValidationAsync()
+{
+    using var fixture = new Fixture();
+    var runner = new FakeRunner(new BoardAgentProcessResult(0, false, string.Empty));
+    await using var agents = fixture.CreateService(new FakePlatform(fixture.Root, fixture.Root, []), runner);
+    ProjectBoardCommentContext context = CreateBoardContext(fixture.ProjectRoot);
+    var command = new BoardCommandService((request, _) => request.Operation switch
+    {
+        "board.comment.get" => Task.FromResult(TaskResponse.Success(request, context)),
+        "board.card.get" => Task.FromResult(TaskResponse.Success(request, new { card = new { deletedAt = (DateTime?)null } })),
+        _ => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "unexpected operation"))
+    }, agents);
+    TaskResponse read = await command.ExecuteAsync(BoardRequest("board.comment.delivery", new { cwd = fixture.ProjectRoot, commentId = context.Comment.Id }));
+    string staleToken = ((BoardCommentDeliveryResult)read.Data!).Delivery!.ConfirmationHash;
+    context = context with { Comment = context.Comment with { Body = "changed body" } };
+    TaskResponse stale = await command.ExecuteAsync(BoardRequest("board.comment.deliver", new
+    {
+        cwd = fixture.ProjectRoot,
+        commentId = context.Comment.Id,
+        confirm = true,
+        confirmationToken = staleToken
+    }));
+    Assert(!stale.Ok && stale.Error?.Code == "CONFLICT", "a body change did not invalidate the old confirmation token");
+    Assert(runner.Calls.Count == 0, "stale confirmation started a process");
+
+    int storeCalls = 0;
+    var strictCommand = new BoardCommandService((request, _) =>
+    {
+        storeCalls++;
+        return Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "must not reach Store"));
+    }, agents);
+    TaskResponse unknownField = await strictCommand.ExecuteAsync(BoardRequest("board.comment.delivery", new { cwd = fixture.ProjectRoot, commentId = context.Comment.Id, surprise = true }));
+    Assert(!unknownField.Ok && unknownField.Error?.Code == "INVALID_ARGUMENT" && storeCalls == 0, "unknown delivery fields were not rejected locally");
+    TaskResponse decimalRevision = await strictCommand.ExecuteAsync(BoardRequest("board.comment.delivery", new { cwd = fixture.ProjectRoot, commentId = context.Comment.Id, revision = 7.5 }));
+    Assert(!decimalRevision.Ok && decimalRevision.Error?.Code == "INVALID_ARGUMENT" && storeCalls == 0, "a non-integer revision reached Store");
+    TaskResponse wrongConfirmType = await strictCommand.ExecuteAsync(BoardRequest("board.comment.deliver", new { cwd = fixture.ProjectRoot, commentId = context.Comment.Id, confirm = "yes" }));
+    Assert(!wrongConfirmType.Ok && wrongConfirmType.Error?.Code == "INVALID_ARGUMENT" && storeCalls == 0, "a non-boolean confirm value reached Store");
+
+    using JsonDocument duplicatePayload = JsonDocument.Parse("{\"cwd\":\"C:\\\\project\",\"commentId\":\"00000000-0000-0000-0000-000000000001\",\"commentId\":\"00000000-0000-0000-0000-000000000002\"}");
+    TaskRequest duplicate = new()
+    {
+        Operation = "board.comment.delivery",
+        Payload = duplicatePayload.RootElement.Clone()
+    };
+    TaskResponse duplicateResponse = await strictCommand.ExecuteAsync(duplicate);
+    Assert(!duplicateResponse.Ok && duplicateResponse.Error?.Code == "INVALID_ARGUMENT" && storeCalls == 0, "duplicate delivery fields reached Store");
+}
+
+static async Task CommandUnknownRetryIsVerifiedAndIdempotentAsync()
+{
+    using var fixture = new Fixture();
+    var runner = new FakeRunner(
+        new BoardAgentProcessResult(null, true, "simulated timeout"),
+        new BoardAgentProcessResult(0, false, string.Empty));
+    await using var agents = fixture.CreateService(new FakePlatform(fixture.Root, fixture.Root, []), runner);
+    ProjectBoardCommentContext context = CreateBoardContext(fixture.ProjectRoot, host: "qoder", session: "qoder-session");
+    BoardAgentCommentContext agentContext = ToAgentContext(context);
+    await agents.SetManualHostPathAsync("qoder", Touch(Path.Combine(fixture.Root, "qoder", "qoder.exe")));
+    var command = new BoardCommandService((request, _) => request.Operation switch
+    {
+        "board.comment.get" => Task.FromResult(TaskResponse.Success(request, context)),
+        "board.card.get" => Task.FromResult(TaskResponse.Success(request, new { card = new { deletedAt = (DateTime?)null } })),
+        _ => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "unexpected operation"))
+    }, agents);
+    string token = BoardAgentService.GetConfirmationHash(agentContext);
+    TaskRequest first = BoardRequest("board.comment.deliver", new { project = "demo", commentId = context.Comment.Id, confirm = true, confirmationToken = token });
+    TaskResponse queued = await command.ExecuteAsync(first);
+    TaskResponse duplicate = await command.ExecuteAsync(first);
+    Assert(queued.Ok && duplicate.Ok && runner.Calls.Count == 0, "duplicate requestId was not served from the delivery request cache");
+    TaskRequest requestIdConflict = BoardRequest("board.comment.deliver", new
+    {
+        project = "demo", commentId = context.Comment.Id, confirm = true, confirmationToken = token, verifiedUnknown = false
+    }, first.RequestId);
+    TaskResponse conflict = await command.ExecuteAsync(requestIdConflict);
+    Assert(!conflict.Ok && conflict.Error?.Code == "CONFLICT", "requestId reuse with different content was accepted");
+    await agents.DrainAsync();
+    Assert(runner.Calls.Count == 1, "the first delivery did not run exactly once");
+
+    TaskResponse unknown = await command.ExecuteAsync(BoardRequest("board.comment.delivery", new { project = "demo", commentId = context.Comment.Id }));
+    Assert(((BoardCommentDeliveryResult)unknown.Data!).Delivery?.Status == BoardAgentDeliveryStatuses.Unknown, "timeout did not expose unknown state");
+    TaskResponse unverified = await command.ExecuteAsync(BoardRequest("board.comment.deliver", new
+    {
+        project = "demo", commentId = context.Comment.Id, confirm = true, confirmationToken = token, verifiedUnknown = false
+    }));
+    Assert(unverified.Ok && ((BoardCommentDeliveryResult)unverified.Data!).Delivery?.Status == BoardAgentDeliveryStatuses.Unknown, "unknown delivery retried without explicit verification");
+    Assert(runner.Calls.Count == 1, "unverified unknown delivery started a second process");
+
+    TaskResponse verified = await command.ExecuteAsync(BoardRequest("board.comment.deliver", new
+    {
+        project = "demo", commentId = context.Comment.Id, confirm = true, confirmationToken = token, verifiedUnknown = true
+    }));
+    Assert(verified.Ok, "verified unknown delivery was rejected");
+    await agents.DrainAsync();
+    Assert(runner.Calls.Count == 2, "verified unknown delivery did not retry exactly once");
+    TaskResponse submitted = await command.ExecuteAsync(BoardRequest("board.comment.delivery", new { project = "demo", commentId = context.Comment.Id }));
+    Assert(((BoardCommentDeliveryResult)submitted.Data!).Delivery?.Status == BoardAgentDeliveryStatuses.Submitted, "verified retry did not reach submitted state");
 }
 
 static async Task NpmShimSessionDeliveryAsync()
@@ -297,6 +509,49 @@ static async Task ChangedEventIsolatedAsync()
 
 static BoardAgentCommentContext Context(string root, string host = "claude", string? session = "session-1") =>
     new("comment-1", "card-1", root, host, session, "Send this comment safely.");
+
+static ProjectBoardCommentContext CreateBoardContext(string root, string host = "claude", string? session = "session-1")
+{
+    DateTime now = DateTime.UtcNow;
+    var comment = new ProjectBoardComment(
+        Guid.Parse("00000000-0000-0000-0000-000000000101"),
+        null,
+        "Send this comment safely.",
+        new ProjectBoardAssignee("human", "author", "Author", host, session),
+        new ProjectBoardCommentOrigin(host, session),
+        new ProjectBoardCommentRouting(host, session),
+        now,
+        now,
+        null);
+    return new ProjectBoardCommentContext(
+        new ProjectBoardRegistration(Guid.Parse("00000000-0000-0000-0000-000000000100"), "demo", root),
+        Guid.Parse("00000000-0000-0000-0000-000000000102"),
+        comment,
+        7,
+        11);
+}
+
+static BoardAgentCommentContext ToAgentContext(ProjectBoardCommentContext context) => new(
+    context.Comment.Id.ToString("D"),
+    context.CardId.ToString("D"),
+    context.Registration.Path,
+    context.Comment.Routing!.Host,
+    context.Comment.Routing.SessionId,
+    context.Comment.Body);
+
+static TaskRequest BoardRequest(string operation, object payload, string? requestId = null) => new()
+{
+    RequestId = requestId ?? Guid.NewGuid().ToString(),
+    Operation = operation,
+    Payload = JsonSerializer.SerializeToElement(payload, TaskProtocol.Options)
+};
+
+static void AssertPayloadFields(TaskRequest request, params string[] expected)
+{
+    string[] fields = request.Payload!.Value.EnumerateObject().Select(property => property.Name).OrderBy(name => name, StringComparer.Ordinal).ToArray();
+    string[] sortedExpected = expected.OrderBy(name => name, StringComparer.Ordinal).ToArray();
+    Assert(fields.SequenceEqual(sortedExpected), $"query forwarded unexpected fields: {string.Join(",", fields)}");
+}
 
 static string NewTempDirectory()
 {

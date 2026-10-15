@@ -305,6 +305,21 @@ public sealed class BoardAgentService : IAsyncDisposable
         }
     }
 
+    public async Task<string> GetDeliveryPolicyAsync(CancellationToken cancellationToken = default)
+    {
+        await _stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            PersistedState state = await LoadStateUnsafeAsync(cancellationToken).ConfigureAwait(false);
+            return state.Policy;
+        }
+        finally
+        {
+            _stateGate.Release();
+            RaisePendingChanged();
+        }
+    }
+
     public Task SetManualHostPathAsync(string host, string path, CancellationToken cancellationToken = default) =>
         SetHostPathAsync(host, path, "manual", cancellationToken);
 

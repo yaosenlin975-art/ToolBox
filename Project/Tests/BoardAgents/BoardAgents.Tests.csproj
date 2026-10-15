@@ -8,6 +8,10 @@
   <ItemGroup>
     <Compile Include="..\..\Core\BoardAgents\BoardAgentModels.cs" Link="BoardAgentModels.cs" />
     <Compile Include="..\..\Core\BoardAgents\BoardAgentService.cs" Link="BoardAgentService.cs" />
+    <Compile Include="..\..\Core\BoardAgents\BoardCommandService.cs" Link="BoardCommandService.cs" />
     <Compile Include="..\..\Core\BoardAgents\WindowsBoardAgentDiscoveryPlatform.cs" Link="WindowsBoardAgentDiscoveryPlatform.cs" />
+    <Compile Include="..\..\Core\Boards\ProjectBoardModels.cs" Link="ProjectBoardModels.cs" />
+    <Compile Include="..\..\Core\Boards\ProjectBoardStore.cs" Link="ProjectBoardStore.cs" />
+    <Compile Include="..\..\Core\Todo\TaskProtocol.cs" Link="TaskProtocol.cs" />
   </ItemGroup>
 </Project>

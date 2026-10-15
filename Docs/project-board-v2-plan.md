@@ -17,7 +17,7 @@
 - [ ] S2：Core/Boards 评论/回复、精确 routing、inbox 保留与 ack、双 revision/分页、自动 comments.json 外置及恢复。验证 500/501 与字节边界、hash/CAS/损坏恢复。
 - [ ] S3：Core/Boards 图片添加/移除/预览上下文、实际解码、路径与 10MiB 限制、删除 journal。验证失败回滚、崩溃恢复、缺失/篡改标记。
 - [x] D1：Core/BoardAgents 本机配置、8 宿主发现、类型化启动、确认/always、提交与 ack 分离、超时 unknown、失败与手工兜底。假宿主检查通过。
-- [ ] D2：共享 BoardCommandService 接线存储、投递与 ack；UI/IPC 共用入口；投递查询无发送副作用；已保存评论不能因投递失败被伪报失败。
+- [x] D2：共享 BoardCommandService 接线存储、投递与 ack；UI/IPC 共用入口；投递查询无发送副作用；已保存评论不能因投递失败被伪报失败。假 Store/假进程验证通过，真实 Store 接线由 C2 验证。
 - [x] C1：TaskProtocol、AgentCapabilities、Cli/BoardCommands 接入 18 新操作与旧操作扩展；同步全部 schema/flag/错误码；协议与无副作用 CLI 检查通过。
 - [ ] C2：CLI 隔离集成覆盖四态、树、评论、附件、投递及冲突；与完成后的 Store/投递服务对齐。
 - [ ] U1：Views/Boards 统一主题弹窗与内联校验；根卡徽标、详情子树/图片/评论/会话绑定/回复确认/投递状态。中英同步，保留 modal/drag 快照。Tests/BoardsUi 与独立真实 WPF harness 验证关键动作和双主题资源。
@@ -67,3 +67,11 @@ Multica：`CSH-50`（issue `01a13e47-5591-7cdf-9542-6a0bd6014fb8`），项目 `8
 - `dotnet build Project/Tests/Boards/ToolBox.ProjectBoardChecks.csproj -c Debug -p:OutputPath=bin/BoardAcceptance/s1-final2/ -p:UseAppHost=false`：0 警告/0 错误；随后 DLL 的 `--state-tree` 与全量检查通过。
 - 新增 column.delete 写保护与只移位置不改状态后，使用 `s1-column-delete` 输出目录重建并再次通过定向检查；`git diff --check -- Project/Core/Boards Project/Tests/Boards` 通过。
 - 主程序构建仍需等待 D2/UI 共同就绪；本阶段构建观察到的 IOException/RootCards/MoveCardAsync 接线错误交对应实现者处理。
+
+### D2 证据
+
+- `dotnet run --project Project/Tests/BoardAgents/BoardAgents.Tests.csproj -c Debug`：19/19 通过；独立测试工程 `-warnaserror` 构建 0 警告/0 错误。
+- delivery 无排队副作用；默认确认与快照 token、unknown 核实、requestId 指纹、已保存评论/ack 的服务失败 warning 均由假 Store/假进程验证。
+- comment.delivery/deliver 响应为 `{delivery,revision,boardRevision,commentRevision}`，comment.add 保留原 data 并追加可选 delivery。
+- App board 分支已改用共享 BoardCommandService；未调用真实 Agent，会话端到端和实际 S2 Store 接线待 C2。
+- C2 已开始编写隔离集成用例，主程序需等 UI 编译接线就绪后统一构建；S2/S3 未实现前不将完整集成标记通过。
