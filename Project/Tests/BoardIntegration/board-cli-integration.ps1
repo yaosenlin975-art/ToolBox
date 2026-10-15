@@ -8,6 +8,8 @@ $cli = Join-Path $output 'toolbox-cli.exe'
 $app = Join-Path $output 'ToolBox.exe'
 $root = Join-Path ([IO.Path]::GetTempPath()) ('ToolBox Board CLI Check ' + [guid]::NewGuid().ToString('N'))
 $taskRoot = Join-Path $root 'host-data'
+$previousTaskRoot = $env:TOOLBOX_TASK_TEST_ROOT
+$env:TOOLBOX_TASK_TEST_ROOT = $taskRoot
 $workspace = Join-Path $root 'workspace'
 $projectName = '中文 看板 项目 (no git)'
 $projectPath = Join-Path $workspace $projectName
@@ -121,31 +123,35 @@ try {
         'project.register', 'project.list', 'project.get', 'project.unregister', 'board.get',
         'board.column.list', 'board.column.create', 'board.column.update', 'board.column.delete', 'board.column.move',
         'board.card.list', 'board.card.get', 'board.card.create', 'board.card.update', 'board.card.move',
-        'board.card.delete', 'board.card.restore', 'board.card.add-to-todo'
+        'board.card.delete', 'board.card.restore', 'board.card.add-to-todo',
+        'board.card.claim', 'board.card.release', 'board.card.submit', 'board.card.close', 'board.card.reopen',
+        'board.comment.add', 'board.comment.get', 'board.comment.list', 'board.comment.update', 'board.comment.delete',
+        'board.comment.inbox', 'board.comment.ack', 'board.comment.bind', 'board.comment.deliver', 'board.comment.delivery',
+        'board.attachment.add', 'board.attachment.list', 'board.attachment.remove'
     )
     $actualOperations = @($capabilities.data | Where-Object { $_.name -like 'project.*' -or $_.name -like 'board.*' } | ForEach-Object { $_.name })
     $allCapabilityNames = @($capabilities.data | ForEach-Object { $_.name })
-    Assert-Board ($capabilities.ok -and $allCapabilityNames.Count -eq 31) 'Capability list did not return the expected 31 entries.'
+    Assert-Board ($capabilities.ok -and $allCapabilityNames.Count -eq 49) 'Capability list did not return the expected 49 entries.'
     Assert-Board (@($expectedLegacyOperations | Where-Object { $_ -notin $allCapabilityNames }).Count -eq 0) 'The project-board changes removed a legacy capability.'
-    Assert-Board ($capabilities.ok -and $expectedOperations.Count -eq $actualOperations.Count -and @($expectedOperations | Where-Object { $_ -notin $actualOperations }).Count -eq 0) 'Capability list does not contain the 18 project-board operations.'
+    Assert-Board ($capabilities.ok -and $expectedOperations.Count -eq $actualOperations.Count -and @($expectedOperations | Where-Object { $_ -notin $actualOperations }).Count -eq 0) 'Capability list does not contain the 36 project-board operations.'
     $expectedOutputFields = [ordered]@{
         'project.register' = @('boardId', 'name', 'path')
         'project.list' = @('[].boardId', '[].name', '[].path')
         'project.get' = @('boardId', 'name', 'path')
         'project.unregister' = @('boardId', 'name', 'path')
-        'board.get' = @('schemaVersion', 'boardId', 'name', 'revision', 'columns[]', 'cards[]')
-        'board.column.list' = @('columns', 'revision')
-        'board.column.create' = @('column', 'revision')
-        'board.column.update' = @('column', 'revision')
-        'board.column.delete' = @('column', 'revision')
-        'board.column.move' = @('column', 'revision')
-        'board.card.list' = @('cards', 'revision')
-        'board.card.get' = @('card', 'revision')
-        'board.card.create' = @('card', 'revision')
-        'board.card.update' = @('card', 'revision')
-        'board.card.move' = @('card', 'revision')
-        'board.card.delete' = @('card', 'revision')
-        'board.card.restore' = @('card', 'revision')
+        'board.get' = @('schemaVersion', 'boardId', 'name', 'revision', 'boardRevision', 'commentRevision', 'columns[]', 'cards[]')
+        'board.column.list' = @('columns', 'revision', 'boardRevision', 'commentRevision')
+        'board.column.create' = @('column', 'revision', 'boardRevision', 'commentRevision')
+        'board.column.update' = @('column', 'revision', 'boardRevision', 'commentRevision')
+        'board.column.delete' = @('column', 'revision', 'boardRevision', 'commentRevision')
+        'board.column.move' = @('column', 'revision', 'boardRevision', 'commentRevision')
+        'board.card.list' = @('cards', 'revision', 'boardRevision', 'commentRevision')
+        'board.card.get' = @('card', 'revision', 'boardRevision', 'commentRevision', 'card.claim', 'commentCount', 'attachmentCount', 'childCount', 'childClosedCount')
+        'board.card.create' = @('card', 'revision', 'boardRevision', 'commentRevision')
+        'board.card.update' = @('card', 'revision', 'boardRevision', 'commentRevision')
+        'board.card.move' = @('card', 'revision', 'boardRevision', 'commentRevision')
+        'board.card.delete' = @('card', 'revision', 'boardRevision', 'commentRevision')
+        'board.card.restore' = @('card', 'revision', 'boardRevision', 'commentRevision')
         'board.card.add-to-todo' = @('todoId')
     }
     foreach ($operation in $expectedOutputFields.Keys) {
@@ -191,8 +197,9 @@ try {
     Assert-Fields $currentProject @('boardId', 'name', 'path') 'project.get did not return a direct registration object.'
     Assert-Board ([string]$currentProject.BoardId -eq $boardId) 'project.get did not resolve the registered project from --cwd.'
     $board = (Invoke-BoardCli @('board', 'get', '--project', $projectName, '--cwd', $workspace, '--json')).data
-    Assert-Fields $board @('schemaVersion', 'boardId', 'name', 'revision', 'columns', 'cards') 'board.get did not return the expected direct board object shape.'
+    Assert-Fields $board @('schemaVersion', 'boardId', 'name', 'revision', 'boardRevision', 'commentRevision', 'columns', 'cards') 'board.get did not return the expected direct board object shape.'
     Assert-Board ($board.Columns.Count -eq 4) 'board.get did not return the four initialized columns.'
+    Assert-Board (@($board.Columns | Where-Object { $_.status -in @('notStarted', 'inProgress', 'pendingReview', 'closed') }).Count -eq 4) 'Initialized columns do not map the four stable states.'
     $revision = [long]$board.Revision
     $todoColumn = $board.Columns | Where-Object Title -eq '待办' | Select-Object -First 1
     if ($TagsOnly) {
@@ -212,18 +219,18 @@ try {
         return
     }
     $review = (Invoke-BoardCli @('board', 'column', 'create', '--project', $boardId, '--title', '验收列', '--order', '1', '--revision', "$revision")).data
-    Assert-Fields $review @('column', 'revision') 'board.column.create returned the wrong shape.'
+    Assert-Fields $review @('column', 'revision', 'boardRevision', 'commentRevision') 'board.column.create returned the wrong shape.'
     $reviewId = [string]$review.column.id
     $revision = [long]$review.revision
     $columns = (Invoke-BoardCli @('board', 'column', 'move', '--project', $boardId, '--id', $reviewId, '--order', '0', '--revision', "$revision")).data
-    Assert-Fields $columns @('column', 'revision') 'board.column.move returned the wrong shape.'
+    Assert-Fields $columns @('column', 'revision', 'boardRevision', 'commentRevision') 'board.column.move returned the wrong shape.'
     $revision = [long]$columns.revision
     $columnList = (Invoke-BoardCli @('board', 'column', 'list', '--cwd', $projectPath)).data
-    Assert-Fields $columnList @('columns', 'revision') 'board.column.list returned the wrong shape.'
+    Assert-Fields $columnList @('columns', 'revision', 'boardRevision', 'commentRevision') 'board.column.list returned the wrong shape.'
     Assert-Board ([string]$columnList.columns[0].id -eq $reviewId) 'board.column.move did not reorder the column through CLI.'
     $columnUpdateInput = Write-BoardJson 'column-update.json' ([ordered]@{ title = '验收列更新' })
     $renamedColumn = (Invoke-BoardCli @('board', 'column', 'update', '--project', $boardId, '--id', $reviewId, '--input', $columnUpdateInput, '--revision', "$revision")).data
-    Assert-Fields $renamedColumn @('column', 'revision') 'board.column.update returned the wrong shape.'
+    Assert-Fields $renamedColumn @('column', 'revision', 'boardRevision', 'commentRevision') 'board.column.update returned the wrong shape.'
     $revision = [long]$renamedColumn.revision
     Assert-Board ([string]$renamedColumn.column.title -eq '验收列更新') 'board.column.update did not rename the column.'
 
@@ -235,13 +242,15 @@ try {
         dueDate = '2026-10-15T09:00:00+08:00'
     })
     $created = (Invoke-BoardCli @('board', 'card', 'create', '--input', $cardInput, '--priority', '2', '--column-id', $reviewId, '--revision', "$revision")).data
-    Assert-Fields $created @('card', 'revision') 'board.card.create returned the wrong shape.'
+    Assert-Fields $created @('card', 'revision', 'boardRevision', 'commentRevision') 'board.card.create returned the wrong shape.'
     $card = $created.card
     $revision = [long]$created.revision
-    Assert-Board ($card.title -eq '中文 CLI 卡片' -and $card.priority -eq 2 -and $card.tags.Count -eq 2 -and $card.columnId -eq $reviewId) 'JSON input and non-conflicting flags did not merge into the created card.'
+    Assert-Board ($card.title -eq '中文 CLI 卡片' -and $card.priority -eq 2 -and $card.tags.Count -eq 2 -and $card.columnId -eq $reviewId -and $card.status -eq 'notStarted') 'JSON input and non-conflicting flags did not merge into a not-started card.'
     $duplicateTitle = Invoke-BoardCli @('board', 'card', 'create', '--input', $cardInput, '--title', 'duplicate') @(2) @('INVALID_ARGUMENT')
     $invalidCardInput = Write-BoardJson 'invalid-card.json' ([ordered]@{ title = 'must not persist'; unknown = $true })
     $invalidPayload = Invoke-BoardCli @('board', 'card', 'create', '--input', $invalidCardInput) @(2) @('INVALID_ARGUMENT')
+    $invalidStatusInput = Write-BoardJson 'invalid-card-status.json' ([ordered]@{ title = 'must not set state'; status = 'closed' })
+    $invalidStatus = Invoke-BoardCli @('board', 'card', 'create', '--input', $invalidStatusInput) @(2) @('INVALID_ARGUMENT')
     $dueDateConflict = Invoke-BoardCli @('board', 'card', 'update', '--project', $boardId, '--id', [string]$card.id, '--due-date', '2026-10-16T09:00:00+08:00', '--clear-due-date') @(2) @('INVALID_ARGUMENT')
     $latest = (Invoke-BoardCli @('board', 'get', '--project', $boardId)).data
     Assert-Board (@($latest.Cards).Count -eq 1) 'A duplicate JSON/flag field created a card.'
@@ -249,13 +258,13 @@ try {
 
     $cardUpdateInput = Write-BoardJson 'card-update.json' ([ordered]@{ description = 'merged from JSON input' })
     $inputUpdated = (Invoke-BoardCli @('board', 'card', 'update', '--project', $boardId, '--id', [string]$card.id, '--input', $cardUpdateInput, '--priority', '1', '--revision', "$revision")).data
-    Assert-Fields $inputUpdated @('card', 'revision') 'board.card.update returned the wrong shape.'
+    Assert-Fields $inputUpdated @('card', 'revision', 'boardRevision', 'commentRevision') 'board.card.update returned the wrong shape.'
     $card = $inputUpdated.card
     $revision = [long]$inputUpdated.revision
     Assert-Board ($card.description -eq 'merged from JSON input' -and $card.priority -eq 1) 'board.card.update --input did not merge with a non-conflicting explicit flag.'
 
     $updated = (Invoke-BoardCli @('board', 'card', 'update', '--project', $boardId, '--id', [string]$card.id, '--clear-due-date', '--tags', '--column-id', [string]$todoColumn.id, '--order', '0', '--revision', "$revision")).data
-    Assert-Fields $updated @('card', 'revision') 'board.card.update with multiple flags returned the wrong shape.'
+    Assert-Fields $updated @('card', 'revision', 'boardRevision', 'commentRevision') 'board.card.update with multiple flags returned the wrong shape.'
     $card = $updated.card
     $revision = [long]$updated.revision
     Assert-Board ($null -eq $card.dueDate -and @($card.tags).Count -eq 0 -and [string]$card.columnId -eq [string]$todoColumn.id -and $card.order -eq 0) 'Card update did not clear due date/tags or apply column/order flags.'
@@ -268,13 +277,13 @@ try {
     $revision = [long]$repeatedTags.revision
     Assert-Board (@($card.tags).Count -eq 2 -and $card.tags[0] -eq '标签乙' -and $card.tags[1] -eq 'two words') 'Repeated --tags options did not preserve both values.'
     $moved = (Invoke-BoardCli @('board', 'card', 'move', '--project', $boardId, '--id', [string]$card.id, '--target-column-id', $reviewId, '--order', '0', '--revision', "$revision")).data
-    Assert-Fields $moved @('card', 'revision') 'board.card.move returned the wrong shape.'
+    Assert-Fields $moved @('card', 'revision', 'boardRevision', 'commentRevision') 'board.card.move returned the wrong shape.'
     $card = $moved.card
     $revision = [long]$moved.revision
     Assert-Board ([string]$card.columnId -eq $reviewId) 'board.card.move did not use targetColumnId.'
 
     $deleted = (Invoke-BoardCli @('board', 'card', 'delete', '--project', $boardId, '--id', [string]$card.id, '--revision', "$revision")).data
-    Assert-Fields $deleted @('card', 'revision') 'board.card.delete returned the wrong shape.'
+    Assert-Fields $deleted @('card', 'revision', 'boardRevision', 'commentRevision') 'board.card.delete returned the wrong shape.'
     $revision = [long]$deleted.revision
     Assert-Board ([string]$deleted.card.id -eq [string]$card.id -and $deleted.card.deletedAt) 'board.card.delete did not soft-delete the card.'
     $visible = (Invoke-BoardCli @('board', 'card', 'list', '--project', $boardId)).data
@@ -282,7 +291,7 @@ try {
     $deletedInColumn = (Invoke-BoardCli @('board', 'card', 'list', '--project', $boardId, '--column-id', $reviewId, '--include-deleted')).data
     Assert-Fields $visible @('cards', 'revision') 'board.card.list returned the wrong shape.'
     Assert-Fields $withDeleted @('cards', 'revision') 'board.card.list --include-deleted returned the wrong shape.'
-    Assert-Fields $deletedInColumn @('cards', 'revision') 'board.card.list filters returned the wrong shape.'
+    Assert-Fields $deletedInColumn @('cards', 'revision', 'boardRevision', 'commentRevision') 'board.card.list filters returned the wrong shape.'
     Assert-Board (@($visible.cards).Count -eq 0 -and @($withDeleted.cards).Count -eq 1 -and @($deletedInColumn.cards).Count -eq 1) 'board.card.list columnId/includeDeleted behavior is incorrect.'
     $columnDeleted = (Invoke-BoardCli @('board', 'column', 'delete', '--project', $boardId, '--id', $reviewId, '--target-column-id', [string]$todoColumn.id, '--revision', "$revision")).data
     Assert-Fields $columnDeleted @('column', 'revision') 'board.column.delete returned the wrong shape.'
@@ -293,7 +302,7 @@ try {
     $transferredDeletedCard = $getCardResponse.card
     Assert-Board ([string]$columnDeleted.column.id -eq $reviewId -and @($boardAfterColumnDelete.Columns).Count -eq 4 -and [string]$transferredDeletedCard.columnId -eq [string]$todoColumn.id -and $transferredDeletedCard.deletedAt) 'Deleting a column did not transfer its soft-deleted cards.'
     $restored = (Invoke-BoardCli @('board', 'card', 'restore', '--project', $boardId, '--id', [string]$card.id, '--revision', "$revision")).data
-    Assert-Fields $restored @('card', 'revision') 'board.card.restore returned the wrong shape.'
+    Assert-Fields $restored @('card', 'revision', 'boardRevision', 'commentRevision') 'board.card.restore returned the wrong shape.'
     $revision = [long]$restored.revision
     Assert-Board ($null -eq $restored.card.deletedAt) 'board.card.restore did not clear deletedAt.'
 
@@ -301,7 +310,7 @@ try {
     $todoTwo = (Invoke-BoardCli @('board', 'card', 'add-to-todo', '--project', $boardId, '--id', [string]$card.id, '--revision', "$revision")).data
     Assert-Fields $todoOne @('todoId') 'board.card.add-to-todo returned the wrong shape.'
     $todoList = (Invoke-BoardCli @('task', 'list')).data
-    Assert-Board ([string]$todoOne.todoId -eq [string]$todoTwo.todoId -and @($todoList).Count -eq 1 -and [string]$todoList[0].id -eq [string]$todoOne.todoId) 'Repeated add-to-todo created more than one personal task.'
+    Assert-Board ([string]$todoOne.todoId -eq [string]$todoTwo.todoId -and @($todoList).Count -eq 1 -and [string]$todoList[0].id -eq [string]$todoOne.todoId -and $todoList[0].title -eq $card.title -and $todoList[0].description -eq $card.description) 'Repeated add-to-todo did not preserve the v1 task snapshot or created more than one personal task.'
 
     $oldTaskInput = Write-BoardJson 'old-task.json' ([ordered]@{ title = '旧 task 回归'; description = 'before' })
     $oldTask = (Invoke-BoardCli @('task', 'create', '--input', $oldTaskInput)).data
@@ -350,4 +359,5 @@ finally {
     foreach ($entry in (Get-BoardTestHosts)) {
         Stop-Process -Id $entry.ProcessId -ErrorAction SilentlyContinue
     }
+    $env:TOOLBOX_TASK_TEST_ROOT = $previousTaskRoot
 }

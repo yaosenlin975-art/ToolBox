@@ -100,3 +100,18 @@ Multica：`CSH-50`（issue `01a13e47-5591-7cdf-9542-6a0bd6014fb8`），项目 `8
 - 临时 AppData 的真实 Windows 发现 probe：Codex/Claude/opencode/ZCode/Trae 可发现；Qoder/WorkBuddy 为待确认候选；CodeBuddy extensionless Node shim 漏检已登记 D4。未启动真实宿主。
 - C2 主程序隔离构建 0 错误（约 200 个已有警告）；22 个 CLI 包文件逐 SHA256 一致；版本 2.1.0，49 capabilities；state 阶段 222 checks 通过。
 - comments 真实 CLI 第 22 次长评论写入 IO_ERROR（此前 21 次成功），失败时 board 702,412 bytes、commentRevision 33、未外置、无 journal；重启同临时 root 后短/长写入通过。证据保留，已并入 Core 的 S2 I/O 诊断；不以重启成功判根治。附件阶段未运行。
+
+### S2 原子保存故障定位
+
+- DEBUG 长评论压力复现：第 9 轮、第 11 次保存，HResult `0x80070497`，堆栈 FileSystem.ReplaceFile → WriteAtomic → SaveComments → CommentAdd；与评论迁移阈值无关。
+- [ReplaceFileW 官方错误语义](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew)：1175 保留原文件和替换文件的名称；1176/1177 可能已改变文件状态。保持 File.Replace 的属性/ACL 语义，仅对可安全保留状态的瞬时替换失败做有界重试，每次重试检查期望旧 hash 与候选新 hash；其他错误返回，不重放业务。
+- Core 正在实现并验证：短共享锁释放后仅一次写入、永久锁保持数据、外部改写冲突、长评论压力及全量回归。首个合并 Changed 断言已拆出首写成功与嵌套读取诊断，原事件同步且在释放 gate 后触发，未发现事件等待竞争。
+
+### C2 当前交付（完整验收未通过）
+
+- 最后一次隔离主构建 200 警告/0 错误；22 个 CLI 文件 hash 一致，CLI `2.1.0+5987ab3`、49 capabilities。
+- state 阶段 222 检查通过。该次实际命令含 `-ExecutionPolicy Bypass`；后续按现有策略运行 `pwsh -NoProfile -File`，不再使用该参数，不改系统策略。
+- 新 root 单次 I/O 诊断 22/22 长评论写成功；现场与每次写前快照：`C:\Users\Administrator\AppData\Local\Temp\ToolBox Board Comment I-O Diagnostic cc97f29ee8c64fb99327916532eed458`。旧失败 root 已被重启探针修改，不作为原始现场。
+- Live WPF 完成 34 项后在详情语言切换失败：RenderSelection 重复挂载 summaryText，UI U2 正在修。harness deadline 从 15 秒调为 40 秒（覆盖 IPC 30 秒与启动），原启动超时未复现，未宣称根治。
+- 首轮 Light/Dark 中文 Board/详情图在 `C:\Users\Administrator\AppData\Local\Temp\ToolBox Board UI Check 73da99ec297845ff9d6e0fc00042df0a`。父验看发现暗色状态徽标对比不足与根父项空显示，已交 U2。图片区域的 Unknown operation 对应 S3 尚未实施。
+- `comments`、`attachments` 和 `all` 尚未通过；修复后仅重验受影响阶段，最终 all 再覆盖完整闭环。
