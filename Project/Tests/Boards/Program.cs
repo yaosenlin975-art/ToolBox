@@ -49,6 +49,14 @@ internal static class Program
             Console.WriteLine("Project board comment checks passed.");
             return;
         }
+        if (args.Contains("--attachments", StringComparer.Ordinal))
+        {
+            Directory.CreateDirectory(root);
+            try { await CheckAttachmentsAsync(root); }
+            finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+            Console.WriteLine("Project board attachment checks passed.");
+            return;
+        }
         if (args.Contains("--dedup", StringComparer.Ordinal))
         {
             string dedupProjectPath = Path.Combine(root, "project");
@@ -114,6 +122,8 @@ internal static class Program
             CheckNewBoardAtomicNoOverwrite(root);
             Console.WriteLine("invalid Todo ID");
             await CheckInvalidTodoIdAsync(root);
+            Console.WriteLine("attachments");
+            await CheckAttachmentsAsync(root);
         }
         finally
         {
@@ -1202,6 +1212,402 @@ internal static class Program
     }
 
     private static string HashBytes(byte[] bytes) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
+
+    private static async Task CheckAttachmentsAsync(string root)
+    {
+        await CheckAttachmentBasicsAsync(Path.Combine(root, "attachment-basics"));
+        await CheckAttachmentValidationAsync(Path.Combine(root, "attachment-validation"));
+        await CheckAttachmentDedupAsync(Path.Combine(root, "attachment-dedup"));
+        await CheckAttachmentIntegrityAsync(Path.Combine(root, "attachment-integrity"));
+        await CheckAttachmentRollbackAsync(Path.Combine(root, "attachment-rollback"));
+        await CheckAttachmentRecoveryAsync(Path.Combine(root, "attachment-recovery"));
+        await CheckAttachmentWriteProtectionAsync(Path.Combine(root, "attachment-protection"));
+        await CheckAttachmentNullSessionsAsync(Path.Combine(root, "attachment-null-session"));
+    }
+
+    private static async Task<(ProjectBoardStore Store, string Project, string ProjectPath)> AttachmentProjectAsync(string testRoot)
+    {
+        string projectPath = Path.Combine(testRoot, "project");
+        Directory.CreateDirectory(projectPath);
+        var store = new ProjectBoardStore(Path.Combine(testRoot, "registry"),
+            request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo is unavailable in attachment checks.")));
+        ProjectBoardRegistration registration = Read<ProjectBoardRegistration>(await CallAsync(store, "project.register", new { path = projectPath, init = true }));
+        return (store, registration.BoardId.ToString(), projectPath);
+    }
+
+    private static async Task<(ProjectBoardStore Store, string Project, string ProjectPath, ProjectBoardCard Card)> AttachmentCardAsync(string testRoot)
+    {
+        (ProjectBoardStore store, string project, string projectPath) = await AttachmentProjectAsync(testRoot);
+        ProjectBoardCard card = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.create", new { project, title = "images" }), "card");
+        return (store, project, projectPath, card);
+    }
+
+    private static byte[] AttachmentImage(byte alpha)
+    {
+        using var bitmap = new System.Drawing.Bitmap(1, 1);
+        bitmap.SetPixel(0, 0, System.Drawing.Color.FromArgb(alpha, 0, 0, 0));
+        using var stream = new MemoryStream();
+        bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+        return stream.ToArray();
+    }
+
+    private static string AttachmentBoardPath(string projectPath) => Path.Combine(projectPath, ".toolbox", "board.json");
+
+    private static string AttachmentJournalPath(string projectPath) => Path.Combine(projectPath, ".toolbox", "attachments.journal.json");
+
+    private static string AttachmentStoredPath(string projectPath, string relativePath) =>
+        Path.GetFullPath(Path.Combine(projectPath, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+
+    private static string AttachmentRelative(string projectPath, string path) =>
+        Path.GetRelativePath(projectPath, path).Replace(Path.DirectorySeparatorChar, '/');
+
+    private static string[] AttachmentTemporaryFiles(string projectPath) =>
+        Directory.Exists(projectPath) ? Directory.GetFiles(projectPath, "*.tmp", SearchOption.AllDirectories) : [];
+
+    private static JsonElement SingleAttachment(TaskResponse response, Guid attachmentId) =>
+        Array(Read(response), "attachments").Single(item => item.GetProperty("id").GetGuid() == attachmentId);
+
+    private static int RemoveAttachmentMetadata(string projectPath, Guid cardId, Guid attachmentId)
+    {
+        string boardPath = AttachmentBoardPath(projectPath);
+        JsonObject board = JsonNode.Parse(File.ReadAllBytes(boardPath))!.AsObject();
+        JsonArray attachments = board["cards"]!.AsArray()
+            .Single(node => node!["id"]!.GetValue<Guid>() == cardId)!.AsObject()["attachments"]!.AsArray();
+        int removed = 0;
+        for (int index = attachments.Count - 1; index >= 0; index--)
+        {
+            if (attachments[index]!["id"]!.GetValue<Guid>() != attachmentId) continue;
+            attachments.RemoveAt(index);
+            removed++;
+        }
+        File.WriteAllText(boardPath, board.ToJsonString(BoardStorageOptions));
+        return removed;
+    }
+
+    private static async Task CheckAttachmentBasicsAsync(string testRoot)
+    {
+        (ProjectBoardStore store, string project, string projectPath, ProjectBoardCard card) = await AttachmentCardAsync(testRoot);
+        string source = Path.Combine(testRoot, "source.png");
+        byte[] image = AttachmentImage(255);
+        File.WriteAllBytes(source, image);
+
+        JsonElement added = Read(await CallAsync(store, "board.attachment.add", new
+        {
+            project, id = card.Id, file = source, actor = "image-author", host = "test-host", session = "test-session"
+        }));
+        Check(added.TryGetProperty("attachment", out _) && added.TryGetProperty("revision", out _) &&
+            added.TryGetProperty("boardRevision", out _) && added.TryGetProperty("commentRevision", out _),
+            "board.attachment.add returns the frozen v2 shape");
+        JsonElement attachment = added.GetProperty("attachment");
+        Guid attachmentId = attachment.GetProperty("id").GetGuid();
+        Check(attachmentId != Guid.Empty && attachment.GetProperty("fileName").GetString() == "source.png" &&
+            attachment.GetProperty("addedBy").GetString() == "image-author",
+            "the added image keeps its id, file name, and author");
+        Check(attachment.GetProperty("size").GetInt64() == image.Length && attachment.GetProperty("sha256").GetString() == HashBytes(image),
+            "the stored size and hash match the source bytes");
+        string relativePath = attachment.GetProperty("relativePath").GetString()!;
+        Check(relativePath.StartsWith(".toolbox/board-assets/", StringComparison.Ordinal),
+            "the stored path is expressed relative to the project root");
+        string storedPath = AttachmentStoredPath(projectPath, relativePath);
+        Check(storedPath.StartsWith(Path.Combine(projectPath, ".toolbox") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase),
+            "the stored image resolves inside the project .toolbox directory");
+        Check(File.Exists(storedPath) && File.ReadAllBytes(storedPath).SequenceEqual(image), "the stored image bytes match the source");
+        Check(Directory.GetFiles(Path.GetDirectoryName(storedPath)!).Length == 1, "adding an image stores exactly one file");
+
+        JsonElement listed = Read(await CallAsync(store, "board.attachment.list", new { project, id = card.Id }));
+        Check(listed.TryGetProperty("attachments", out _) && listed.TryGetProperty("revision", out _) &&
+            listed.TryGetProperty("boardRevision", out _) && listed.TryGetProperty("commentRevision", out _),
+            "board.attachment.list returns the frozen v2 shape");
+        JsonElement item = Array(listed, "attachments").Single();
+        Check(item.GetProperty("id").GetGuid() == attachmentId &&
+            item.GetProperty("exists").GetBoolean() && item.GetProperty("hashMatch").GetBoolean(),
+            "a present image is listed as existing and hash-matching");
+    }
+
+    private static async Task CheckAttachmentValidationAsync(string testRoot)
+    {
+        (ProjectBoardStore store, string project, string projectPath, ProjectBoardCard card) = await AttachmentCardAsync(testRoot);
+        byte[] before = File.ReadAllBytes(AttachmentBoardPath(projectPath));
+
+        string notImage = Path.Combine(testRoot, "notes.txt");
+        File.WriteAllText(notImage, "not an image");
+        CheckCode(await CallAsync(store, "board.attachment.add", new { project, id = card.Id, file = notImage, actor = "a", host = "h", session = "s" }),
+            "INVALID_ARGUMENT", "an extension outside the whitelist is rejected");
+
+        string fakeImage = Path.Combine(testRoot, "fake.png");
+        File.WriteAllText(fakeImage, "not an image");
+        CheckCode(await CallAsync(store, "board.attachment.add", new { project, id = card.Id, file = fakeImage, actor = "a", host = "h", session = "s" }),
+            "INVALID_ARGUMENT", "bytes that do not decode as an image are rejected");
+
+        CheckCode(await CallAsync(store, "board.attachment.add", new { project, id = card.Id, file = "source.png", actor = "a", host = "h", session = "s" }),
+            "INVALID_ARGUMENT", "a relative image path is rejected");
+
+        string oversized = Path.Combine(testRoot, "oversized.png");
+        byte[] huge = new byte[10 * 1024 * 1024 + 1];
+        System.Array.Copy(AttachmentImage(255), huge, 8);
+        File.WriteAllBytes(oversized, huge);
+        TaskResponse tooLarge = await CallAsync(store, "board.attachment.add", new { project, id = card.Id, file = oversized, actor = "a", host = "h", session = "s" });
+        Check(!tooLarge.Ok && tooLarge.Error?.Code is "INVALID_ARGUMENT" or "ATTACHMENT_TOO_LARGE" or "FILE_TOO_LARGE",
+            "an image over 10 MiB is rejected with an attachment size error");
+
+        Check(File.ReadAllBytes(AttachmentBoardPath(projectPath)).SequenceEqual(before), "rejected images leave board metadata unchanged");
+        Check(AttachmentTemporaryFiles(projectPath).Length == 0, "rejected images leave no temporary file behind");
+        string assetsDirectory = Path.Combine(projectPath, ".toolbox", "board-assets");
+        Check(!Directory.Exists(assetsDirectory) || Directory.GetFiles(assetsDirectory, "*", SearchOption.AllDirectories).Length == 0,
+            "rejected images never reach the asset directory");
+    }
+
+    private static async Task CheckAttachmentDedupAsync(string testRoot)
+    {
+        (ProjectBoardStore store, string project, string projectPath, ProjectBoardCard card) = await AttachmentCardAsync(testRoot);
+        ProjectBoardCard other = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.create", new { project, title = "other" }), "card");
+        string source = Path.Combine(testRoot, "source.png");
+        File.WriteAllBytes(source, AttachmentImage(255));
+
+        JsonElement first = Read(await CallAsync(store, "board.attachment.add", new { project, id = card.Id, file = source, actor = "a", host = "h", session = "s" }));
+        JsonElement second = Read(await CallAsync(store, "board.attachment.add", new { project, id = card.Id, file = source, actor = "b", host = "h", session = "s" }));
+        Guid firstId = first.GetProperty("attachment").GetProperty("id").GetGuid();
+        Check(second.GetProperty("attachment").GetProperty("id").GetGuid() == firstId, "identical bytes on the same card return the existing attachment");
+        Check(second.GetProperty("revision").GetInt64() == first.GetProperty("revision").GetInt64(), "deduplication does not advance the board revision");
+        string storedPath = AttachmentStoredPath(projectPath, first.GetProperty("attachment").GetProperty("relativePath").GetString()!);
+        Check(Directory.GetFiles(Path.GetDirectoryName(storedPath)!).Length == 1, "deduplication copies the image only once");
+
+        JsonElement acrossCards = Read(await CallAsync(store, "board.attachment.add", new { project, id = other.Id, file = source, actor = "a", host = "h", session = "s" }));
+        Check(acrossCards.GetProperty("attachment").GetProperty("id").GetGuid() != firstId, "deduplication is scoped to a single card");
+    }
+
+    private static async Task CheckAttachmentIntegrityAsync(string testRoot)
+    {
+        (ProjectBoardStore store, string project, string projectPath, ProjectBoardCard card) = await AttachmentCardAsync(testRoot);
+        string source = Path.Combine(testRoot, "source.png");
+        byte[] image = AttachmentImage(255);
+        File.WriteAllBytes(source, image);
+        JsonElement added = Read(await CallAsync(store, "board.attachment.add", new { project, id = card.Id, file = source, actor = "a", host = "h", session = "s" }));
+        Guid attachmentId = added.GetProperty("attachment").GetProperty("id").GetGuid();
+        string storedPath = AttachmentStoredPath(projectPath, added.GetProperty("attachment").GetProperty("relativePath").GetString()!);
+        byte[] boardBefore = File.ReadAllBytes(AttachmentBoardPath(projectPath));
+
+        File.Delete(storedPath);
+        JsonElement missing = SingleAttachment(await CallAsync(store, "board.attachment.list", new { project, id = card.Id }), attachmentId);
+        Check(!missing.GetProperty("exists").GetBoolean() && !missing.GetProperty("hashMatch").GetBoolean(), "a deleted image is listed as missing");
+
+        File.WriteAllBytes(storedPath, AttachmentImage(128));
+        JsonElement replaced = SingleAttachment(await CallAsync(store, "board.attachment.list", new { project, id = card.Id }), attachmentId);
+        Check(replaced.GetProperty("exists").GetBoolean() && !replaced.GetProperty("hashMatch").GetBoolean(),
+            "a replaced image is listed as existing with a hash mismatch");
+
+        File.WriteAllBytes(storedPath, image);
+        JsonElement unchanged = SingleAttachment(await CallAsync(store, "board.attachment.list", new { project, id = card.Id }), attachmentId);
+        Check(unchanged.GetProperty("exists").GetBoolean() && unchanged.GetProperty("hashMatch").GetBoolean(), "an untouched image hash-matches again");
+
+        Check(File.ReadAllBytes(AttachmentBoardPath(projectPath)).SequenceEqual(boardBefore),
+            "external file changes never rewrite attachment metadata or touch other files");
+    }
+
+    private static async Task CheckAttachmentRollbackAsync(string testRoot)
+    {
+        (ProjectBoardStore store, string project, string projectPath, ProjectBoardCard card) = await AttachmentCardAsync(testRoot);
+        string source = Path.Combine(testRoot, "source.png");
+        File.WriteAllBytes(source, AttachmentImage(255));
+        byte[] boardBefore = File.ReadAllBytes(AttachmentBoardPath(projectPath));
+        File.WriteAllText(Path.Combine(projectPath, ".toolbox", "board-assets"), "blocked");
+
+        TaskResponse failed = await CallAsync(store, "board.attachment.add", new { project, id = card.Id, file = source, actor = "a", host = "h", session = "s" });
+        CheckCode(failed, "IO_ERROR", "an unusable asset directory fails the copy");
+        Check(File.ReadAllBytes(AttachmentBoardPath(projectPath)).SequenceEqual(boardBefore), "a failed copy commits no metadata");
+        Check(Array(Read(await CallAsync(store, "board.attachment.list", new { project, id = card.Id })), "attachments").Length == 0,
+            "a failed copy adds no attachment");
+        Check(AttachmentTemporaryFiles(projectPath).Length == 0, "a failed copy leaves no temporary file behind");
+    }
+
+    private static async Task CheckAttachmentRecoveryAsync(string testRoot)
+    {
+        await CheckAttachmentRecoveryModeAsync(Path.Combine(testRoot, "restore"), "restore");
+        await CheckAttachmentRecoveryModeAsync(Path.Combine(testRoot, "clean"), "clean");
+        await CheckAttachmentRecoveryModeAsync(Path.Combine(testRoot, "tampered"), "tampered");
+        await CheckAttachmentRecoveryModeAsync(Path.Combine(testRoot, "both"), "both");
+        await CheckAttachmentUnreadableJournalAsync(Path.Combine(testRoot, "broken-journal"));
+    }
+
+    private static async Task CheckAttachmentRecoveryModeAsync(string testRoot, string mode)
+    {
+        (ProjectBoardStore store, string project, string projectPath, ProjectBoardCard card) = await AttachmentCardAsync(testRoot);
+        string source = Path.Combine(testRoot, "source.png");
+        File.WriteAllBytes(source, AttachmentImage(255));
+        JsonElement added = Read(await CallAsync(store, "board.attachment.add", new { project, id = card.Id, file = source, actor = "a", host = "h", session = "s" }));
+        Guid attachmentId = added.GetProperty("attachment").GetProperty("id").GetGuid();
+        string storedPath = AttachmentStoredPath(projectPath, added.GetProperty("attachment").GetProperty("relativePath").GetString()!);
+        string tombstonePath = storedPath + ".tombstone";
+        string journalPath = AttachmentJournalPath(projectPath);
+
+        // 中断点：文件已改名为 tombstone 且 journal 已落盘；元数据按 mode 决定是否仍在。
+        File.Move(storedPath, tombstonePath);
+        string recordedHash = mode == "tampered" ? HashBytes(AttachmentImage(128)) : HashBytes(File.ReadAllBytes(tombstonePath));
+        if (mode == "clean") RemoveAttachmentMetadata(projectPath, card.Id, attachmentId);
+        // both：用户从备份或 git 恢复了原文件，此刻原文件与 tombstone 同时存在。
+        if (mode == "both") File.WriteAllBytes(storedPath, File.ReadAllBytes(tombstonePath));
+        File.WriteAllBytes(journalPath, JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            schemaVersion = 1,
+            entries = new[]
+            {
+                new
+                {
+                    attachmentId,
+                    cardId = card.Id,
+                    storedPath = AttachmentRelative(projectPath, storedPath),
+                    tombstonePath = AttachmentRelative(projectPath, tombstonePath),
+                    sha256 = recordedHash
+                }
+            }
+        }, Web));
+        byte[] boardBefore = File.ReadAllBytes(AttachmentBoardPath(projectPath));
+
+        var restarted = new ProjectBoardStore(Path.Combine(testRoot, "registry"),
+            request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo is unavailable in attachment checks.")));
+        TaskResponse read = await CallAsync(restarted, "board.get", new { project });
+        Check(read.Ok, $"recovery read succeeded for mode {mode}: {read.Error?.Code}");
+        if (mode is "tampered" or "both")
+        {
+            // 无法安全判定时既不改写元数据，也不自动清除证据：journal 与双方文件原样保留。
+            Check(File.Exists(journalPath), $"{mode}: the journal is preserved for a skipped entry");
+            Check(File.Exists(tombstonePath), $"{mode}: the tombstone is preserved for a skipped entry");
+            Check(File.Exists(storedPath) == (mode == "both"), $"{mode}: the stored file is neither created nor removed automatically");
+            bool expectedAvailable = mode == "both";
+            JsonElement item = SingleAttachment(await CallAsync(restarted, "board.attachment.list", new { project, id = card.Id }), attachmentId);
+            Check(item.GetProperty("exists").GetBoolean() == expectedAvailable && item.GetProperty("hashMatch").GetBoolean() == expectedAvailable,
+                $"{mode}: availability is reported through markers without rewriting metadata");
+            Check(File.ReadAllBytes(AttachmentBoardPath(projectPath)).SequenceEqual(boardBefore), $"{mode}: attachment metadata is left untouched");
+            return;
+        }
+        Check(!File.Exists(journalPath), "a finished recovery leaves no journal behind");
+        if (mode == "restore")
+        {
+            Check(File.Exists(storedPath) && !File.Exists(tombstonePath), "live metadata restores the tombstoned image");
+            JsonElement item = SingleAttachment(await CallAsync(restarted, "board.attachment.list", new { project, id = card.Id }), attachmentId);
+            Check(item.GetProperty("exists").GetBoolean() && item.GetProperty("hashMatch").GetBoolean(), "the restored image still matches its metadata");
+        }
+        else
+        {
+            Check(!File.Exists(storedPath) && !File.Exists(tombstonePath), "removed metadata cleans the tombstone");
+            Check(Array(Read(await CallAsync(restarted, "board.attachment.list", new { project, id = card.Id })), "attachments").Length == 0,
+                "the removed attachment stays removed");
+        }
+    }
+
+    private static async Task CheckAttachmentUnreadableJournalAsync(string testRoot)
+    {
+        (ProjectBoardStore store, string project, string projectPath, ProjectBoardCard card) = await AttachmentCardAsync(testRoot);
+        string source = Path.Combine(testRoot, "source.png");
+        byte[] image = AttachmentImage(255);
+        File.WriteAllBytes(source, image);
+        JsonElement added = Read(await CallAsync(store, "board.attachment.add", new { project, id = card.Id, file = source, actor = "a", host = "h", session = "s" }));
+        Guid attachmentId = added.GetProperty("attachment").GetProperty("id").GetGuid();
+        string storedPath = AttachmentStoredPath(projectPath, added.GetProperty("attachment").GetProperty("relativePath").GetString()!);
+        byte[] boardBefore = File.ReadAllBytes(AttachmentBoardPath(projectPath));
+        string journalPath = AttachmentJournalPath(projectPath);
+        File.WriteAllText(journalPath, "{ this is not a valid attachment journal");
+
+        var restarted = new ProjectBoardStore(Path.Combine(testRoot, "registry"),
+            request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo is unavailable in attachment checks.")));
+        TaskResponse read = await CallAsync(restarted, "board.get", new { project });
+        Check(read.Ok, $"an unparseable journal never makes the board unreadable: {read.Error?.Code}");
+        Check(File.Exists(journalPath), "an unparseable journal is preserved instead of deleted");
+        JsonElement item = SingleAttachment(await CallAsync(restarted, "board.attachment.list", new { project, id = card.Id }), attachmentId);
+        Check(item.GetProperty("exists").GetBoolean() && item.GetProperty("hashMatch").GetBoolean(),
+            "a live image is still listed as existing and hash-matching");
+        Check(File.Exists(storedPath) && File.ReadAllBytes(storedPath).SequenceEqual(image), "an unparseable journal leaves the image file untouched");
+        Check(File.ReadAllBytes(AttachmentBoardPath(projectPath)).SequenceEqual(boardBefore), "an unparseable journal rewrites no metadata");
+    }
+
+    private static async Task CheckAttachmentWriteProtectionAsync(string testRoot)
+    {
+        (ProjectBoardStore store, string project, string projectPath, ProjectBoardCard card) = await AttachmentCardAsync(testRoot);
+        string source = Path.Combine(testRoot, "source.png");
+        File.WriteAllBytes(source, AttachmentImage(255));
+        _ = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.claim", new
+        {
+            project, id = card.Id, actor = "owner", host = "codex", session = "owner-session", ttlMinutes = 5
+        }), "card");
+
+        TaskResponse foreignAdd = await CallAsync(store, "board.attachment.add", new
+        {
+            project, id = card.Id, file = source, actor = "other", host = "claude", session = "other-session"
+        });
+        CheckCode(foreignAdd, "CONFLICT", "another owner's claim blocks adding an image");
+        Check(Array(Read(await CallAsync(store, "board.attachment.list", new { project, id = card.Id })), "attachments").Length == 0,
+            "a blocked add writes no metadata");
+
+        JsonElement added = Read(await CallAsync(store, "board.attachment.add", new
+        {
+            project, id = card.Id, file = source, actor = "owner", host = "codex", session = "owner-session"
+        }));
+        Guid attachmentId = added.GetProperty("attachment").GetProperty("id").GetGuid();
+        string storedPath = AttachmentStoredPath(projectPath, added.GetProperty("attachment").GetProperty("relativePath").GetString()!);
+
+        TaskResponse foreignRemove = await CallAsync(store, "board.attachment.remove", new
+        {
+            project, attachmentId, actor = "other", host = "claude", session = "other-session"
+        });
+        CheckCode(foreignRemove, "CONFLICT", "another owner's claim blocks removing an image");
+        Check(File.Exists(storedPath), "a blocked remove keeps the image file");
+
+        TaskResponse ownRemove = await CallAsync(store, "board.attachment.remove", new
+        {
+            project, attachmentId, actor = "owner", host = "codex", session = "owner-session"
+        });
+        Check(Read(ownRemove).GetProperty("attachment").GetProperty("id").GetGuid() == attachmentId,
+            "the claim owner removes the image and gets the removed attachment back");
+        Check(!File.Exists(storedPath), "the removal moves the image out of the asset directory");
+    }
+
+    private static async Task CheckAttachmentNullSessionsAsync(string testRoot)
+    {
+        (ProjectBoardStore store, string project, string projectPath) = await AttachmentProjectAsync(testRoot);
+        string? nullSession = null;
+        TaskResponse created = await CallAsync(store, "board.card.create", new
+        {
+            project, title = "null session", actor = "local-user", host = "toolbox", session = nullSession
+        });
+        Check(created.Ok, "board.card.create accepts an explicit null session");
+        ProjectBoardCard card = ReadWrapped<ProjectBoardCard>(created, "card");
+
+        string source = Path.Combine(testRoot, "source.png");
+        File.WriteAllBytes(source, AttachmentImage(255));
+        TaskResponse added = await CallAsync(store, "board.attachment.add", new
+        {
+            project, id = card.Id, file = source, actor = "local-user", host = "toolbox", session = nullSession
+        });
+        Check(added.Ok, "board.attachment.add accepts an explicit null session");
+        Guid attachmentId = Read(added).GetProperty("attachment").GetProperty("id").GetGuid();
+
+        TaskResponse commented = await CallAsync(store, "board.comment.add", new
+        {
+            project, id = card.Id, body = "hello", actor = "local-user", host = "toolbox", session = nullSession
+        });
+        Check(commented.Ok, "board.comment.add accepts an explicit null session");
+        Guid commentId = ReadWrapped<ProjectBoardComment>(commented, "comment").Id;
+
+        TaskResponse bound = await CallAsync(store, "board.comment.bind", new
+        {
+            project, commentId, targetHost = "other-host", targetSession = nullSession, actor = "local-user", host = "toolbox", session = nullSession
+        });
+        Check(bound.Ok, "board.comment.bind accepts an explicit null target session");
+        Check(ReadWrapped<ProjectBoardComment>(bound, "comment").Origin is { Host: "other-host", SessionId: null },
+            "binding a null target session keeps the host alone");
+
+        TaskResponse removed = await CallAsync(store, "board.attachment.remove", new
+        {
+            project, attachmentId, actor = "local-user", host = "toolbox", session = nullSession
+        });
+        Check(removed.Ok, "board.attachment.remove accepts an explicit null session");
+
+        TaskResponse deleted = await CallAsync(store, "board.card.delete", new
+        {
+            project, id = card.Id, actor = "local-user", host = "toolbox", session = nullSession
+        });
+        Check(deleted.Ok, "board.card.delete accepts an explicit null session");
+    }
 
     private static void CopyDirectory(string source, string destination)
     {

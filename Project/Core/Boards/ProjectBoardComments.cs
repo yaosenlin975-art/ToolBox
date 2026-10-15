@@ -242,7 +242,7 @@ public sealed partial class ProjectBoardStore
         ProjectBoardComment comment = FindComment(snapshot.Board, commentId, out Guid cardId);
         bool clear = OptionalBoolean(payload, "clear") ?? false;
         ProjectBoardCommentOrigin? origin = clear ? null : new ProjectBoardCommentOrigin(
-            RequiredText(payload, "targetHost"), payload.TryGetProperty("targetSession", out _) ? RequiredText(payload, "targetSession") : null);
+            RequiredText(payload, "targetHost"), OptionalNullableText(payload, "targetSession"));
         if (Equals(origin, comment.Origin)) return CommentMutationResponse(comment, cardId, snapshot.Board);
 
         ProjectBoardComment updatedComment = comment with { Origin = origin, UpdatedAt = DateTime.UtcNow };

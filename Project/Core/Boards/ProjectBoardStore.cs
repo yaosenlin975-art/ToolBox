@@ -147,6 +147,9 @@ public sealed partial class ProjectBoardStore
             "board.comment.inbox" => CommentInbox(payload),
             "board.comment.ack" => CommentAck(payload),
             "board.comment.bind" => CommentBind(payload),
+            "board.attachment.add" => AttachmentAdd(payload),
+            "board.attachment.list" => AttachmentList(payload),
+            "board.attachment.remove" => AttachmentRemove(payload),
             "board.card.add-to-todo" => await AddToTodoAsync(request, payload).ConfigureAwait(false),
             _ => throw Invalid("Unknown operation.", "operation")
         };
@@ -784,8 +787,13 @@ public sealed partial class ProjectBoardStore
     private static BoardIdentity ReadRequiredIdentity(JsonElement payload) =>
         ReadIdentity(payload) ?? throw Invalid("actor and host are required.", "actor");
 
-    private static string? OptionalSession(JsonElement payload) =>
-        payload.TryGetProperty("session", out _) ? RequiredText(payload, "session") : null;
+    private static string? OptionalSession(JsonElement payload) => OptionalNullableText(payload, "session");
+
+    private static string? OptionalNullableText(JsonElement payload, string field)
+    {
+        if (!payload.TryGetProperty(field, out JsonElement value) || value.ValueKind == JsonValueKind.Null) return null;
+        return RequiredText(payload, field);
+    }
 
     private static ProjectBoardColumn? FindMappedColumn(IEnumerable<ProjectBoardColumn> columns, string status) =>
         columns.FirstOrDefault(column => column.Status == status);
@@ -997,6 +1005,7 @@ public sealed partial class ProjectBoardStore
             }
             board = NormalizeBoard(board);
             ValidateBoard(board);
+            RecoverAttachmentTombstones(root, board);
             string hash = Hash(bytes);
             if (knownBoardHashes.TryGetValue(board.BoardId, out string? knownHash) && !string.Equals(hash, knownHash, StringComparison.Ordinal))
             {
@@ -1339,7 +1348,10 @@ public sealed partial class ProjectBoardStore
         ["board.comment.delete"] = Set("project", "cwd", "commentId", "actor", "host", "session", "revision", "commentRevision"),
         ["board.comment.inbox"] = Set("project", "cwd", "host", "session", "actor", "ttlMinutes", "limit", "cursor", "commentRevision"),
         ["board.comment.ack"] = Set("project", "cwd", "commentId", "claimId", "actor", "host", "session", "revision", "commentRevision"),
-        ["board.comment.bind"] = Set("project", "cwd", "commentId", "targetHost", "targetSession", "clear", "actor", "host", "session", "revision", "commentRevision")
+        ["board.comment.bind"] = Set("project", "cwd", "commentId", "targetHost", "targetSession", "clear", "actor", "host", "session", "revision", "commentRevision"),
+        ["board.attachment.add"] = Set("project", "cwd", "id", "file", "actor", "host", "session", "revision"),
+        ["board.attachment.list"] = Set("project", "cwd", "id"),
+        ["board.attachment.remove"] = Set("project", "cwd", "attachmentId", "actor", "host", "session", "revision")
     };
 
     private static void ValidatePayloadTypes(string operation, JsonElement payload)
@@ -1358,10 +1370,14 @@ public sealed partial class ProjectBoardStore
                 case "cursor":
                 case "actor":
                 case "host":
-                case "session":
                 case "targetHost":
-                case "targetSession":
+                case "file":
                     if (value.ValueKind != JsonValueKind.String) throw Invalid("A string is required.", property.Name);
+                    break;
+                case "session":
+                case "targetSession":
+                    // session 允许显式 null：UI 会以 session=null 表示“未提供身份/仅绑定 host”。
+                    if (value.ValueKind is not (JsonValueKind.String or JsonValueKind.Null)) throw Invalid("A string or null is required.", property.Name);
                     break;
                 case "init":
                 case "replacePath":
@@ -1378,6 +1394,7 @@ public sealed partial class ProjectBoardStore
                 case "claimId":
                 case "columnId":
                 case "targetColumnId":
+                case "attachmentId":
                     if (value.ValueKind != JsonValueKind.String || !Guid.TryParse(value.GetString(), out Guid id) || id == Guid.Empty)
                         throw Invalid("A non-empty UUID is required.", property.Name);
                     break;
@@ -1423,7 +1440,8 @@ public sealed partial class ProjectBoardStore
             "board.card.move" or "board.card.delete" or "board.card.restore" or "board.card.add-to-todo" or
             "board.card.claim" or "board.card.release" or "board.card.submit" or "board.card.close" or "board.card.reopen" or
             "board.comment.add" or "board.comment.get" or "board.comment.list" or "board.comment.update" or
-            "board.comment.delete" or "board.comment.inbox" or "board.comment.ack" or "board.comment.bind")
+            "board.comment.delete" or "board.comment.inbox" or "board.comment.ack" or "board.comment.bind" or
+            "board.attachment.add" or "board.attachment.list" or "board.attachment.remove")
         {
             if (!payload.TryGetProperty("project", out _) && !payload.TryGetProperty("cwd", out _))
                 throw Invalid("project or cwd is required.", "project");
@@ -1520,15 +1538,18 @@ public sealed partial class ProjectBoardStore
                 _ = RequiredGuid(payload, "commentId");
                 _ = ReadRequiredIdentity(payload);
                 bool clear = OptionalBoolean(payload, "clear") ?? false;
-                bool hasTarget = payload.TryGetProperty("targetHost", out _) || payload.TryGetProperty("targetSession", out _);
+                // JSON null 视为“未提供”，从而支持仅绑定 host、session 留空。
+                bool hasTarget = OptionalNullableText(payload, "targetHost") != null || OptionalNullableText(payload, "targetSession") != null;
                 if (clear == hasTarget) throw Invalid("Set either clear=true or targetHost, but not both.", "clear");
                 if (payload.TryGetProperty("targetHost", out _)) _ = RequiredText(payload, "targetHost");
-                if (payload.TryGetProperty("targetSession", out _))
-                {
-                    _ = RequiredText(payload, "targetHost");
-                    _ = RequiredText(payload, "targetSession");
-                }
+                if (OptionalNullableText(payload, "targetSession") != null) _ = RequiredText(payload, "targetHost");
                 break;
+            case "board.attachment.add":
+                _ = RequiredGuid(payload, "id");
+                _ = RequiredText(payload, "file");
+                break;
+            case "board.attachment.list": _ = RequiredGuid(payload, "id"); break;
+            case "board.attachment.remove": _ = RequiredGuid(payload, "attachmentId"); break;
         }
         if ((operation is "board.card.claim" or "board.card.move") && OptionalTransition(payload) == "claim")
         {
