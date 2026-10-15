@@ -9,5 +9,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Views/Boards/*.cs" Link="Boards/%(Filename)%(Extension)" />
+    <Compile Include="../../Core/Boards/ProjectBoardModels.cs" Link="Core/ProjectBoardModels.cs" />
   </ItemGroup>
 </Project>

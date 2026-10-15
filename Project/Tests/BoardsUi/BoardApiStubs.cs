@@ -1,4 +1,7 @@
 using System.Text.Json;
+using System.IO;
+using ToolBox.Core.Boards;
+using ToolBox.Core.Todo;
 
 namespace ToolBox
 {
@@ -11,24 +14,19 @@ namespace ToolBox
 
 namespace ToolBox.Core.Boards
 {
-    public sealed record ProjectBoardRegistration(Guid BoardId, string Name, string Path);
-    public sealed record ProjectBoard(int SchemaVersion, Guid BoardId, string Name, long Revision, IReadOnlyList<ProjectBoardColumn> Columns, IReadOnlyList<ProjectBoardCard> Cards);
-    public sealed record ProjectBoardColumn(Guid Id, string Title, int Order);
-    public sealed record ProjectBoardCard(Guid Id, string Title, string Description, Guid ColumnId, int Order, int Priority, IReadOnlyList<string> Tags, DateTime? DueDate, DateTime CreatedAt, DateTime UpdatedAt, DateTime? DeletedAt);
-
     public sealed class ProjectBoardStore
     {
         public static ProjectBoardStore Instance { get; } = new();
         public event Action? Changed;
-        public Func<ToolBox.Core.Todo.TaskRequest, ToolBox.Core.Todo.TaskResponse>? RequestHandler { get; set; }
-        public List<ToolBox.Core.Todo.TaskRequest> Requests { get; } = [];
+        public Func<TaskRequest, TaskResponse>? RequestHandler { get; set; }
+        public List<TaskRequest> Requests { get; } = [];
         public IReadOnlyList<ProjectBoardRegistration> Registrations { get; set; } = [];
         public ProjectBoard? CurrentBoard { get; set; }
         public void RaiseChanged() => Changed?.Invoke();
-        public Task<ToolBox.Core.Todo.TaskResponse> ExecuteAsync(ToolBox.Core.Todo.TaskRequest request)
+        public Task<TaskResponse> ExecuteAsync(TaskRequest request)
         {
             Requests.Add(request);
-            return Task.FromResult(RequestHandler?.Invoke(request) ?? new ToolBox.Core.Todo.TaskResponse());
+            return Task.FromResult(RequestHandler?.Invoke(request) ?? new TaskResponse());
         }
     }
 }
@@ -47,12 +45,39 @@ namespace ToolBox.Core.Todo
         public bool Ok { get; set; } = true;
         public object? Data { get; set; }
         public TaskError? Error { get; set; }
+        public IReadOnlyList<string>? Warnings { get; set; }
     }
 
     public sealed record TaskError(string Code, string Message, string? Field = null);
 
     public static class TaskProtocol
     {
-        public static JsonSerializerOptions Options { get; } = new(JsonSerializerDefaults.Web);
+        public static JsonSerializerOptions Options { get; } = new(JsonSerializerDefaults.Web)
+        {
+            UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow
+        };
+    }
+}
+
+namespace ToolBox.Core.BoardAgents
+{
+    public sealed record BoardAgentDelivery(string CommentId, string CardId, string ProjectRoot, string Host, string? Session, string Status, string ConfirmationHash, string? Error, DateTimeOffset UpdatedAt);
+    public sealed record BoardAgentHostInfo(string Host, string DisplayName, string Mode, string? ResolvedPath, string? EntryPath, string DetectedVia, bool Available, bool RequiresPathConfirmation, string? CandidatePath, bool SupportsSession, bool InboxPull, string? UriScheme);
+    public sealed record BoardAgentLaunchTarget(string Kind, string? Path, string? Uri, string ProjectRoot);
+
+    public sealed class BoardCommandService
+    {
+        public static BoardCommandService Instance { get; } = new();
+        public Task<TaskResponse> ExecuteAsync(TaskRequest request, CancellationToken cancellationToken = default) => ProjectBoardStore.Instance.ExecuteAsync(request);
+    }
+
+    public sealed class BoardAgentService
+    {
+        public static BoardAgentService Instance { get; } = new();
+        public event Action? Changed;
+        public string GetConfigPath() => Path.Combine(Path.GetTempPath(), "board-agents.json");
+        public Task<IReadOnlyList<BoardAgentHostInfo>> DiscoverAsync(bool refresh = false, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<BoardAgentHostInfo>>([]);
+        public BoardAgentLaunchTarget? ResolveLaunch(string host, string projectRoot) => null;
+        public void RaiseChanged() => Changed?.Invoke();
     }
 }

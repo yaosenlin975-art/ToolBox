@@ -18,9 +18,12 @@
 - [ ] S3：Core/Boards 图片添加/移除/预览上下文、实际解码、路径与 10MiB 限制、删除 journal。验证失败回滚、崩溃恢复、缺失/篡改标记。
 - [x] D1：Core/BoardAgents 本机配置、8 宿主发现、类型化启动、确认/always、提交与 ack 分离、超时 unknown、失败与手工兜底。假宿主检查通过。
 - [x] D2：共享 BoardCommandService 接线存储、投递与 ack；UI/IPC 共用入口；投递查询无发送副作用；已保存评论不能因投递失败被伪报失败。假 Store/假进程验证通过，真实 Store 接线由 C2 验证。
+- [ ] D3：处理确认优先于本机投递记录。Core 评论已 ack 时 delivery 返回 acknowledged，deliver 不再启动；无本机记录、needsConfirmation 或排队状态也能处理 pull ack，抑制尚未启动的队列。评论正文编辑清 ack/收件租约，新正文重新确认。补假 Store/假进程回归。
+- [ ] D3 执行环境：外部宿主进程不继承启动 ToolBox 的 TOOLBOX_BOARD_ACTOR 及已知执行会话标识，防止新 Agent 冒用旧执行身份；目标会话仍由精确 argv 指定。假子进程验证，不清无关用户环境变量。
+- [ ] D3 本机配置：补齐 §5.6 的按宿主禁用、超时设置与可编辑参数数组/消息传输配置；保留类型化 exe/Node 启动，限定模板 token，验证正文不会变为命令选项。父按实际配置 schema 更新设计与使用说明。
 - [x] C1：TaskProtocol、AgentCapabilities、Cli/BoardCommands 接入 18 新操作与旧操作扩展；同步全部 schema/flag/错误码；协议与无副作用 CLI 检查通过。
 - [ ] C2：CLI 隔离集成覆盖四态、树、评论、附件、投递及冲突；与完成后的 Store/投递服务对齐。
-- [ ] U1：Views/Boards 统一主题弹窗与内联校验；根卡徽标、详情子树/图片/评论/会话绑定/回复确认/投递状态。中英同步，保留 modal/drag 快照。Tests/BoardsUi 与独立真实 WPF harness 验证关键动作和双主题资源。
+- [x] U1：Views/Boards 统一主题弹窗与内联校验；根卡徽标、详情子树/图片/评论/会话绑定/回复确认/投递状态。中英同步，保留 modal/drag 快照。独立 UI harness 通过，真实 Store/WPF 端到端由 C2 继续验证。
 - [ ] K1：Docs/skills/toolbox-board/SKILL.md 定义发现、身份、领取、续租、CRUD、提交/验收、inbox/ack 和错误处理；旧技能看板章节改指针；CLI csproj 发布链接；安装已授权宿主目录并核对内容一致。
 - [ ] V1：独立验收逐项核对 R1–R8 与 §13；复用当前有效检查，修复实证缺陷；Release 构建、发布 CLI/host/两技能并核对版本与能力表。
 - [ ] V2：更新 Docs/design.md、CHANGELOG、PENDING_TESTS、README、task-cli-usage；记录真实未验证项；工作日志与提交；完成目标前逐项核对证据。
@@ -75,3 +78,10 @@ Multica：`CSH-50`（issue `01a13e47-5591-7cdf-9542-6a0bd6014fb8`），项目 `8
 - comment.delivery/deliver 响应为 `{delivery,revision,boardRevision,commentRevision}`，comment.add 保留原 data 并追加可选 delivery。
 - App board 分支已改用共享 BoardCommandService；未调用真实 Agent，会话端到端和实际 S2 Store 接线待 C2。
 - C2 已开始编写隔离集成用例，主程序需等 UI 编译接线就绪后统一构建；S2/S3 未实现前不将完整集成标记通过。
+
+### U1 与 C2 准备证据
+
+- `dotnet run --project Project/Tests/BoardsUi/BoardsUi.csproj`：Board UI checks passed；链接真实 Board 模型，服务使用 stubs。覆盖原 modal 快照、3000 层父链、根卡筛选、状态映射、确认取消不发送/不改剪贴板及资源检查。
+- `git diff --check` 通过；`rg MessageBox Project/Views/Boards` 无匹配。真实 Store、图片与评论的端到端仍待 C2。
+- C2 脚本已新增 `board-v2-cli-integration.ps1`（state/comments/attachments/all），all 不跳过未实现阶段；旧脚本同步 49 capabilities，live harness 增加主题/语言渲染与临时 PNG。
+- C2 首次主构建 `dotnet build Project/ToolBox.csproj -c Debug -p:OutputPath=bin/BoardAcceptance/debug/` 失败（54 错误/100 警告）：ProjectBoardComments.cs 缺显式 System.IO。已路由 Core 修复；未复制 CLI、未启动 state/UI 测试。脚本解析与空白检查通过，运行尚未验收。

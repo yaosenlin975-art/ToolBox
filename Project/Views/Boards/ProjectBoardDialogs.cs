@@ -8,6 +8,7 @@ using ToolBox.Core.Boards;
 namespace ToolBox.Views.Boards;
 
 internal sealed record BoardCardDraft(string Title, string Description, int Priority, IReadOnlyList<string> Tags, DateTime? DueDate);
+internal enum BoardInitializationChoice { Cancel, RegisterOnly, Initialize }
 
 internal static class ProjectBoardDialogs
 {
@@ -15,14 +16,13 @@ internal static class ProjectBoardDialogs
     {
         string Text(string key, string fallback) => GetText(owner, key, fallback);
         var window = CreateWindow(owner, title, 560);
-        var root = new Grid();
+        var root = NewGrid();
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        var header = CreateHeader(window, title);
-        root.Children.Add(header);
+        root.Children.Add(CreateHeader(window, title));
 
-        var form = new StackPanel { Margin = new Thickness(20, 12, 20, 16) };
+        var form = new StackPanel { Margin = new Thickness(20, 12, 20, 12) };
         var titleInput = TextInput(card?.Title ?? "", 34);
         var descriptionInput = TextInput(card?.Description ?? "", 110);
         descriptionInput.AcceptsReturn = true;
@@ -41,6 +41,7 @@ internal static class ProjectBoardDialogs
         dueDate.SetResourceReference(Control.BackgroundProperty, "BgSunkenBrush");
         var clearDate = CreateButton(Text("Lang_Board_ClearDate", "Clear date"));
         clearDate.Click += (_, _) => dueDate.SelectedDate = null;
+        var error = InlineError();
 
         AddField(form, Text("Lang_Board_Title", "Title"), titleInput);
         AddField(form, Text("Lang_Board_Description", "Description"), descriptionInput);
@@ -51,21 +52,22 @@ internal static class ProjectBoardDialogs
         dateRow.Children.Add(dueDate);
         dateRow.Children.Add(clearDate);
         AddField(form, Text("Lang_Board_DueDate", "Due date"), dateRow);
+        form.Children.Add(error);
         var formScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 590, Content = form };
         Grid.SetRow(formScroll, 1);
         root.Children.Add(formScroll);
 
-        var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(20, 0, 20, 16) };
+        var footer = Footer();
         var cancel = CreateButton(Text("Lang_Board_Cancel", "Cancel"));
+        cancel.IsCancel = true;
         cancel.Margin = new Thickness(0, 0, 8, 0);
-        cancel.Click += (_, _) => window.DialogResult = false;
         var save = CreateButton(Text("Lang_Board_Save", "Save"), "BtnPrimary");
-        save.Click += (_, _) =>
+        save.IsDefault = true;
+        void Submit()
         {
             if (string.IsNullOrWhiteSpace(titleInput.Text))
             {
-                MessageBox.Show(window, Text("Lang_Board_TitleRequired", "Enter a title."), title,
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                error.Text = Text("Lang_Board_TitleRequired", "Enter a title.");
                 titleInput.Focus();
                 return;
             }
@@ -74,7 +76,9 @@ internal static class ProjectBoardDialogs
             window.Tag = new BoardCardDraft(titleInput.Text.Trim(), descriptionInput.Text, priorityInput.SelectedIndex,
                 tags, dueDate.SelectedDate?.Date.ToUniversalTime());
             window.DialogResult = true;
-        };
+        }
+        save.Click += (_, _) => Submit();
+        titleInput.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; Submit(); } };
         footer.Children.Add(cancel);
         footer.Children.Add(save);
         Grid.SetRow(footer, 2);
@@ -87,7 +91,8 @@ internal static class ProjectBoardDialogs
     public static Guid? ChooseColumn(Window? owner, string title, IReadOnlyList<ProjectBoardColumn> columns)
     {
         var window = CreateWindow(owner, title, 420);
-        var root = new Grid { Margin = new Thickness(20) };
+        var root = NewGrid();
+        root.Margin = new Thickness(20);
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -96,15 +101,13 @@ internal static class ProjectBoardDialogs
         if (columns.Count > 0) selector.SelectedValue = columns[0].Id;
         Grid.SetRow(selector, 1);
         root.Children.Add(selector);
-        var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        var footer = Footer();
         var cancel = CreateButton(GetText(owner, "Lang_Board_Cancel", "Cancel"));
+        cancel.IsCancel = true;
         cancel.Margin = new Thickness(0, 0, 8, 0);
-        cancel.Click += (_, _) => window.DialogResult = false;
         var choose = CreateButton(GetText(owner, "Lang_Board_Save", "Select"), "BtnPrimary");
-        choose.Click += (_, _) =>
-        {
-            if (selector.SelectedValue is Guid) window.DialogResult = true;
-        };
+        choose.IsDefault = true;
+        choose.Click += (_, _) => { if (selector.SelectedValue is Guid) window.DialogResult = true; };
         footer.Children.Add(cancel);
         footer.Children.Add(choose);
         Grid.SetRow(footer, 2);
@@ -117,34 +120,40 @@ internal static class ProjectBoardDialogs
     {
         string Text(string key, string fallback) => GetText(owner, key, fallback);
         var window = CreateWindow(owner, title, 420);
-        var root = new Grid { Margin = new Thickness(18) };
+        var root = NewGrid();
+        root.Margin = new Thickness(18);
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.Children.Add(CreateHeader(window, title));
-        var fields = new StackPanel { Margin = new Thickness(0, 8, 0, 16) };
+        var fields = new StackPanel { Margin = new Thickness(0, 8, 0, 10) };
         fields.Children.Add(Label(prompt));
         var input = TextInput(initialValue, 34);
         input.MinHeight = 34;
         fields.Children.Add(input);
+        var error = InlineError();
+        fields.Children.Add(error);
         Grid.SetRow(fields, 1);
         root.Children.Add(fields);
-        var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        var footer = Footer();
         var cancel = CreateButton(Text("Lang_Board_Cancel", "Cancel"));
+        cancel.IsCancel = true;
         cancel.Margin = new Thickness(0, 0, 8, 0);
-        cancel.Click += (_, _) => window.DialogResult = false;
         var save = CreateButton(Text("Lang_Board_Save", "Save"), "BtnPrimary");
-        save.Click += (_, _) =>
+        save.IsDefault = true;
+        void Submit()
         {
             if (string.IsNullOrWhiteSpace(input.Text))
             {
-                MessageBox.Show(window, Text("Lang_Board_TitleRequired", "Enter a value."), title, MessageBoxButton.OK, MessageBoxImage.Information);
+                error.Text = Text("Lang_Board_TitleRequired", "Enter a value.");
                 input.Focus();
                 return;
             }
             window.Tag = input.Text.Trim();
             window.DialogResult = true;
-        };
+        }
+        save.Click += (_, _) => Submit();
+        input.PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; Submit(); } };
         footer.Children.Add(cancel);
         footer.Children.Add(save);
         Grid.SetRow(footer, 2);
@@ -152,6 +161,93 @@ internal static class ProjectBoardDialogs
         window.Content = CreateShell(root);
         window.Loaded += (_, _) => { input.Focus(); input.SelectAll(); };
         return window.ShowDialog() == true ? window.Tag as string : null;
+    }
+
+    public static BoardInitializationChoice ChooseInitialization(Window? owner, string title, string message)
+    {
+        var window = CreateWindow(owner, title, 500);
+        var root = NewGrid();
+        root.Margin = new Thickness(20);
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.Children.Add(CreateHeader(window, title));
+        var text = Label(message);
+        text.TextWrapping = TextWrapping.Wrap;
+        text.Margin = new Thickness(0, 12, 0, 18);
+        Grid.SetRow(text, 1);
+        root.Children.Add(text);
+        var footer = Footer();
+        var cancel = CreateButton(GetText(owner, "Lang_Board_Cancel", "Cancel"));
+        cancel.IsCancel = true;
+        cancel.Click += (_, _) => window.Tag = BoardInitializationChoice.Cancel;
+        var register = CreateButton(GetText(owner, "Lang_Board_RegisterOnly", "Register only"));
+        register.Click += (_, _) => { window.Tag = BoardInitializationChoice.RegisterOnly; window.DialogResult = true; };
+        var initialize = CreateButton(GetText(owner, "Lang_Board_Initialize", "Initialize"), "BtnPrimary");
+        initialize.Click += (_, _) => { window.Tag = BoardInitializationChoice.Initialize; window.DialogResult = true; };
+        footer.Children.Add(cancel);
+        footer.Children.Add(register);
+        footer.Children.Add(initialize);
+        Grid.SetRow(footer, 2);
+        root.Children.Add(footer);
+        window.Content = CreateShell(root);
+        return window.ShowDialog() == true && window.Tag is BoardInitializationChoice choice ? choice : BoardInitializationChoice.Cancel;
+    }
+
+    public static bool Confirm(Window? owner, string title, string message, string confirmLabel, bool danger = false)
+    {
+        var window = CreateWindow(owner, title, 500);
+        var root = NewGrid();
+        root.Margin = new Thickness(20);
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.Children.Add(CreateHeader(window, title));
+        var text = Label(message);
+        text.TextWrapping = TextWrapping.Wrap;
+        text.Margin = new Thickness(0, 12, 0, 18);
+        Grid.SetRow(text, 1);
+        root.Children.Add(text);
+        var footer = Footer();
+        var cancel = CreateButton(GetText(owner, "Lang_Board_Cancel", "Cancel"));
+        cancel.IsCancel = true;
+        cancel.IsDefault = false;
+        cancel.Margin = new Thickness(0, 0, 8, 0);
+        var confirm = CreateButton(confirmLabel, danger ? "BtnDefault" : "BtnPrimary");
+        if (danger) confirm.SetResourceReference(Control.ForegroundProperty, "ErrorBrush");
+        confirm.IsDefault = !danger;
+        confirm.Click += (_, _) => window.DialogResult = true;
+        footer.Children.Add(cancel);
+        footer.Children.Add(confirm);
+        Grid.SetRow(footer, 2);
+        root.Children.Add(footer);
+        window.Content = CreateShell(root);
+        return window.ShowDialog() == true;
+    }
+
+    public static void Notify(Window? owner, string title, string message)
+    {
+        var window = CreateWindow(owner, title, 500);
+        var root = NewGrid();
+        root.Margin = new Thickness(20);
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.Children.Add(CreateHeader(window, title));
+        var text = Label(message);
+        text.TextWrapping = TextWrapping.Wrap;
+        text.Margin = new Thickness(0, 12, 0, 18);
+        Grid.SetRow(text, 1);
+        root.Children.Add(text);
+        var footer = Footer();
+        var ok = CreateButton(GetText(owner, "Lang_OK", "OK"), "BtnPrimary");
+        ok.IsDefault = true;
+        ok.Click += (_, _) => window.DialogResult = true;
+        footer.Children.Add(ok);
+        Grid.SetRow(footer, 2);
+        root.Children.Add(footer);
+        window.Content = CreateShell(root);
+        window.ShowDialog();
     }
 
     private static Window CreateWindow(Window? owner, string title, double width) => new()
@@ -168,6 +264,8 @@ internal static class ProjectBoardDialogs
         ResizeMode = ResizeMode.NoResize,
         ShowInTaskbar = false
     };
+
+    private static Grid NewGrid() => new() { Background = Brushes.Transparent };
 
     private static Border CreateShell(UIElement content)
     {
@@ -190,14 +288,23 @@ internal static class ProjectBoardDialogs
         close.Width = 30;
         close.Height = 30;
         close.Margin = new Thickness(0, 0, 6, 0);
+        close.IsCancel = true;
         close.Click += (_, _) => window.DialogResult = false;
         Grid.SetColumn(close, 1);
         grid.Children.Add(close);
-        grid.MouseLeftButtonDown += (_, e) =>
-        {
-            if (e.ChangedButton == MouseButton.Left) window.DragMove();
-        };
+        grid.MouseLeftButtonDown += (_, e) => { if (e.ChangedButton == MouseButton.Left) window.DragMove(); };
         return grid;
+    }
+
+    private static StackPanel Footer() => new() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(20, 0, 20, 16) };
+
+    private static TextBlock InlineError()
+    {
+        var error = Label("");
+        error.SetResourceReference(TextBlock.ForegroundProperty, "ErrorBrush");
+        error.TextWrapping = TextWrapping.Wrap;
+        error.Margin = new Thickness(0, 4, 0, 2);
+        return error;
     }
 
     private static void AddField(Panel panel, string label, UIElement input)
@@ -223,11 +330,14 @@ internal static class ProjectBoardDialogs
         return input;
     }
 
-    private static Button CreateButton(string text, string style = "BtnDefault")
+    internal static Button CreateButton(string text, string style = "BtnDefault") => new()
     {
-        var button = new Button { Content = text, Padding = new Thickness(12, 6, 12, 6), MinHeight = 30, Style = Application.Current?.TryFindResource(style) as Style };
-        return button;
-    }
+        Content = text,
+        Style = Application.Current?.TryFindResource(style) as Style,
+        Padding = new Thickness(12, 6, 12, 6),
+        MinHeight = 30,
+        Margin = new Thickness(4, 0, 0, 0)
+    };
 
     internal static string GetText(FrameworkElement? owner, string key, string fallback) =>
         owner?.TryFindResource(key) as string ?? Application.Current?.TryFindResource(key) as string ?? fallback;
