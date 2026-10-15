@@ -7,6 +7,7 @@ using ToolBox.Core.Todo;
 internal static class Program
 {
     private static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions Storage = new(JsonSerializerDefaults.Web) { IgnoreReadOnlyProperties = true };
 
     private static async Task Main(string[] args)
     {
@@ -25,6 +26,14 @@ internal static class Program
                 if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
             }
             Console.WriteLine("Targeted project board checks passed.");
+            return;
+        }
+        if (args.Contains("--state-tree", StringComparer.Ordinal))
+        {
+            Directory.CreateDirectory(root);
+            try { await CheckStateAndTreeAsync(root); }
+            finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+            Console.WriteLine("Project board state and tree checks passed.");
             return;
         }
 
@@ -66,13 +75,284 @@ internal static class Program
         Console.WriteLine("Project board checks passed.");
     }
 
+    private static async Task CheckStateAndTreeAsync(string root)
+    {
+        string testRoot = Path.Combine(root, "state-tree");
+        string registryRoot = Path.Combine(testRoot, "registry");
+        string projectPath = Path.Combine(testRoot, "project");
+        Directory.CreateDirectory(projectPath);
+        var store = new ProjectBoardStore(registryRoot, request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo is unavailable in board checks.")));
+        var registration = Read<ProjectBoardRegistration>(await CallAsync(store, "project.register", new { path = projectPath, init = true }));
+        string project = registration.BoardId.ToString();
+        ProjectBoard board = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project }));
+        Check(board.SchemaVersion == 2 && board.CommentRevision == 0 && board.Columns.Select(c => c.Status).ToHashSet().SetEquals(new[] { "notStarted", "inProgress", "pendingReview", "closed" }), "new boards use schema 2 and map all four statuses once");
+        using (JsonDocument boardResponse = JsonDocument.Parse(JsonSerializer.SerializeToUtf8Bytes(
+            await CallAsync(store, "board.get", new { project }), TaskProtocol.Options)))
+        {
+            Check(boardResponse.RootElement.GetProperty("data").GetProperty("boardRevision").GetInt64() == board.Revision &&
+                boardResponse.RootElement.GetProperty("data").GetProperty("commentRevision").GetInt64() == board.CommentRevision,
+                "board.get exposes boardRevision and commentRevision aliases");
+        }
+        using (JsonDocument boardFile = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(projectPath, ".toolbox", "board.json"))) )
+            Check(!boardFile.RootElement.TryGetProperty("boardRevision", out _), "the computed boardRevision alias is not written to disk");
+
+        TaskResponse duplicateStatus = await CallAsync(store, "board.column.create", new { project, title = "Second in progress", status = "inProgress" });
+        CheckCode(duplicateStatus, "CONFLICT", "a status cannot map to two columns");
+
+        ProjectBoardCard releaseCard = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.create", new { project, title = "release" }), "card");
+        ProjectBoardCard claimed = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.claim", new
+        {
+            project, id = releaseCard.Id, actor = "actor-a", host = "codex", session = "session-a", ttlMinutes = 5
+        }), "card");
+        Check(claimed.Status == "inProgress" && claimed.Claim?.ExpiresAt - claimed.Claim?.ClaimedAt == TimeSpan.FromMinutes(5), "claim atomically sets in-progress state and the requested lease");
+        CheckCode(await CallAsync(store, "board.card.release", new { project, id = releaseCard.Id, actor = "actor-a", host = "codex", session = "other-session" }), "CONFLICT", "session is part of claim ownership");
+        ProjectBoardCard released = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.release", new { project, id = releaseCard.Id, actor = "actor-a", host = "codex", session = "session-a" }), "card");
+        Check(released.Status == "notStarted" && released.Claim == null && released.Assignee == null, "release clears owner and returns to not-started");
+
+        ProjectBoardCard contested = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.create", new { project, title = "contest" }), "card");
+        TaskResponse[] claims = await Task.WhenAll(
+            CallAsync(store, "board.card.claim", new { project, id = contested.Id, actor = "actor-a", host = "codex", session = "a" }),
+            CallAsync(store, "board.card.claim", new { project, id = contested.Id, actor = "actor-b", host = "claude", session = "b" }));
+        Check(claims.Count(response => response.Ok) == 1 && claims.Count(response => response.Error?.Code == "CONFLICT") == 1, "concurrent claims grant exactly one execution owner");
+        JsonElement conflictData = JsonSerializer.SerializeToElement(claims.Single(response => !response.Ok).Data, Web);
+        Check(conflictData.GetProperty("conflictType").GetString() == "CLAIMED_BY_OTHER" && conflictData.GetProperty("expiresAt").ValueKind == JsonValueKind.String, "claim conflict includes the owner and expiry");
+        string winningActor = claims[0].Ok ? "actor-a" : "actor-b";
+        string winningHost = claims[0].Ok ? "codex" : "claude";
+        string winningSession = claims[0].Ok ? "a" : "b";
+        ProjectBoardCard reorderedClaim = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.create", new { project, title = "claimed sibling" }), "card");
+        CheckCode(await CallAsync(store, "board.card.claim", new
+        {
+            project, id = reorderedClaim.Id, actor = "inserter", host = "toolbox", columnId = board.Columns.Single(c => c.Status == "inProgress").Id, order = 0
+        }), "CONFLICT", "claiming into an earlier position cannot reorder another owner's claimed card");
+        Check(ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.get", new { project, id = reorderedClaim.Id }), "card").Status == "notStarted",
+            "a blocked sibling reorder does not partially claim the inserted card");
+        CheckCode(await CallAsync(store, "board.card.update", new { project, id = contested.Id, title = "other actor", actor = "other", host = "other-host" }), "CONFLICT", "an unowned update cannot change a claimed card");
+        CheckCode(await CallAsync(store, "board.card.move", new { project, id = contested.Id, targetColumnId = board.Columns.Single(c => c.Status == "notStarted").Id, actor = "other", host = "other-host" }), "CONFLICT", "an unowned move cannot change a claimed card");
+        ProjectBoardCard ownerEdit = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.update", new
+        {
+            project, id = contested.Id, title = "owner edit", actor = winningActor, host = winningHost, session = winningSession
+        }), "card");
+        Check(ownerEdit.Title == "owner edit", "the matching host, actor, and session can update a claimed card");
+        ProjectBoardCard heartbeat = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.claim", new
+        {
+            project, id = contested.Id, actor = winningActor, host = winningHost, session = winningSession, ttlMinutes = 5
+        }), "card");
+        Check(heartbeat.Claim!.HeartbeatAt >= claimed.Claim!.HeartbeatAt, "the owner can renew the claim");
+
+        string contestedBoardPath = Path.Combine(projectPath, ".toolbox", "board.json");
+        _ = await CallAsync(store, "board.get", new { project });
+        JsonObject expiredBoard = JsonNode.Parse(File.ReadAllBytes(contestedBoardPath))!.AsObject();
+        JsonObject expiredCard = expiredBoard["cards"]!.AsArray().Single(node => node!["id"]!.GetValue<Guid>() == contested.Id)!.AsObject();
+        JsonObject expiredClaim = expiredCard["claim"]!.AsObject();
+        expiredClaim["claimedAt"] = "2020-01-01T00:00:00Z";
+        expiredClaim["heartbeatAt"] = "2020-01-01T00:00:00Z";
+        expiredClaim["expiresAt"] = "2020-01-01T00:05:00Z";
+        File.WriteAllText(contestedBoardPath, expiredBoard.ToJsonString());
+        CheckCode(await CallAsync(store, "board.get", new { project }), "CONFLICT", "same-store external file edits remain protected by the hash check");
+        TaskResponse expiredWrite = await CallAsync(store, "board.card.update", new { project, id = contested.Id, title = "expired write" });
+        CheckCode(expiredWrite, "CONFLICT", "an expired lease blocks task writes until it is reclaimed");
+        using (JsonDocument expiredConflict = JsonDocument.Parse(JsonSerializer.SerializeToUtf8Bytes(expiredWrite, TaskProtocol.Options)))
+            Check(expiredConflict.RootElement.GetProperty("data").GetProperty("conflictType").GetString() == "CLAIM_EXPIRED",
+                "expired claim conflicts identify expiry and retain claim owner context");
+        var restartedStore = new ProjectBoardStore(registryRoot, request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo is unavailable in board checks.")));
+        ProjectBoardCard takeover = ReadWrapped<ProjectBoardCard>(await CallAsync(restartedStore, "board.card.claim", new
+        {
+            project, id = contested.Id, actor = "actor-c", host = "codex", session = "c", ttlMinutes = 5
+        }), "card");
+        Check(takeover.Claim?.ActorId == "actor-c", "a fresh store atomically takes over an expired lease");
+
+        ProjectBoardCard workflow = ReadWrapped<ProjectBoardCard>(await CallAsync(restartedStore, "board.card.create", new { project, title = "workflow" }), "card");
+        ProjectBoardCard workflowChild = ReadWrapped<ProjectBoardCard>(await CallAsync(restartedStore, "board.card.create", new { project, title = "child", parentId = workflow.Id }), "card");
+        Guid inProgressColumn = board.Columns.Single(c => c.Status == "inProgress").Id;
+        ProjectBoardCard transitionCard = ReadWrapped<ProjectBoardCard>(await CallAsync(restartedStore, "board.card.create", new { project, title = "move transition" }), "card");
+        CheckCode(await CallAsync(restartedStore, "board.card.move", new
+        {
+            project, id = transitionCard.Id, targetColumnId = inProgressColumn
+        }), "CONFLICT", "moving to a mapped workflow column requires an explicit transition");
+        ProjectBoardCard moved = ReadWrapped<ProjectBoardCard>(await CallAsync(restartedStore, "board.card.move", new
+        {
+            project, id = transitionCard.Id, targetColumnId = inProgressColumn, transition = "claim",
+            actor = "worker", host = "codex", session = "move-session"
+        }), "card");
+        Check(moved.Status == "inProgress" && moved.ColumnId == inProgressColumn && moved.Claim?.ActorId == "worker",
+            "a move transition atomically claims the card and places it in the mapped column");
+        ProjectBoardCard submitted = ReadWrapped<ProjectBoardCard>(await CallAsync(restartedStore, "board.card.submit", new
+        {
+            project, id = transitionCard.Id, actor = "worker", host = "codex", session = "move-session"
+        }), "card");
+        Check(submitted.Status == "pendingReview" && submitted.ColumnId == board.Columns.Single(c => c.Status == "pendingReview").Id,
+            "submit updates status and mapped column atomically");
+        ProjectBoardCard completed = ReadWrapped<ProjectBoardCard>(await CallAsync(restartedStore, "board.card.close", new
+        {
+            project, id = transitionCard.Id, actor = "local-user", host = "toolbox"
+        }), "card");
+        Check(completed.Status == "closed", "pending-review cards can be closed by the local user");
+        ProjectBoardCard reopened = ReadWrapped<ProjectBoardCard>(await CallAsync(restartedStore, "board.card.reopen", new
+        {
+            project, id = transitionCard.Id, actor = "local-user", host = "toolbox"
+        }), "card");
+        Check(reopened.Status == "notStarted" && reopened.Claim == null && reopened.Assignee == null,
+            "reopen returns a card to not-started and clears stale ownership");
+
+        ProjectBoardCard workingRoot = ReadWrapped<ProjectBoardCard>(await CallAsync(restartedStore, "board.card.claim", new
+        {
+            project, id = workflow.Id, actor = "worker", host = "codex", session = "workflow"
+        }), "card");
+        _ = workingRoot;
+        _ = await CallAsync(restartedStore, "board.card.submit", new { project, id = workflow.Id, actor = "worker", host = "codex", session = "workflow" });
+        CheckCode(await CallAsync(restartedStore, "board.card.close", new { project, id = workflow.Id, actor = "local-user", host = "toolbox" }),
+            "CONFLICT", "a parent cannot close while an active descendant is open");
+        _ = await CallAsync(restartedStore, "board.card.claim", new { project, id = workflowChild.Id, actor = "worker", host = "codex", session = "workflow" });
+        _ = await CallAsync(restartedStore, "board.card.submit", new { project, id = workflowChild.Id, actor = "worker", host = "codex", session = "workflow" });
+        _ = await CallAsync(restartedStore, "board.card.close", new { project, id = workflowChild.Id, actor = "local-user", host = "toolbox" });
+        _ = await CallAsync(restartedStore, "board.card.close", new { project, id = workflow.Id, actor = "local-user", host = "toolbox" });
+        CheckCode(await CallAsync(restartedStore, "board.card.create", new { project, title = "under closed", parentId = workflow.Id }),
+            "CONFLICT", "a closed parent cannot receive an open child");
+        CheckCode(await CallAsync(restartedStore, "board.card.create", new
+        {
+            project, title = "in closed column", columnId = board.Columns.Single(c => c.Status == "closed").Id
+        }), "CONFLICT", "a new card cannot bypass workflow state by choosing the closed column");
+        _ = await CallAsync(restartedStore, "board.card.reopen", new { project, id = workflow.Id, actor = "local-user", host = "toolbox" });
+        ProjectBoardCard cycleChild = ReadWrapped<ProjectBoardCard>(await CallAsync(restartedStore, "board.card.create", new { project, title = "cycle child", parentId = workflow.Id }), "card");
+        CheckCode(await CallAsync(restartedStore, "board.card.update", new { project, id = workflow.Id, parentId = cycleChild.Id }),
+            "CYCLE_DETECTED", "reparenting cannot create a cycle");
+        CheckCode(await CallAsync(restartedStore, "board.card.update", new { project, id = workflow.Id, parentId = workflow.Id }),
+            "CYCLE_DETECTED", "a card cannot become its own parent");
+
+        ProjectBoardCard partialRoot = ReadWrapped<ProjectBoardCard>(await CallAsync(restartedStore, "board.card.create", new { project, title = "closed root with old deletion" }), "card");
+        ProjectBoardCard partialChild = ReadWrapped<ProjectBoardCard>(await CallAsync(restartedStore, "board.card.create", new { project, title = "previously deleted", parentId = partialRoot.Id }), "card");
+        _ = await CallAsync(restartedStore, "board.card.delete", new { project, id = partialChild.Id });
+        _ = await CallAsync(restartedStore, "board.card.claim", new { project, id = partialRoot.Id, actor = "worker", host = "codex", session = "partial" });
+        _ = await CallAsync(restartedStore, "board.card.submit", new { project, id = partialRoot.Id, actor = "worker", host = "codex", session = "partial" });
+        _ = await CallAsync(restartedStore, "board.card.close", new { project, id = partialRoot.Id, actor = "local-user", host = "toolbox" });
+        _ = await CallAsync(restartedStore, "board.card.delete", new { project, id = partialRoot.Id });
+        _ = await CallAsync(restartedStore, "board.card.restore", new { project, id = partialRoot.Id });
+        ProjectBoardCard[] partialCards = Array(Read(await CallAsync(restartedStore, "board.card.list", new { project, includeDeleted = true })), "cards")
+            .Select(card => card.Deserialize<ProjectBoardCard>(Web)!).ToArray();
+        Check(partialCards.Single(card => card.Id == partialRoot.Id).DeletedAt == null && partialCards.Single(card => card.Id == partialChild.Id).DeletedAt != null,
+            "restoring a deleted ancestor preserves descendants that were already deleted before the subtree operation");
+
+        await CheckDeepTreeAsync(restartedStore, project, projectPath);
+        await CheckV1MigrationAsync(root);
+        await CheckColumnDeleteClaimAsync(root);
+    }
+
+    private static async Task CheckColumnDeleteClaimAsync(string root)
+    {
+        string projectPath = Path.Combine(root, "column-delete-claim", "project");
+        var store = new ProjectBoardStore(Path.Combine(root, "column-delete-claim", "registry"));
+        Directory.CreateDirectory(projectPath);
+        var registration = Read<ProjectBoardRegistration>(await CallAsync(store, "project.register", new { path = projectPath, init = true }));
+        string project = registration.BoardId.ToString();
+        ProjectBoard board = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project }));
+        Guid inProgressColumn = board.Columns.Single(column => column.Status == "inProgress").Id;
+        Guid notStartedColumn = board.Columns.Single(column => column.Status == "notStarted").Id;
+        ProjectBoardCard card = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.create", new { project, title = "claimed before column delete" }), "card");
+        _ = await CallAsync(store, "board.card.claim", new { project, id = card.Id, actor = "deleter", host = "codex", session = "column-delete" });
+        CheckCode(await CallAsync(store, "board.column.delete", new { project, id = inProgressColumn, targetColumnId = notStartedColumn }),
+            "CONFLICT", "deleting a mapped column still protects its claimed cards");
+        _ = await CallAsync(store, "board.column.delete", new
+        {
+            project, id = inProgressColumn, targetColumnId = notStartedColumn, actor = "deleter", host = "codex", session = "column-delete"
+        });
+        ProjectBoardCard relocated = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.get", new { project, id = card.Id }), "card");
+        Check(relocated.Status == "inProgress" && relocated.ColumnId == notStartedColumn,
+            "deleting a mapped column relocates an owned card without changing its workflow state");
+    }
+
+    private static async Task CheckDeepTreeAsync(ProjectBoardStore initialStore, string project, string projectPath)
+    {
+        ProjectBoard board = Read<ProjectBoard>(await CallAsync(initialStore, "board.get", new { project }));
+        Guid columnId = board.Columns.Single(c => c.Status == "notStarted").Id;
+        DateTime now = DateTime.UtcNow;
+        var cards = new List<ProjectBoardCard>();
+        Guid? parentId = null;
+        const int depth = 1024;
+        for (int i = 0; i < depth; i++)
+        {
+            var card = new ProjectBoardCard(Guid.NewGuid(), $"deep-{i}", "", columnId, 0, 0, [], null, now, now, null,
+                "notStarted", parentId, null, null, [], []);
+            cards.Add(card);
+            parentId = card.Id;
+        }
+        ProjectBoard deepBoard = board with { Cards = ReorderTestCards(cards), Revision = board.Revision + 1 };
+        string boardPath = Path.Combine(projectPath, ".toolbox", "board.json");
+        File.WriteAllBytes(boardPath, JsonSerializer.SerializeToUtf8Bytes(deepBoard, Storage));
+        var store = new ProjectBoardStore(Path.GetFullPath(Path.Combine(projectPath, "..", "registry")));
+        ProjectBoard read = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project }));
+        Check(read.Cards.Count == depth && read.Cards.Count(c => c.ParentId != null) == depth - 1, "the store reads a 1024-level card tree iteratively");
+        Guid rootId = cards[0].Id;
+        TaskResponse deleted = await CallAsync(store, "board.card.delete", new { project, id = rootId });
+        Check(deleted.Ok, "subtree delete handles a 1024-level tree");
+        ProjectBoardCard[] removed = Array(Read(await CallAsync(store, "board.card.list", new { project, includeDeleted = true })), "cards")
+            .Select(card => card.Deserialize<ProjectBoardCard>(Web)!).ToArray();
+        Check(removed.Length == depth && removed.All(card => card.DeletedAt != null), "subtree deletion soft-deletes every descendant");
+        CheckCode(await CallAsync(store, "board.card.restore", new { project, id = cards[1].Id }), "CONFLICT", "a child cannot be restored before its deleted ancestor");
+        TaskResponse restored = await CallAsync(store, "board.card.restore", new { project, id = rootId });
+        ProjectBoardCard[] restoredCards = Array(Read(await CallAsync(store, "board.card.list", new { project, includeDeleted = true })), "cards")
+            .Select(card => card.Deserialize<ProjectBoardCard>(Web)!).ToArray();
+        Check(restored.Ok && restoredCards.All(card => card.DeletedAt == null), "subtree restore restores the full deep tree");
+    }
+
+    private static IReadOnlyList<ProjectBoardCard> ReorderTestCards(IEnumerable<ProjectBoardCard> cards) => cards.ToArray();
+
+    private static async Task CheckV1MigrationAsync(string root)
+    {
+        string testRoot = Path.Combine(root, "v1-migration");
+        string registryRoot = Path.Combine(testRoot, "registry");
+        string projectPath = Path.Combine(testRoot, "project");
+        Directory.CreateDirectory(projectPath);
+        var store = new ProjectBoardStore(registryRoot, request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo is unavailable in board checks.")));
+        var registration = Read<ProjectBoardRegistration>(await CallAsync(store, "project.register", new { path = projectPath, init = true }));
+        string project = registration.BoardId.ToString();
+        ProjectBoard board = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project }));
+        ProjectBoardCard card = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.create", new { project, title = "legacy active" }), "card");
+        JsonObject v1 = JsonNode.Parse(File.ReadAllBytes(Path.Combine(projectPath, ".toolbox", "board.json")))!.AsObject();
+        v1["schemaVersion"] = 1;
+        v1.Remove("commentRevision");
+        v1.Remove("commentsExternal");
+        foreach (JsonObject column in v1["columns"]!.AsArray().Select(node => node!.AsObject())) column.Remove("status");
+        v1["columns"]!.AsArray()[0]!["title"] = "未开始";
+        v1["columns"]!.AsArray().Add(JsonSerializer.SerializeToNode(new
+        {
+            id = Guid.NewGuid(), title = "待办", order = 4
+        }, Web));
+        JsonObject cardNode = v1["cards"]!.AsArray().Single(node => node!["id"]!.GetValue<Guid>() == card.Id)!.AsObject();
+        cardNode["columnId"] = board.Columns.Single(column => column.Status == "inProgress").Id;
+        cardNode["status"] = null;
+        cardNode["parentId"] = null;
+        cardNode["assignee"] = null;
+        cardNode["claim"] = null;
+        cardNode.Remove("status");
+        cardNode.Remove("parentId");
+        cardNode.Remove("assignee");
+        cardNode.Remove("claim");
+        cardNode.Remove("attachments");
+        cardNode.Remove("comments");
+        string boardPath = Path.Combine(projectPath, ".toolbox", "board.json");
+        File.WriteAllText(boardPath, v1.ToJsonString());
+        byte[] legacyBytes = File.ReadAllBytes(boardPath);
+        var migratedStore = new ProjectBoardStore(registryRoot, request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo is unavailable in board checks.")));
+        TaskResponse migratedResponse = await CallAsync(migratedStore, "board.get", new { project });
+        ProjectBoard migrated = Read<ProjectBoard>(migratedResponse);
+        ProjectBoardCard migratedCard = migrated.Cards.Single();
+        Check(migrated.SchemaVersion == 2 && migratedCard.Status == "notStarted" && migratedCard.ColumnId == cardNode["columnId"]!.GetValue<Guid>() && migratedCard.Order == 0, "v1 in-progress cards migrate in memory while preserving their column and order");
+        Check(migrated.Columns.Single(column => column.Title == "未开始").Status == "notStarted" && migrated.Columns.Single(column => column.Title == "待办").Status == null,
+            "duplicate legacy aliases deterministically keep only the first ordered status mapping");
+        Check(migratedResponse.Warnings?.Count == 1 && migratedResponse.Warnings[0].Contains("duplicate", StringComparison.Ordinal) && File.ReadAllBytes(boardPath).SequenceEqual(legacyBytes),
+            "v1 reads report migration and duplicate mappings without persisting changes");
+        TaskResponse write = await CallAsync(migratedStore, "board.card.update", new { project, id = card.Id, title = "upgraded" });
+        using JsonDocument upgraded = JsonDocument.Parse(File.ReadAllBytes(boardPath));
+        Check(write.Ok && upgraded.RootElement.GetProperty("schemaVersion").GetInt32() == 2 && upgraded.RootElement.GetProperty("cards")[0].GetProperty("status").GetString() == "notStarted", "the first successful board write upgrades v1 to schema 2");
+    }
+
     private static async Task CheckRegistrationAndCrudAsync(ProjectBoardStore store, string path, FakeTodo todo)
     {
         var registration = Read<ProjectBoardRegistration>(await CallAsync(store, "project.register", new { path, init = true }));
         Check(registration.BoardId != Guid.Empty && !Directory.Exists(Path.Combine(path, ".git")), "registers a non-Git directory at a Unicode path");
         Check(File.Exists(Path.Combine(path, ".toolbox", "board.json")), "initialization creates the project board file");
         var board = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project = registration.BoardId.ToString() }));
-        Check(board.SchemaVersion == 1 && board.Columns.Count == 4 && board.Columns.All(c => c.Id != Guid.Empty), "creates four stable UUID columns");
+        Check(board.SchemaVersion == 2 && board.Columns.Count == 4 && board.Columns.All(c => c.Id != Guid.Empty) && board.Columns.All(c => c.Status != null), "creates four stable UUID status columns");
         string nestedPath = Path.Combine(path, "nested", "work");
         Directory.CreateDirectory(nestedPath);
         Check(Read<ProjectBoard>(await CallAsync(store, "board.get", new { cwd = nestedPath })).BoardId == registration.BoardId, "cwd resolves the nearest registered project root");
@@ -179,8 +459,12 @@ internal static class Program
         TaskResponse first = await CallAsync(store, "board.card.create", new { project, title = "dedup" }, requestId);
         store.Changed -= handler;
         Check(reentered && nestedReadSucceeded, "Changed handlers can read the store without semaphore reentry deadlock");
+        ProjectBoardCard defaultCard = ReadWrapped<ProjectBoardCard>(first, "card");
+        ProjectBoard board = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project }));
+        Check(defaultCard.Status == "notStarted" && defaultCard.ColumnId == board.Columns.Single(column => column.Status == "notStarted").Id,
+            "default card creation follows the not-started mapping after column reorder");
         TaskResponse duplicate = await CallAsync(store, "board.card.create", new { project, title = "dedup" }, requestId);
-        Check(ReadWrapped<ProjectBoardCard>(first, "card").Id == ReadWrapped<ProjectBoardCard>(duplicate, "card").Id, "same requestId returns the original card result");
+        Check(defaultCard.Id == ReadWrapped<ProjectBoardCard>(duplicate, "card").Id, "same requestId returns the original card result");
         TaskResponse reused = await CallAsync(store, "board.card.create", new { project, title = "different" }, requestId);
         CheckCode(reused, "CONFLICT", "requestId reused with different content is rejected");
         Check(Array(Read(await CallAsync(store, "board.card.list", new { project })), "cards").Length == 2, "requestId dedupe prevents a second card");

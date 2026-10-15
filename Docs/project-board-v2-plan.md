@@ -13,7 +13,7 @@
 ## 执行项
 
 - [x] 审查全部设计并统一状态、认领、投递确认、评论外置及附件恢复契约。
-- [ ] S1：Core/Boards 模型、v1 内存迁移、状态与租约、受影响事项写保护、任意深度树。扩展 Tests/Boards，验证双 actor 竞争、过期接管、返工、全部绕过入口和深链。
+- [x] S1：Core/Boards 模型、v1 内存迁移、状态与租约、受影响事项写保护、任意深度树。定向及全量存储检查通过，新增删列认领检查通过。
 - [ ] S2：Core/Boards 评论/回复、精确 routing、inbox 保留与 ack、双 revision/分页、自动 comments.json 外置及恢复。验证 500/501 与字节边界、hash/CAS/损坏恢复。
 - [ ] S3：Core/Boards 图片添加/移除/预览上下文、实际解码、路径与 10MiB 限制、删除 journal。验证失败回滚、崩溃恢复、缺失/篡改标记。
 - [x] D1：Core/BoardAgents 本机配置、8 宿主发现、类型化启动、确认/always、提交与 ack 分离、超时 unknown、失败与手工兜底。假宿主检查通过。
@@ -58,3 +58,12 @@ Multica：`CSH-50`（issue `01a13e47-5591-7cdf-9542-6a0bd6014fb8`），项目 `8
 - 覆盖默认确认、明确 always、幂等、失效重探、common-root 确认、npm shim 解析、无 session 拉取、崩溃 sending→unknown、超时及 runner I/O 异常。
 - OpenCode/Qoder 用 stdin；ZCode 用绑定值参数；危险选项样式正文、换行、引号和中文不改变进程选项。
 - 未调用真实宿主会话；主 App 在 D2 类未就绪时因缺 BoardCommandService 构建失败，等待接线后统一验证。
+
+### S1 证据
+
+- 状态/树定向检查通过：迁移、双 actor 竞争、续租/过期接管、move transition、close/reopen、1024 层子树、循环拒绝。
+- 全量复验发现并修复 registry 独立 schema 仍须为 1、存储序列化选项不能用于 Todo 外部匿名响应读取；修正新卡优先 notStarted 映射列，不依赖当前首列位置。
+- worker 使用自身隔离输出目录避开本轮遗留测试 apphost 锁；未处理用户 ToolBox 进程。
+- `dotnet build Project/Tests/Boards/ToolBox.ProjectBoardChecks.csproj -c Debug -p:OutputPath=bin/BoardAcceptance/s1-final2/ -p:UseAppHost=false`：0 警告/0 错误；随后 DLL 的 `--state-tree` 与全量检查通过。
+- 新增 column.delete 写保护与只移位置不改状态后，使用 `s1-column-delete` 输出目录重建并再次通过定向检查；`git diff --check -- Project/Core/Boards Project/Tests/Boards` 通过。
+- 主程序构建仍需等待 D2/UI 共同就绪；本阶段构建观察到的 IOException/RootCards/MoveCardAsync 接线错误交对应实现者处理。
