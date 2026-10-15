@@ -1,13 +1,16 @@
+using System;
 using System.IO;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using ToolBox.Core.Todo;
 
 namespace ToolBox.Core.Boards;
 
-public sealed class ProjectBoardStore
+public sealed partial class ProjectBoardStore
 {
     private const int SchemaVersion = 2;
     private const int LegacySchemaVersion = 1;
@@ -37,6 +40,7 @@ public sealed class ProjectBoardStore
     private readonly Func<TaskRequest, Task<TaskResponse>> executeTodoAsync;
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly Dictionary<Guid, string> knownBoardHashes = [];
+    private readonly Dictionary<Guid, string> knownCommentHashes = [];
     private bool pendingNotification;
     private readonly Dictionary<Guid, (string Fingerprint, TaskResponse Response)> requestCache = [];
     private readonly Queue<Guid> requestOrder = [];
@@ -87,8 +91,8 @@ public sealed class ProjectBoardStore
                     ? ClaimConflictResponse(conflict, claimConflictType ?? "CLAIMED_BY_OTHER")
                     : TaskResponse.Failure(request, ex.Code, ex.Message, ex.Field);
             }
-            catch (UnauthorizedAccessException) { response = TaskResponse.Failure(request, "IO_ERROR", "Project board data could not be accessed."); }
-            catch (IOException) { response = TaskResponse.Failure(request, "IO_ERROR", "Project board data could not be accessed."); }
+            catch (UnauthorizedAccessException ex) { LogIoFailure(ex); response = TaskResponse.Failure(request, "IO_ERROR", "Project board data could not be accessed."); }
+            catch (IOException ex) { LogIoFailure(ex); response = TaskResponse.Failure(request, "IO_ERROR", "Project board data could not be accessed."); }
             catch (Exception) { response = TaskResponse.Failure(request, "INTERNAL_ERROR", "The project board command failed."); }
 
             if (response.Ok && currentWarnings is { Count: > 0 }) response.Warnings = currentWarnings;
@@ -135,6 +139,14 @@ public sealed class ProjectBoardStore
             "board.card.submit" => CardStatusAction(payload, "submit"),
             "board.card.close" => CardStatusAction(payload, "close"),
             "board.card.reopen" => CardStatusAction(payload, "reopen"),
+            "board.comment.add" => CommentAdd(payload),
+            "board.comment.get" => CommentGet(payload),
+            "board.comment.list" => CommentList(payload),
+            "board.comment.update" => CommentUpdate(payload),
+            "board.comment.delete" => CommentDelete(payload),
+            "board.comment.inbox" => CommentInbox(payload),
+            "board.comment.ack" => CommentAck(payload),
+            "board.comment.bind" => CommentBind(payload),
             "board.card.add-to-todo" => await AddToTodoAsync(request, payload).ConfigureAwait(false),
             _ => throw Invalid("Unknown operation.", "operation")
         };
@@ -213,7 +225,7 @@ public sealed class ProjectBoardStore
     private TaskResponse BoardGet(JsonElement payload)
     {
         var (registration, snapshot) = ReadProjectBoard(payload);
-        return TaskResponse.Success(_currentRequest!, snapshot.Board);
+        return TaskResponse.Success(_currentRequest!, ProjectBoardResponse(snapshot.Board));
     }
 
     private TaskResponse ColumnList(JsonElement payload)
@@ -366,7 +378,8 @@ public sealed class ProjectBoardStore
                 (!rootsOnly || c.ParentId == null) &&
                 (!available || (c.DeletedAt == null && (c.Status == "notStarted" || (c.Status == "inProgress" && c.Claim!.ExpiresAt <= now)))) &&
                 (!mine || (c.Claim != null && SameIdentity(c.Claim, host!, actor!, session!))))
-            .OrderBy(c => columnOrder[c.ColumnId]).ThenBy(c => c.ParentId).ThenBy(c => c.Order).ThenBy(c => c.Id).ToArray();
+            .OrderBy(c => columnOrder[c.ColumnId]).ThenBy(c => c.ParentId).ThenBy(c => c.Order).ThenBy(c => c.Id)
+            .Select(card => ProjectCardResponse(snapshot.Board, card)).ToArray();
         return TaskResponse.Success(_currentRequest!, new { cards, revision = snapshot.Board.Revision, boardRevision = snapshot.Board.Revision, commentRevision = snapshot.Board.CommentRevision });
     }
 
@@ -379,7 +392,7 @@ public sealed class ProjectBoardStore
         var children = snapshot.Board.Cards.Where(c => c.ParentId == id && c.DeletedAt == null).ToArray();
         return TaskResponse.Success(_currentRequest!, new
         {
-            card,
+            card = ProjectCardResponse(snapshot.Board, card),
             commentCount = card.Comments?.Count(comment => comment.DeletedAt == null) ?? 0,
             attachmentCount = card.Attachments?.Count ?? 0,
             childCount = children.Length,
@@ -924,6 +937,7 @@ public sealed class ProjectBoardStore
 
     private BoardSnapshot ReadBoard(string root)
     {
+        RecoverCommentsMigration(root);
         string file = GetBoardPath(root, allowMissingDirectory: false);
         RejectReparsePoint(file);
         if (!File.Exists(file)) throw new TaskCommandException("NOT_FOUND", "The registered project board file was not found.", "project");
@@ -990,8 +1004,31 @@ public sealed class ProjectBoardStore
                 throw new TaskCommandException("CONFLICT", "Project board changed outside this application; reload before retrying.", "revision");
             }
             knownBoardHashes[board.BoardId] = hash;
+            string? commentsHash = null;
+            if (board.CommentsExternal)
+            {
+                CommentSidecarSnapshot comments = ReadCommentSidecar(root, board.BoardId);
+                if (comments.Revision < board.CommentRevision)
+                    throw Corrupt("External comment revision is older than the board revision.");
+                if (knownCommentHashes.TryGetValue(board.BoardId, out string? knownCommentsHash) &&
+                    !string.Equals(comments.Hash, knownCommentsHash, StringComparison.Ordinal))
+                {
+                    knownCommentHashes[board.BoardId] = comments.Hash;
+                    throw new TaskCommandException("CONFLICT", "Project comments changed outside this application; reload before retrying.", "commentRevision");
+                }
+                knownCommentHashes[board.BoardId] = comments.Hash;
+                commentsHash = comments.Hash;
+                board = AttachComments(board, comments.Data);
+                ValidateBoard(board);
+            }
+            else
+            {
+                if (File.Exists(GetCommentsPath(root)))
+                    throw Corrupt("A comment sidecar exists while commentsExternal is false.");
+                knownCommentHashes.Remove(board.BoardId);
+            }
             currentWarnings = migrationNotices;
-            return new BoardSnapshot(board, hash, migrationNotices);
+            return new BoardSnapshot(board, hash, migrationNotices, commentsHash);
         }
         catch (TaskCommandException) { throw; }
         catch (JsonException) { throw Corrupt("Board data is not valid JSON or contains unknown fields."); }
@@ -1029,7 +1066,7 @@ public sealed class ProjectBoardStore
         }
         if (!string.Equals(currentHash, expectedHash, StringComparison.Ordinal))
             throw new TaskCommandException("CONFLICT", "Project board registry changed outside this command; reload before retrying.", "registry");
-        WriteAtomic(registryPath, JsonSerializer.SerializeToUtf8Bytes(state, JsonOptions));
+        WriteAtomic(registryPath, JsonSerializer.SerializeToUtf8Bytes(state, JsonOptions), expectedHash, "registry");
     }
 
     private void SaveNewBoard(string root, ProjectBoard board, ProjectBoardRegistration registration)
@@ -1037,7 +1074,7 @@ public sealed class ProjectBoardStore
         string boardPath = GetBoardPath(root, allowMissingDirectory: true);
         ValidateBoard(board);
         EnsureResponseFits(TaskResponse.Success(_currentRequest!, registration));
-        EnsureResponseFits(TaskResponse.Success(_currentRequest!, board));
+        EnsureResponseFits(TaskResponse.Success(_currentRequest!, ProjectBoardResponse(board)));
         byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(board, JsonOptions);
         EnsureBoardDirectory(root, create: true);
         WriteNewAtomic(boardPath, bytes);
@@ -1055,9 +1092,14 @@ public sealed class ProjectBoardStore
         ValidateBoard(updated);
         if (before.MigrationNotices.Count > 0) result.Warnings = before.MigrationNotices;
         EnsureResponseFits(result);
-        EnsureResponseFits(TaskResponse.Success(_currentRequest!, updated));
-        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(updated, JsonOptions);
-        WriteAtomic(boardPath, bytes);
+        EnsureResponseFits(TaskResponse.Success(_currentRequest!, ProjectBoardResponse(updated)));
+        if (!updated.CommentsExternal && ShouldExternalizeComments(updated))
+        {
+            ExternalizeComments(root, before, updated);
+            return;
+        }
+        byte[] bytes = SerializeBoardStorage(updated);
+        WriteAtomic(boardPath, bytes, before.Hash, "revision");
         knownBoardHashes[updated.BoardId] = Hash(bytes);
     }
 
@@ -1117,9 +1159,10 @@ public sealed class ProjectBoardStore
             throw new TaskCommandException("RESULT_TOO_LARGE", "The project board result exceeds the 4 MiB response limit.");
     }
 
-    private static void WriteAtomic(string path, byte[] bytes)
+    private static void WriteAtomic(string path, byte[] bytes, string? expectedExistingHash, string conflictField)
     {
         string? temporary = null;
+        string replacementHash = Hash(bytes);
         try
         {
             string directory = Path.GetDirectoryName(path)!;
@@ -1129,18 +1172,64 @@ public sealed class ProjectBoardStore
                 stream.Write(bytes);
                 stream.Flush(flushToDisk: true);
             }
-            if (File.Exists(path)) File.Replace(temporary, path, null);
-            else File.Move(temporary, path);
+            if (expectedExistingHash == null)
+            {
+                if (File.Exists(path))
+                    throw new TaskCommandException("CONFLICT", "Project board data was created outside this command; reload before retrying.", conflictField);
+                try { File.Move(temporary, path); }
+                catch (IOException) when (File.Exists(path))
+                {
+                    throw new TaskCommandException("CONFLICT", "Project board data was created outside this command; reload before retrying.", conflictField);
+                }
+            }
+            else
+            {
+                ReplaceAtomicWithRetry(temporary, path, expectedExistingHash, replacementHash, conflictField);
+            }
             temporary = null;
         }
         finally
         {
             if (temporary != null)
             {
-                try { File.Delete(temporary); }
+                try
+                {
+                    if (File.Exists(temporary) && string.Equals(Hash(File.ReadAllBytes(temporary)), replacementHash, StringComparison.Ordinal))
+                        File.Delete(temporary);
+                }
                 catch { }
             }
         }
+    }
+
+    private static void ReplaceAtomicWithRetry(string temporary, string path, string? expectedExistingHash, string replacementHash, string conflictField)
+    {
+        int[] retryDelaysMilliseconds = [25, 50, 100, 200];
+        int retries = 0;
+        while (true)
+        {
+            if (expectedExistingHash == null || !File.Exists(path) ||
+                !string.Equals(Hash(File.ReadAllBytes(path)), expectedExistingHash, StringComparison.Ordinal))
+                throw new TaskCommandException("CONFLICT", "Project board data changed outside this command; reload before retrying.", conflictField);
+            if (!File.Exists(temporary) || !string.Equals(Hash(File.ReadAllBytes(temporary)), replacementHash, StringComparison.Ordinal))
+                throw new TaskCommandException("CONFLICT", "The atomic replacement candidate changed; the write was not retried.", conflictField);
+            try
+            {
+                File.Replace(temporary, path, null);
+                return;
+            }
+            catch (IOException ex) when (IsRetryableReplaceFailure(ex) && retries < retryDelaysMilliseconds.Length)
+            {
+                Thread.Sleep(retryDelaysMilliseconds[retries++]);
+            }
+        }
+    }
+
+    private static bool IsRetryableReplaceFailure(IOException exception)
+    {
+        uint hresult = unchecked((uint)exception.HResult);
+        if ((hresult & 0xFFFF0000) != 0x80070000) return false;
+        return (hresult & 0xFFFF) is 32 or 33 or 1175;
     }
 
     private void EnsureRegistryPath(bool createDirectory = false)
@@ -1242,7 +1331,15 @@ public sealed class ProjectBoardStore
         ["board.card.release"] = Set("project", "cwd", "id", "actor", "host", "session", "columnId", "order", "revision"),
         ["board.card.submit"] = Set("project", "cwd", "id", "actor", "host", "session", "columnId", "order", "revision"),
         ["board.card.close"] = Set("project", "cwd", "id", "actor", "host", "session", "columnId", "order", "revision"),
-        ["board.card.reopen"] = Set("project", "cwd", "id", "actor", "host", "session", "columnId", "order", "revision")
+        ["board.card.reopen"] = Set("project", "cwd", "id", "actor", "host", "session", "columnId", "order", "revision"),
+        ["board.comment.add"] = Set("project", "cwd", "id", "parentId", "body", "actor", "host", "session", "revision", "commentRevision"),
+        ["board.comment.get"] = Set("project", "cwd", "commentId", "revision", "commentRevision"),
+        ["board.comment.list"] = Set("project", "cwd", "id", "includeDeleted", "limit", "cursor", "commentRevision"),
+        ["board.comment.update"] = Set("project", "cwd", "commentId", "body", "actor", "host", "session", "revision", "commentRevision"),
+        ["board.comment.delete"] = Set("project", "cwd", "commentId", "actor", "host", "session", "revision", "commentRevision"),
+        ["board.comment.inbox"] = Set("project", "cwd", "host", "session", "actor", "ttlMinutes", "limit", "cursor", "commentRevision"),
+        ["board.comment.ack"] = Set("project", "cwd", "commentId", "claimId", "actor", "host", "session", "revision", "commentRevision"),
+        ["board.comment.bind"] = Set("project", "cwd", "commentId", "targetHost", "targetSession", "clear", "actor", "host", "session", "revision", "commentRevision")
     };
 
     private static void ValidatePayloadTypes(string operation, JsonElement payload)
@@ -1257,9 +1354,13 @@ public sealed class ProjectBoardStore
                 case "path":
                 case "title":
                 case "description":
+                case "body":
+                case "cursor":
                 case "actor":
                 case "host":
                 case "session":
+                case "targetHost":
+                case "targetSession":
                     if (value.ValueKind != JsonValueKind.String) throw Invalid("A string is required.", property.Name);
                     break;
                 case "init":
@@ -1269,9 +1370,12 @@ public sealed class ProjectBoardStore
                 case "available":
                 case "mine":
                 case "clearParentId":
+                case "clear":
                     if (value.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) throw Invalid("A boolean is required.", property.Name);
                     break;
                 case "id":
+                case "commentId":
+                case "claimId":
                 case "columnId":
                 case "targetColumnId":
                     if (value.ValueKind != JsonValueKind.String || !Guid.TryParse(value.GetString(), out Guid id) || id == Guid.Empty)
@@ -1280,11 +1384,16 @@ public sealed class ProjectBoardStore
                 case "order":
                 case "priority":
                 case "ttlMinutes":
+                case "limit":
                     if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out _)) throw Invalid("An integer is required.", property.Name);
                     break;
                 case "revision":
                     if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt64(out long revision) || revision < 1)
                         throw Invalid("revision must be a positive integer.", property.Name);
+                    break;
+                case "commentRevision":
+                    if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt64(out long commentRevision) || commentRevision < 0)
+                        throw Invalid("commentRevision must be a non-negative integer.", property.Name);
                     break;
                 case "tags":
                     if (value.ValueKind != JsonValueKind.Array || value.EnumerateArray().Any(tag => tag.ValueKind != JsonValueKind.String))
@@ -1312,7 +1421,9 @@ public sealed class ProjectBoardStore
             "board.column.create" or "board.column.update" or "board.column.delete" or "board.column.move" or
             "board.card.list" or "board.card.get" or "board.card.create" or "board.card.update" or
             "board.card.move" or "board.card.delete" or "board.card.restore" or "board.card.add-to-todo" or
-            "board.card.claim" or "board.card.release" or "board.card.submit" or "board.card.close" or "board.card.reopen")
+            "board.card.claim" or "board.card.release" or "board.card.submit" or "board.card.close" or "board.card.reopen" or
+            "board.comment.add" or "board.comment.get" or "board.comment.list" or "board.comment.update" or
+            "board.comment.delete" or "board.comment.inbox" or "board.comment.ack" or "board.comment.bind")
         {
             if (!payload.TryGetProperty("project", out _) && !payload.TryGetProperty("cwd", out _))
                 throw Invalid("project or cwd is required.", "project");
@@ -1369,6 +1480,55 @@ public sealed class ProjectBoardStore
                     if (operation != "board.card.claim") throw Invalid("ttlMinutes is only accepted for claim.", "ttlMinutes");
                 }
                 break;
+            case "board.comment.add":
+                _ = RequiredGuid(payload, "id");
+                _ = RequiredBody(payload);
+                _ = ReadRequiredIdentity(payload);
+                if (payload.TryGetProperty("parentId", out _)) _ = OptionalNullableGuid(payload, "parentId");
+                break;
+            case "board.comment.get": _ = RequiredGuid(payload, "commentId"); break;
+            case "board.comment.list":
+                _ = RequiredGuid(payload, "id");
+                ValidateCommentLimit(payload);
+                break;
+            case "board.comment.update":
+                _ = RequiredGuid(payload, "commentId");
+                _ = RequiredBody(payload);
+                _ = ReadRequiredIdentity(payload);
+                break;
+            case "board.comment.delete":
+                _ = RequiredGuid(payload, "commentId");
+                _ = ReadRequiredIdentity(payload);
+                break;
+            case "board.comment.inbox":
+                _ = RequiredText(payload, "host");
+                string actor = RequiredText(payload, "actor");
+                if (!Guid.TryParse(actor, out Guid actorId) || actorId == Guid.Empty) throw Invalid("actor must be a non-empty UUID.", "actor");
+                if (payload.TryGetProperty("ttlMinutes", out _))
+                {
+                    int ttl = RequiredInt(payload, "ttlMinutes");
+                    if (ttl is < 5 or > 480) throw Invalid("ttlMinutes must be between 5 and 480.", "ttlMinutes");
+                }
+                ValidateCommentLimit(payload);
+                break;
+            case "board.comment.ack":
+                _ = RequiredGuid(payload, "commentId");
+                _ = RequiredGuid(payload, "claimId");
+                _ = ReadRequiredIdentity(payload);
+                break;
+            case "board.comment.bind":
+                _ = RequiredGuid(payload, "commentId");
+                _ = ReadRequiredIdentity(payload);
+                bool clear = OptionalBoolean(payload, "clear") ?? false;
+                bool hasTarget = payload.TryGetProperty("targetHost", out _) || payload.TryGetProperty("targetSession", out _);
+                if (clear == hasTarget) throw Invalid("Set either clear=true or targetHost, but not both.", "clear");
+                if (payload.TryGetProperty("targetHost", out _)) _ = RequiredText(payload, "targetHost");
+                if (payload.TryGetProperty("targetSession", out _))
+                {
+                    _ = RequiredText(payload, "targetHost");
+                    _ = RequiredText(payload, "targetSession");
+                }
+                break;
         }
         if ((operation is "board.card.claim" or "board.card.move") && OptionalTransition(payload) == "claim")
         {
@@ -1378,7 +1538,15 @@ public sealed class ProjectBoardStore
         if (operation == "board.card.move" && OptionalTransition(payload) != "claim" && payload.TryGetProperty("ttlMinutes", out _))
             throw Invalid("ttlMinutes is only accepted for claim.", "ttlMinutes");
         if (operation == "board.card.list" && (OptionalBoolean(payload, "mine") ?? false)) _ = ReadRequiredIdentity(payload);
+        if (payload.TryGetProperty("cursor", out JsonElement cursor) && (cursor.GetString() is not { Length: > 0 } cursorValue || cursorValue.Length > 8192))
+            throw Invalid("cursor must be a non-empty string no longer than 8192 characters.", "cursor");
         CheckNonNegative(payload, "order");
+    }
+
+    private static void ValidateCommentLimit(JsonElement payload)
+    {
+        int limit = OptionalInt(payload, "limit") ?? 100;
+        if (limit is < 1 or > 100) throw Invalid("limit must be between 1 and 100.", "limit");
     }
 
     private static void CheckPriorityRange(JsonElement payload)
@@ -1460,6 +1628,8 @@ public sealed class ProjectBoardStore
             }
             JsonElement comments = card.GetProperty("comments");
             if (comments.ValueKind != JsonValueKind.Array) throw Corrupt("Card comments must be an array.");
+            if (root.GetProperty("commentsExternal").GetBoolean() && comments.GetArrayLength() != 0)
+                throw Corrupt("An external-comments board cannot also store inline comments.");
             foreach (JsonElement comment in comments.EnumerateArray()) ValidateCommentJson(comment);
         }
     }
@@ -1600,6 +1770,7 @@ public sealed class ProjectBoardStore
         if (board.Cards.Any(card => card.ParentId is Guid parentId && card.DeletedAt == null && card.Status != "closed" &&
                 cardsById[parentId].DeletedAt == null && cardsById[parentId].Status == "closed"))
             throw Corrupt("A closed card cannot have an active open child.");
+        ValidateCommentsInBoard(board);
     }
 
     private static bool IsValidClaim(ProjectBoardCard card) => card.Claim is { } claim &&
@@ -1677,6 +1848,17 @@ public sealed class ProjectBoardStore
     {
         try { Changed?.Invoke(); }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] Project board change notification failed: {ex.Message}"); }
+    }
+
+    private static void LogIoFailure(Exception exception)
+    {
+#if DEBUG
+        var target = exception.TargetSite;
+        string method = target == null ? "unknown" : $"{target.DeclaringType?.FullName}.{target.Name}";
+        string message = $"[ToolBox] Project board I/O failure: {exception.GetType().FullName}, HResult=0x{exception.HResult:X8}, Method={method}{Environment.NewLine}{exception.StackTrace}";
+        Debug.WriteLine(message);
+        Console.Error.WriteLine(message);
+#endif
     }
 
     private void CacheResponse(Guid id, string fingerprint, TaskResponse response)
@@ -1848,7 +2030,7 @@ public sealed class ProjectBoardStore
 
     private sealed record ProjectTodoLink(Guid BoardId, Guid CardId, string? TodoId);
     private sealed record RegistrySnapshot(RegistryState State, string? Hash);
-    private sealed record BoardSnapshot(ProjectBoard Board, string Hash, IReadOnlyList<string> MigrationNotices);
+    private sealed record BoardSnapshot(ProjectBoard Board, string Hash, IReadOnlyList<string> MigrationNotices, string? CommentsHash);
     private sealed record ProjectBoardV1(int SchemaVersion, Guid BoardId, string Name, long Revision, IReadOnlyList<ProjectBoardColumnV1> Columns, IReadOnlyList<ProjectBoardCardV1> Cards);
     private sealed record ProjectBoardColumnV1(Guid Id, string Title, int Order);
     private sealed record ProjectBoardCardV1(

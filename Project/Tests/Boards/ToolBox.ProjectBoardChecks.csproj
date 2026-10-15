@@ -11,6 +11,7 @@
     <Compile Include="TodoStoreStub.cs" />
     <Compile Include="..\..\Core\Boards\ProjectBoardModels.cs" Link="ProjectBoardModels.cs" />
     <Compile Include="..\..\Core\Boards\ProjectBoardStore.cs" Link="ProjectBoardStore.cs" />
+    <Compile Include="..\..\Core\Boards\ProjectBoardComments.cs" Link="ProjectBoardComments.cs" />
     <Compile Include="..\..\Core\Todo\TaskProtocol.cs" Link="TaskProtocol.cs" />
   </ItemGroup>
 </Project>

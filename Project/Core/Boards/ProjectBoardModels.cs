@@ -34,7 +34,11 @@ public sealed record ProjectBoardCard(
     ProjectBoardAssignee? Assignee = null,
     ProjectBoardClaim? Claim = null,
     IReadOnlyList<ProjectBoardAttachment>? Attachments = null,
-    IReadOnlyList<ProjectBoardComment>? Comments = null);
+    IReadOnlyList<ProjectBoardComment>? Comments = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] int CommentCount = 0,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] int AttachmentCount = 0,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] int ChildCount = 0,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] int ChildClosedCount = 0);
 
 public sealed record ProjectBoardAssignee(string Kind, string Id, string Name, string? HostId = null, string? SessionId = null);
 
@@ -84,4 +88,7 @@ public sealed record ProjectBoardCommentContext(
     Guid CardId,
     ProjectBoardComment Comment,
     long BoardRevision,
-    long CommentRevision);
+    long CommentRevision)
+{
+    public long Revision => BoardRevision;
+}

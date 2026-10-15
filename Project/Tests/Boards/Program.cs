@@ -8,6 +8,11 @@ internal static class Program
 {
     private static readonly JsonSerializerOptions Web = new(JsonSerializerDefaults.Web);
     private static readonly JsonSerializerOptions Storage = new(JsonSerializerDefaults.Web) { IgnoreReadOnlyProperties = true };
+    private static readonly JsonSerializerOptions BoardStorageOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true,
+        IgnoreReadOnlyProperties = true
+    };
 
     private static async Task Main(string[] args)
     {
@@ -34,6 +39,50 @@ internal static class Program
             try { await CheckStateAndTreeAsync(root); }
             finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
             Console.WriteLine("Project board state and tree checks passed.");
+            return;
+        }
+        if (args.Contains("--comments", StringComparer.Ordinal))
+        {
+            Directory.CreateDirectory(root);
+            try { await CheckCommentsAsync(root); }
+            finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+            Console.WriteLine("Project board comment checks passed.");
+            return;
+        }
+        if (args.Contains("--dedup", StringComparer.Ordinal))
+        {
+            string dedupProjectPath = Path.Combine(root, "project");
+            Directory.CreateDirectory(dedupProjectPath);
+            var dedupTodo = new FakeTodo();
+            var dedupStore = new ProjectBoardStore(Path.Combine(root, "registry"), dedupTodo.ExecuteAsync);
+            try
+            {
+                ProjectBoardRegistration dedupRegistration = Read<ProjectBoardRegistration>(await CallAsync(dedupStore, "project.register", new { path = dedupProjectPath, init = true }));
+                _ = await CallAsync(dedupStore, "board.card.create", new { project = dedupRegistration.BoardId.ToString(), title = "seed" });
+                await CheckRequestDeduplicationAsync(dedupStore, dedupProjectPath);
+            }
+            finally
+            {
+                dedupTodo.Dispose();
+                if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+            }
+            Console.WriteLine("Project board deduplication checks passed.");
+            return;
+        }
+        if (args.Contains("--comment-inline-stress", StringComparer.Ordinal))
+        {
+            Directory.CreateDirectory(root);
+            try { await CheckCommentInlineWriteStressAsync(root); }
+            finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+            Console.WriteLine("Project board inline comment write stress passed.");
+            return;
+        }
+        if (args.Contains("--atomic-retry", StringComparer.Ordinal))
+        {
+            Directory.CreateDirectory(root);
+            try { await CheckAtomicReplacementRetryAsync(root); }
+            finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+            Console.WriteLine("Project board atomic replacement retry checks passed.");
             return;
         }
 
@@ -235,6 +284,441 @@ internal static class Program
         await CheckDeepTreeAsync(restartedStore, project, projectPath);
         await CheckV1MigrationAsync(root);
         await CheckColumnDeleteClaimAsync(root);
+    }
+
+    private static async Task CheckCommentsAsync(string root)
+    {
+        await CheckCommentPermissionsRoutingInboxAndPagingAsync(Path.Combine(root, "comment-core"));
+        await CheckCommentExternalizationThresholdsAsync(Path.Combine(root, "comment-thresholds"));
+        await CheckCommentMigrationRecoveryAsync(Path.Combine(root, "comment-recovery"));
+        await CheckCommentResponseLimitAsync(Path.Combine(root, "comment-response-limit"));
+    }
+
+    private static async Task CheckCommentInlineWriteStressAsync(string root)
+    {
+        string projectPath = Path.Combine(root, "project");
+        Directory.CreateDirectory(projectPath);
+        var store = new ProjectBoardStore(Path.Combine(root, "registry"), request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo unavailable.")));
+        ProjectBoardRegistration registration = Read<ProjectBoardRegistration>(await CallAsync(store, "project.register", new { path = projectPath, init = true }));
+        string project = registration.BoardId.ToString();
+        ProjectBoardCard card = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.create", new { project, title = "inline write stress" }), "card");
+        string body = new string('界', 5400);
+        string actor = Guid.NewGuid().ToString("D");
+        for (int index = 0; index < 40; index++)
+        {
+            TaskResponse response = await CallAsync(store, "board.comment.add", new
+            {
+                project, id = card.Id, body, actor, host = "external-host", session = "external-session", commentRevision = index
+            });
+            if (!response.Ok)
+                throw new InvalidOperationException($"Inline comment write {index + 1} failed: {response.Error?.Code}: {response.Error?.Message}");
+            long commentRevision = Read(response).GetProperty("commentRevision").GetInt64();
+            Check(commentRevision == index + 1, $"inline comment write {index + 1} advances commentRevision");
+        }
+        Check(!Read<ProjectBoard>(await CallAsync(store, "board.get", new { project })).CommentsExternal,
+            "the inline stress fixture stays below the sidecar threshold");
+    }
+
+    private static async Task CheckAtomicReplacementRetryAsync(string root)
+    {
+        string projectPath = Path.Combine(root, "project");
+        Directory.CreateDirectory(projectPath);
+        var store = new ProjectBoardStore(Path.Combine(root, "registry"), request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo unavailable.")));
+        ProjectBoardRegistration registration = Read<ProjectBoardRegistration>(await CallAsync(store, "project.register", new { path = projectPath, init = true }));
+        string project = registration.BoardId.ToString();
+        _ = await CallAsync(store, "board.card.create", new { project, title = "seed" });
+        string boardPath = Path.Combine(projectPath, ".toolbox", "board.json");
+        ProjectBoard before = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project }));
+
+        var releasedLock = new FileStream(boardPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        Task releaseAfterRetry = Task.Run(async () =>
+        {
+            await Task.Delay(120);
+            releasedLock.Dispose();
+        });
+        TaskResponse recovered = await CallAsync(store, "board.card.create", new { project, title = "after transient lock" });
+        await releaseAfterRetry;
+        Check(recovered.Ok, $"the transient sharing violation recovers: {recovered.Error?.Code}: {recovered.Error?.Message}");
+        ProjectBoard afterRetry = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project }));
+        Check(afterRetry.Revision == before.Revision + 1, "a transient sharing violation retries one board write and advances revision once");
+        Check(afterRetry.Cards.Count == before.Cards.Count + 1 && afterRetry.Cards.Any(card => card.Title == "after transient lock"),
+            "a transient sharing violation creates exactly one card");
+
+        byte[] beforePermanentFailure = File.ReadAllBytes(boardPath);
+        var permanentLock = new FileStream(boardPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        TaskResponse permanentFailure = await CallAsync(store, "board.card.create", new { project, title = "must not be written" });
+        permanentLock.Dispose();
+        CheckCode(permanentFailure, "IO_ERROR", "a permanent sharing violation exhausts bounded retries");
+        Check(File.ReadAllBytes(boardPath).SequenceEqual(beforePermanentFailure), "a permanent sharing violation leaves board bytes unchanged");
+
+        ProjectBoard current = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project }));
+        byte[] beforeExternalChange = File.ReadAllBytes(boardPath);
+        var contestedLock = new FileStream(boardPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        byte[] externallyChanged = beforeExternalChange.Concat(new byte[] { (byte)' ' }).ToArray();
+        Task externalChange = Task.Run(async () =>
+        {
+            await Task.Delay(80);
+            File.WriteAllBytes(boardPath, externallyChanged);
+            contestedLock.Dispose();
+        });
+        TaskResponse externalConflict = await CallAsync(store, "board.card.create", new { project, title = "must lose to external change" });
+        await externalChange;
+        CheckCode(externalConflict, "CONFLICT", "a retry detects an external board change before replacing it");
+        Check(externalConflict.Error?.Field == "revision", "an external board change reports the revision field");
+        Check(File.ReadAllBytes(boardPath).SequenceEqual(externallyChanged), "the retry preserves externally changed board bytes");
+        using JsonDocument changedDocument = JsonDocument.Parse(externallyChanged);
+        Check(changedDocument.RootElement.GetProperty("revision").GetInt64() == current.Revision &&
+            changedDocument.RootElement.GetProperty("cards").GetArrayLength() == current.Cards.Count &&
+            !changedDocument.RootElement.GetProperty("cards").EnumerateArray().Any(card => card.GetProperty("title").GetString() == "must lose to external change"),
+            "a retry does not apply its board mutation after the external change");
+    }
+
+
+    private static async Task CheckCommentPermissionsRoutingInboxAndPagingAsync(string root)
+    {
+        string registryRoot = Path.Combine(root, "registry");
+        string projectPath = Path.Combine(root, "project");
+        Directory.CreateDirectory(projectPath);
+        var store = new ProjectBoardStore(registryRoot, request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo is unavailable in comment checks.")));
+        var registration = Read<ProjectBoardRegistration>(await CallAsync(store, "project.register", new { path = projectPath, init = true }));
+        string project = registration.BoardId.ToString();
+        var card = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.create", new { project, title = "comment card" }), "card");
+        Guid writerActor = Guid.NewGuid();
+        Guid replyActor = Guid.NewGuid();
+        ProjectBoardComment rootComment = ReadWrapped<ProjectBoardComment>(await CallAsync(store, "board.comment.add", new
+        {
+            project, id = card.Id, body = "root", actor = writerActor, host = "writer-host", session = "writer-session"
+        }), "comment");
+        ProjectBoardComment userReply = ReadWrapped<ProjectBoardComment>(await CallAsync(store, "board.comment.add", new
+        {
+            project, id = card.Id, parentId = rootComment.Id, body = "first reply", actor = "local-user", host = "desktop", session = "ui-session"
+        }), "comment");
+        ProjectBoardComment agentReply = ReadWrapped<ProjectBoardComment>(await CallAsync(store, "board.comment.add", new
+        {
+            project, id = card.Id, parentId = userReply.Id, body = "nested reply", actor = replyActor, host = "reply-host", session = "reply-session"
+        }), "comment");
+        Check(userReply.Routing is { Host: "writer-host", SessionId: "writer-session" } &&
+            agentReply.Routing is { Host: "writer-host", SessionId: "writer-session" }, "reply routing snapshots nearest ancestor origin across local-user comments");
+
+        TaskResponse forbidden = await CallAsync(store, "board.comment.update", new
+        {
+            project, commentId = agentReply.Id, body = "stolen", actor = Guid.NewGuid(), host = "reply-host", session = "reply-session"
+        });
+        CheckCode(forbidden, "ACCESS_DENIED", "only the comment author can update a comment");
+        ProjectBoard board = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project }));
+        TaskResponse listResponse = await CallAsync(store, "board.comment.list", new { project, id = card.Id, limit = 1 });
+        JsonElement firstPage = Read(listResponse);
+        string cursor = firstPage.GetProperty("cursor").GetString()!;
+        long pageRevision = firstPage.GetProperty("commentRevision").GetInt64();
+        JsonElement secondPage = Read(await CallAsync(store, "board.comment.list", new { project, id = card.Id, limit = 1, cursor, commentRevision = pageRevision }));
+        Check(Array(firstPage, "comments").Length == 1 && Array(secondPage, "comments").Length == 1 &&
+            Array(firstPage, "comments")[0].GetProperty("id").GetGuid() != Array(secondPage, "comments")[0].GetProperty("id").GetGuid(),
+            "comment cursor pages stable ordered comments without duplicates");
+        TaskResponse changed = await CallAsync(store, "board.comment.add", new
+        {
+            project, id = card.Id, body = "after page", actor = writerActor, host = "writer-host", session = "writer-session"
+        });
+        Check(changed.Ok, "comment add succeeds after paging snapshot");
+        CheckCode(await CallAsync(store, "board.comment.list", new { project, id = card.Id, limit = 1, cursor, commentRevision = pageRevision }),
+            "CONFLICT", "a comment cursor is rejected after the collection revision changes");
+        ProjectBoardComment rebound = ReadWrapped<ProjectBoardComment>(await CallAsync(store, "board.comment.bind", new
+        {
+            project, commentId = rootComment.Id, targetHost = "replacement-host", targetSession = "replacement-session",
+            actor = writerActor, host = "writer-host", session = "writer-session"
+        }), "comment");
+        ProjectBoardComment routedAfterBind = ReadWrapped<ProjectBoardComment>(await CallAsync(store, "board.comment.add", new
+        {
+            project, id = card.Id, parentId = userReply.Id, body = "new route", actor = Guid.NewGuid(), host = "later-host", session = "later-session"
+        }), "comment");
+        Check(rebound.Origin is { Host: "replacement-host", SessionId: "replacement-session" } &&
+            userReply.Routing is { Host: "writer-host", SessionId: "writer-session" } &&
+            routedAfterBind.Routing is { Host: "replacement-host", SessionId: "replacement-session" },
+            "binding changes origin for future replies without changing saved routing");
+        _ = await CallAsync(store, "board.comment.bind", new
+        {
+            project, commentId = rootComment.Id, clear = true, actor = writerActor, host = "writer-host", session = "writer-session"
+        });
+        ProjectBoardComment unroutedAfterClear = ReadWrapped<ProjectBoardComment>(await CallAsync(store, "board.comment.add", new
+        {
+            project, id = card.Id, parentId = userReply.Id, body = "route cleared", actor = Guid.NewGuid(), host = "later-host", session = "later-session"
+        }), "comment");
+        Check(unroutedAfterClear.Routing == null, "clearing an origin affects only replies added afterward");
+
+        string boardPath = Path.Combine(projectPath, ".toolbox", "board.json");
+        string boardBeforeClaims = HashBytes(File.ReadAllBytes(boardPath));
+        JsonElement inboxOne = Read(await CallAsync(store, "board.comment.inbox", new { project, host = "writer-host", actor = Guid.NewGuid(), limit = 1 }));
+        JsonElement firstClaimed = Array(inboxOne, "comments")[0];
+        Guid claimedId = firstClaimed.GetProperty("id").GetGuid();
+        Guid claimId = firstClaimed.GetProperty("inboxClaim").GetProperty("claimId").GetGuid();
+        TimeSpan firstTtl = firstClaimed.GetProperty("inboxClaim").GetProperty("expiresAt").GetDateTime() - DateTime.UtcNow;
+        Check(firstTtl > TimeSpan.FromMinutes(29) && firstTtl <= TimeSpan.FromMinutes(30), "inbox defaults to a 30 minute live claim");
+        ProjectBoardComment firstComment = claimedId == userReply.Id ? userReply : agentReply;
+        TaskResponse idempotent = await CallAsync(store, "board.comment.update", new
+        {
+            project, commentId = firstComment.Id, body = firstComment.Body,
+            actor = firstComment.Id == userReply.Id ? "local-user" : replyActor.ToString("D"),
+            host = firstComment.Id == userReply.Id ? "desktop" : "reply-host",
+            session = firstComment.Id == userReply.Id ? "ui-session" : "reply-session"
+        });
+        Check(idempotent.Ok && ReadWrapped<ProjectBoardComment>(idempotent, "comment").InboxClaim?.ClaimId == claimId,
+            "an identical body update is idempotent and preserves the inbox claim");
+
+        Guid secondActor = Guid.NewGuid();
+        JsonElement inboxTwo = Read(await CallAsync(store, "board.comment.inbox", new { project, host = "writer-host", actor = secondActor, ttlMinutes = 5, limit = 1 }));
+        Guid secondClaimedId = Array(inboxTwo, "comments")[0].GetProperty("id").GetGuid();
+        Check(secondClaimedId != claimedId, "two inbox actors cannot reserve the same active reply");
+        JsonElement secondClaimed = Array(inboxTwo, "comments")[0];
+        Guid secondClaimId = secondClaimed.GetProperty("inboxClaim").GetProperty("claimId").GetGuid();
+        TimeSpan secondTtl = secondClaimed.GetProperty("inboxClaim").GetProperty("expiresAt").GetDateTime() - DateTime.UtcNow;
+        Check(secondTtl > TimeSpan.FromMinutes(4) && secondTtl <= TimeSpan.FromMinutes(5), "inbox accepts the requested five minute TTL");
+        ProjectBoardComment firstBodyChanged = ReadWrapped<ProjectBoardComment>(await CallAsync(store, "board.comment.update", new
+        {
+            project, commentId = firstComment.Id, body = "body changed", actor = firstComment.Id == userReply.Id ? "local-user" : replyActor.ToString("D"),
+            host = firstComment.Id == userReply.Id ? "desktop" : "reply-host",
+            session = firstComment.Id == userReply.Id ? "ui-session" : "reply-session"
+        }), "comment");
+        Check(firstBodyChanged.InboxClaim == null && firstBodyChanged.AcknowledgedAt == null,
+            "changing a reply body clears its acknowledgement and active inbox claim");
+        TaskResponse wrongAck = await CallAsync(store, "board.comment.ack", new
+        {
+            project, commentId = secondClaimedId, claimId = secondClaimId, actor = Guid.NewGuid(), host = "writer-host"
+        });
+        CheckCode(wrongAck, "CONFLICT", "ack rejects a different actor even when the claim ID is known");
+        CheckCode(await CallAsync(store, "board.comment.ack", new
+        {
+            project, commentId = secondClaimedId, claimId = secondClaimId, actor = secondActor, host = "writer-host", session = "wrong-session"
+        }), "CONFLICT", "ack rejects a different target session");
+        ProjectBoardComment acknowledged = ReadWrapped<ProjectBoardComment>(await CallAsync(store, "board.comment.ack", new
+        {
+            project, commentId = secondClaimedId, claimId = secondClaimId, actor = secondActor, host = "writer-host"
+        }), "comment");
+        Check(acknowledged.AcknowledgedAt != null && acknowledged.AcknowledgedBy == secondActor.ToString("D") && acknowledged.InboxClaim == null,
+            "ack persists the core acknowledgement and releases the claim");
+        ProjectBoardComment secondComment = secondClaimedId == userReply.Id ? userReply : agentReply;
+        ProjectBoardComment ackReset = ReadWrapped<ProjectBoardComment>(await CallAsync(store, "board.comment.update", new
+        {
+            project, commentId = secondComment.Id, body = "edited after ack",
+            actor = secondComment.Id == userReply.Id ? "local-user" : replyActor.ToString("D"),
+            host = secondComment.Id == userReply.Id ? "desktop" : "reply-host",
+            session = secondComment.Id == userReply.Id ? "ui-session" : "reply-session"
+        }), "comment");
+        Check(ackReset.AcknowledgedAt == null && ackReset.AcknowledgedBy == null,
+            "changing the acknowledged reply body clears the acknowledgement");
+        TaskResponse forbiddenDelete = await CallAsync(store, "board.comment.delete", new
+        {
+            project, commentId = agentReply.Id, actor = Guid.NewGuid(), host = "reply-host", session = "reply-session"
+        });
+        CheckCode(forbiddenDelete, "ACCESS_DENIED", "only the author or local user can delete a comment");
+        _ = await CallAsync(store, "board.comment.delete", new
+        {
+            project, commentId = changed.Data == null ? Guid.Empty : ReadWrapped<ProjectBoardComment>(changed, "comment").Id,
+            actor = "local-user", host = "desktop", session = "ui-session"
+        });
+        JsonElement deletedList = Read(await CallAsync(store, "board.comment.list", new { project, id = card.Id, includeDeleted = true }));
+        Check(Array(deletedList, "comments").Any(comment => comment.GetProperty("deletedAt").ValueKind == JsonValueKind.String),
+            "comment deletion is a soft delete and remains listable");
+        Check(HashBytes(File.ReadAllBytes(boardPath)) != boardBeforeClaims && board.Revision ==
+            Read<ProjectBoard>(await CallAsync(store, "board.get", new { project })).Revision,
+            "inline comment writes advance only commentRevision, not boardRevision");
+
+        using JsonDocument getContext = JsonDocument.Parse(JsonSerializer.SerializeToUtf8Bytes(
+            await CallAsync(store, "board.comment.get", new { project, commentId = rootComment.Id }), TaskProtocol.Options));
+        JsonElement context = getContext.RootElement.GetProperty("data");
+        Check(context.GetProperty("revision").GetInt64() == context.GetProperty("boardRevision").GetInt64() &&
+            context.GetProperty("commentRevision").GetInt64() > 0, "comment.get returns typed context revision aliases");
+        JsonElement boardResponse = Read(await CallAsync(store, "board.get", new { project }));
+        JsonElement cardResponse = Array(Read(await CallAsync(store, "board.card.list", new { project })), "cards")[0];
+        Check(Array(boardResponse.GetProperty("cards")[0], "comments").Length == 0 &&
+            boardResponse.GetProperty("cards")[0].GetProperty("commentCount").GetInt32() >= 4 &&
+            cardResponse.GetProperty("commentCount").GetInt32() >= 4,
+            "board/card projections hide comment bodies and retain comment counts");
+        using JsonDocument storedBoard = JsonDocument.Parse(File.ReadAllBytes(boardPath));
+        JsonElement storedCard = storedBoard.RootElement.GetProperty("cards")[0];
+        Check(!storedBoard.RootElement.TryGetProperty("boardRevision", out _) && !storedCard.TryGetProperty("commentCount", out _) &&
+            !storedCard.TryGetProperty("attachmentCount", out _) && !storedCard.TryGetProperty("childCount", out _) &&
+            !storedCard.TryGetProperty("childClosedCount", out _), "API revision aliases and summary counts never enter board storage");
+    }
+
+    private static async Task CheckCommentExternalizationThresholdsAsync(string root)
+    {
+        string registryRoot = Path.Combine(root, "registry");
+        string projectPath = Path.Combine(root, "project");
+        Directory.CreateDirectory(projectPath);
+        var initialStore = new ProjectBoardStore(registryRoot, request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo unavailable.")));
+        var registration = Read<ProjectBoardRegistration>(await CallAsync(initialStore, "project.register", new { path = projectPath, init = true }));
+        string project = registration.BoardId.ToString();
+        ProjectBoardCard card = ReadWrapped<ProjectBoardCard>(await CallAsync(initialStore, "board.card.create", new { project, title = "threshold" }), "card");
+        ProjectBoard board = Read<ProjectBoard>(await CallAsync(initialStore, "board.get", new { project }));
+        DateTime now = DateTime.UtcNow;
+        string authorId = Guid.NewGuid().ToString("D");
+        ProjectBoardComment[] seedComments = Enumerable.Range(0, 500).Select(index => new ProjectBoardComment(
+            Guid.NewGuid(), null, "seed", new ProjectBoardAssignee("agent", authorId, authorId, "seed-host", "seed-session"),
+            new ProjectBoardCommentOrigin("seed-host", "seed-session"), null, now.AddSeconds(index), now.AddSeconds(index), null)).ToArray();
+            board = board with
+        {
+            CommentRevision = 500,
+            Cards = board.Cards.Select(item => item.Id == card.Id ? item with { Comments = seedComments } : item).ToArray()
+        };
+        string boardPath = Path.Combine(projectPath, ".toolbox", "board.json");
+        File.WriteAllBytes(boardPath, SerializeBoard(board));
+        var store = new ProjectBoardStore(registryRoot, request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo unavailable.")));
+        ProjectBoard at500 = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project }));
+        Check(!at500.CommentsExternal && at500.Cards.Single().CommentCount == 500, "exactly 500 comments remain inline");
+        ProjectBoardComment added = ReadWrapped<ProjectBoardComment>(await CallAsync(store, "board.comment.add", new
+        {
+            project, id = card.Id, body = "501", actor = Guid.NewGuid(), host = "author-host", session = "author-session"
+        }), "comment");
+        ProjectBoard external = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project }));
+        Check(added.Id != Guid.Empty && external.CommentsExternal && external.CommentRevision == 501 &&
+            File.Exists(Path.Combine(projectPath, ".toolbox", "comments.json")), "the 501st comment triggers sidecar migration");
+
+        string stableBoardHash = HashBytes(File.ReadAllBytes(boardPath));
+        long boardRevision = external.Revision;
+        TaskResponse afterExternal = await CallAsync(store, "board.comment.add", new
+        {
+            project, id = card.Id, body = "sidecar only", actor = Guid.NewGuid(), host = "author-host", session = "author-session"
+        });
+        ProjectBoard after = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project }));
+        Check(afterExternal.Ok && after.Revision == boardRevision && after.CommentRevision == 502 &&
+            HashBytes(File.ReadAllBytes(boardPath)) == stableBoardHash,
+            "external comment writes advance only sidecar revision and preserve board bytes");
+
+        string sizeProjectPath = Path.Combine(root, "size-project");
+        Directory.CreateDirectory(sizeProjectPath);
+        string sizeRegistry = Path.Combine(root, "size-registry");
+        var sizeInitial = new ProjectBoardStore(sizeRegistry, request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo unavailable.")));
+        var sizeRegistration = Read<ProjectBoardRegistration>(await CallAsync(sizeInitial, "project.register", new { path = sizeProjectPath, init = true }));
+        string sizeProject = sizeRegistration.BoardId.ToString();
+        ProjectBoardCard sizeCard = ReadWrapped<ProjectBoardCard>(await CallAsync(sizeInitial, "board.card.create", new { project = sizeProject, title = "2MiB" }), "card");
+        ProjectBoard sizeBoard = Read<ProjectBoard>(await CallAsync(sizeInitial, "board.get", new { project = sizeProject }));
+        ProjectBoardCard emptyCard = sizeBoard.Cards.Single() with { Description = "" };
+        ProjectBoard emptyDescriptionBoard = sizeBoard with { Cards = [emptyCard] };
+        int baseBytes = SerializeBoard(emptyDescriptionBoard).Length;
+        int descriptionLength = 2 * 1024 * 1024 - baseBytes;
+        ProjectBoard exactThresholdBoard = sizeBoard with
+        {
+            Cards = [sizeCard with { Description = new string('x', descriptionLength) }]
+        };
+        Check(SerializeBoard(exactThresholdBoard).Length == 2 * 1024 * 1024, "the threshold fixture is exactly 2 MiB");
+        File.WriteAllBytes(Path.Combine(sizeProjectPath, ".toolbox", "board.json"), SerializeBoard(exactThresholdBoard));
+        var sizeStore = new ProjectBoardStore(sizeRegistry, request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo unavailable.")));
+        ProjectBoard exactBoard = Read<ProjectBoard>(await CallAsync(sizeStore, "board.get", new { project = sizeProject }));
+        Check(!exactBoard.CommentsExternal, "exactly 2 MiB remains inline before a comment write");
+        TaskResponse overThreshold = await CallAsync(sizeStore, "board.comment.add", new
+        {
+            project = sizeProject, id = sizeCard.Id, body = "x", actor = Guid.NewGuid(), host = "size-host", session = "size-session"
+        });
+        Check(overThreshold.Ok && Read<ProjectBoard>(await CallAsync(sizeStore, "board.get", new { project = sizeProject })).CommentsExternal,
+            "a comment that pushes serialized board size over 2 MiB triggers migration");
+    }
+
+    private static async Task CheckCommentMigrationRecoveryAsync(string root)
+    {
+        foreach (string mode in new[] { "rollback", "commit", "unknown" })
+        {
+            string scenario = Path.Combine(root, mode);
+            string registryRoot = Path.Combine(scenario, "registry");
+            string projectPath = Path.Combine(scenario, "project");
+            Directory.CreateDirectory(projectPath);
+            var firstStore = new ProjectBoardStore(registryRoot, request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo unavailable.")));
+            var registration = Read<ProjectBoardRegistration>(await CallAsync(firstStore, "project.register", new { path = projectPath, init = true }));
+            string project = registration.BoardId.ToString();
+            ProjectBoardCard card = ReadWrapped<ProjectBoardCard>(await CallAsync(firstStore, "board.card.create", new { project, title = "recovery" }), "card");
+            ProjectBoardComment comment = ReadWrapped<ProjectBoardComment>(await CallAsync(firstStore, "board.comment.add", new
+            {
+                project, id = card.Id, body = "preserve me", actor = Guid.NewGuid(), host = "recover-host", session = "recover-session"
+            }), "comment");
+            string directory = Path.Combine(projectPath, ".toolbox");
+            string boardPath = Path.Combine(directory, "board.json");
+            byte[] oldBoard = File.ReadAllBytes(boardPath);
+            ProjectBoard inline = Read<ProjectBoard>(await CallAsync(firstStore, "board.get", new { project })) with
+            {
+                Cards = Read<ProjectBoard>(await CallAsync(firstStore, "board.get", new { project })).Cards
+                    .Select(item => item.Id == card.Id ? item with { Comments = [comment] } : item).ToArray()
+            };
+            ProjectBoard externalBoard = inline with
+            {
+                CommentsExternal = true,
+                Cards = inline.Cards.Select(item => item with { Comments = [] }).ToArray()
+            };
+            byte[] newBoard = SerializeBoard(externalBoard);
+            byte[] newComments = JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                schemaVersion = 1,
+                boardId = inline.BoardId,
+                revision = inline.CommentRevision,
+                comments = inline.Cards.SelectMany(item => item.Comments!.Select(saved => new { cardId = item.Id, comment = saved })).ToArray()
+            }, Web);
+            string oldHash = HashBytes(oldBoard);
+            string newBoardHash = HashBytes(newBoard);
+            string newCommentsHash = HashBytes(newComments);
+            File.WriteAllBytes(Path.Combine(directory, "board.comments.old"), oldBoard);
+            File.WriteAllBytes(Path.Combine(directory, "board.comments.next"), newBoard);
+            File.WriteAllBytes(Path.Combine(directory, "comments.next"), newComments);
+            File.WriteAllBytes(Path.Combine(directory, "comments.migration.json"), JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                schemaVersion = 1,
+                boardId = inline.BoardId,
+                oldBoardHash = oldHash,
+                newBoardHash,
+                newCommentsHash
+            }, Web));
+            File.Move(Path.Combine(directory, "comments.next"), Path.Combine(directory, "comments.json"));
+            if (mode != "rollback") File.WriteAllBytes(boardPath, newBoard);
+            if (mode == "unknown") File.WriteAllText(boardPath, "unknown external board bytes");
+
+            var recoveredStore = new ProjectBoardStore(registryRoot, request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo unavailable.")));
+            TaskResponse recovered = await CallAsync(recoveredStore, "board.get", new { project });
+            if (mode == "rollback")
+            {
+                ProjectBoard rolledBack = Read<ProjectBoard>(recovered);
+                Check(!rolledBack.CommentsExternal && rolledBack.Cards.Single().CommentCount == 1 && !File.Exists(Path.Combine(directory, "comments.json")) &&
+                    !File.Exists(Path.Combine(directory, "comments.migration.json")), "interrupted migration rolls back to inline comments");
+            }
+            else if (mode == "commit")
+            {
+                ProjectBoard committed = Read<ProjectBoard>(recovered);
+                Check(committed.CommentsExternal && committed.Cards.Single().CommentCount == 1 &&
+                    !File.Exists(Path.Combine(directory, "comments.migration.json")), "fully installed migration recovers as committed");
+            }
+            else
+            {
+                CheckCode(recovered, "DATA_CORRUPT", "unknown migration hash is rejected");
+                Check(File.Exists(Path.Combine(directory, "comments.migration.json")) &&
+                    File.Exists(Path.Combine(directory, "comments.json")) && File.ReadAllText(boardPath) == "unknown external board bytes",
+                    "unknown migration state preserves all files for inspection");
+            }
+        }
+    }
+
+    private static async Task CheckCommentResponseLimitAsync(string root)
+    {
+        string projectPath = Path.Combine(root, "project");
+        Directory.CreateDirectory(projectPath);
+        string registryRoot = Path.Combine(root, "registry");
+        var initial = new ProjectBoardStore(registryRoot, request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo unavailable.")));
+        var registration = Read<ProjectBoardRegistration>(await CallAsync(initial, "project.register", new { path = projectPath, init = true }));
+        string project = registration.BoardId.ToString();
+        ProjectBoardCard card = ReadWrapped<ProjectBoardCard>(await CallAsync(initial, "board.card.create", new { project, title = "4 MiB" }), "card");
+        ProjectBoard board = Read<ProjectBoard>(await CallAsync(initial, "board.get", new { project }));
+        DateTime now = DateTime.UtcNow;
+        string actor = Guid.NewGuid().ToString("D");
+        ProjectBoardComment[] comments = Enumerable.Range(0, 60).Select(index => new ProjectBoardComment(
+            Guid.NewGuid(), null, new string('\u0001', 16 * 1024),
+            new ProjectBoardAssignee("agent", actor, actor, "response-host", "response-session"),
+            new ProjectBoardCommentOrigin("response-host", "response-session"), null, now.AddSeconds(index), now.AddSeconds(index), null)).ToArray();
+        board = board with
+        {
+            CommentRevision = comments.Length,
+            Cards = board.Cards.Select(item => item.Id == card.Id ? item with { Comments = comments } : item).ToArray()
+        };
+        File.WriteAllBytes(Path.Combine(projectPath, ".toolbox", "board.json"), SerializeBoard(board));
+        var store = new ProjectBoardStore(registryRoot, request => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo unavailable.")));
+        TaskResponse response = await CallAsync(store, "board.comment.list", new { project, id = card.Id, limit = 100 });
+        JsonElement page = Read(response);
+        int responseBytes = JsonSerializer.SerializeToUtf8Bytes(response, TaskProtocol.Options).Length;
+        Check(responseBytes <= TaskProtocol.MaxBytes && Array(page, "comments").Length < comments.Length && page.GetProperty("cursor").ValueKind == JsonValueKind.String,
+            "comment pages shrink to respect the actual 4 MiB serialized response limit");
     }
 
     private static async Task CheckColumnDeleteClaimAsync(string root)
@@ -445,20 +929,32 @@ internal static class Program
         Guid requestId = Guid.NewGuid();
         bool reentered = false;
         bool nestedReadSucceeded = false;
+        TaskResponse? nestedResponse = null;
+        Exception? nestedException = null;
         Action handler = () =>
         {
             if (reentered) return;
             reentered = true;
-            nestedReadSucceeded = store.ExecuteAsync(new TaskRequest
+            try
             {
-                RequestId = Guid.NewGuid().ToString(), Operation = "board.get",
-                Payload = JsonSerializer.SerializeToElement(new { project }, Web)
-            }).GetAwaiter().GetResult().Ok;
+                nestedResponse = store.ExecuteAsync(new TaskRequest
+                {
+                    RequestId = Guid.NewGuid().ToString(), Operation = "board.get",
+                    Payload = JsonSerializer.SerializeToElement(new { project }, Web)
+                }).GetAwaiter().GetResult();
+                nestedReadSucceeded = nestedResponse.Ok;
+            }
+            catch (Exception ex)
+            {
+                nestedException = ex;
+            }
         };
         store.Changed += handler;
         TaskResponse first = await CallAsync(store, "board.card.create", new { project, title = "dedup" }, requestId);
         store.Changed -= handler;
-        Check(reentered && nestedReadSucceeded, "Changed handlers can read the store without semaphore reentry deadlock");
+        Check(first.Ok, $"the write triggering Changed succeeds; got {first.Error?.Code}: {first.Error?.Message}");
+        Check(reentered, "a successful write raises Changed before ExecuteAsync completes");
+        Check(nestedReadSucceeded, $"Changed handlers can read the store after gate release; got {nestedResponse?.Error?.Code}: {nestedResponse?.Error?.Message}; exception={nestedException?.GetType().Name}: {nestedException?.Message}");
         ProjectBoardCard defaultCard = ReadWrapped<ProjectBoardCard>(first, "card");
         ProjectBoard board = Read<ProjectBoard>(await CallAsync(store, "board.get", new { project }));
         Check(defaultCard.Status == "notStarted" && defaultCard.ColumnId == board.Columns.Single(column => column.Status == "notStarted").Id,
@@ -688,6 +1184,24 @@ internal static class Program
     {
         if (!condition) throw new InvalidOperationException($"Check failed: {label}");
     }
+
+    private static byte[] SerializeBoard(ProjectBoard board)
+    {
+        ProjectBoard storage = board with
+        {
+            Cards = board.Cards.Select(card => card with
+            {
+                Comments = board.CommentsExternal ? [] : card.Comments ?? [],
+                CommentCount = 0,
+                AttachmentCount = 0,
+                ChildCount = 0,
+                ChildClosedCount = 0
+            }).ToArray()
+        };
+        return JsonSerializer.SerializeToUtf8Bytes(storage, BoardStorageOptions);
+    }
+
+    private static string HashBytes(byte[] bytes) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
 
     private static void CopyDirectory(string source, string destination)
     {
