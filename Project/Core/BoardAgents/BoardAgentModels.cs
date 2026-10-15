@@ -91,4 +91,8 @@ internal sealed record BoardAgentHostResolution(
     string? UriScheme,
     bool SupportsSession,
     bool InboxPull,
-    string? PendingPath = null);
+    string? PendingPath = null,
+    bool Enabled = true,
+    int TimeoutSeconds = 120,
+    string[]? ArgumentTemplate = null,
+    string? MessageTransport = null);

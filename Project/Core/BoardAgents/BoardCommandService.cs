@@ -143,6 +143,12 @@ public sealed class BoardCommandService
         if (!TryReadCommentContext(contextResponse.Data, out ProjectBoardCommentContext? projectContext))
             return TaskResponse.Failure(request, "INTERNAL_ERROR", "The project board returned an invalid comment context.");
 
+        if (!ExpectedRevisionsMatch(payload, projectContext, out string? staleMessage))
+            return TaskResponse.Failure(request, "CONFLICT", staleMessage!, "revision");
+
+        if (projectContext.Comment.AcknowledgedAt is DateTime acknowledgedAt)
+            return TaskResponse.Success(request, Result(CreateAcknowledgedDelivery(projectContext, acknowledgedAt), projectContext));
+
         if (projectContext.Comment.DeletedAt is not null && request.Operation == "board.comment.deliver")
             return TaskResponse.Failure(request, "CONFLICT", "A deleted comment cannot be delivered.", "commentId");
 
@@ -156,9 +162,6 @@ public sealed class BoardCommandService
             unavailable.Warnings = warnings;
             return unavailable;
         }
-
-        if (!ExpectedRevisionsMatch(payload, projectContext, out string? staleMessage))
-            return TaskResponse.Failure(request, "CONFLICT", staleMessage!, "revision");
 
         TaskResponse cardResponse = await ReadCardAsync(payload, projectContext.CardId, cancellationToken).ConfigureAwait(false);
         if (!cardResponse.Ok) return CopyFailure(request, cardResponse);
@@ -271,6 +274,11 @@ public sealed class BoardCommandService
             TaskResponse contextResponse = await ReadCommentContextAsync(payload, commentId, cancellationToken).ConfigureAwait(false);
             if (!contextResponse.Ok || !TryReadCommentContext(contextResponse.Data, out ProjectBoardCommentContext? projectContext))
                 return AddWarning(response, "The comment was saved, but its current routing could not be read for delivery setup.");
+            if (projectContext.Comment.AcknowledgedAt is DateTime acknowledgedAt)
+            {
+                response.Data = AddDeliveryField(response.Data, CreateAcknowledgedDelivery(projectContext, acknowledgedAt));
+                return response;
+            }
             if (projectContext.Comment.Routing is null || projectContext.Comment.DeletedAt is not null) return response;
 
             var postWarnings = new List<string>();
@@ -430,6 +438,32 @@ public sealed class BoardCommandService
         BoardAgentService.GetConfirmationHash(context),
         context.Session is null ? "This comment has no exact session; pull it manually in the host." : null,
         DateTimeOffset.UtcNow);
+
+    private static BoardAgentDelivery CreateAcknowledgedDelivery(ProjectBoardCommentContext context, DateTime acknowledgedAt)
+    {
+        DateTime utcAcknowledgedAt = acknowledgedAt.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(acknowledgedAt, DateTimeKind.Utc)
+            : acknowledgedAt.ToUniversalTime();
+        string host = context.Comment.Routing?.Host ?? string.Empty;
+        string? session = context.Comment.Routing?.SessionId;
+        var agentContext = new BoardAgentCommentContext(
+            context.Comment.Id.ToString("D"),
+            context.CardId.ToString("D"),
+            context.Registration.Path,
+            host,
+            session,
+            context.Comment.Body);
+        return new BoardAgentDelivery(
+            agentContext.CommentId,
+            agentContext.CardId,
+            agentContext.ProjectRoot,
+            agentContext.Host,
+            agentContext.Session,
+            BoardAgentDeliveryStatuses.Acknowledged,
+            BoardAgentService.GetConfirmationHash(agentContext),
+            null,
+            new DateTimeOffset(utcAcknowledgedAt));
+    }
 
     private static BoardCommentDeliveryResult Result(BoardAgentDelivery? delivery, ProjectBoardCommentContext context) => new(
         delivery,

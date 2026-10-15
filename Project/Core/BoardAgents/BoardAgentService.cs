@@ -12,6 +12,7 @@ namespace ToolBox.Core.BoardAgents;
 public sealed class BoardAgentService : IAsyncDisposable
 {
     private const int MaxBodyBytes = 64 * 1024;
+    private const int MaximumHostTimeoutSeconds = 3600;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private static readonly string[] HostIds = ["codex", "claude", "codebuddy", "opencode", "zcode", "qoder", "trae", "workbuddy"];
     private static readonly Lazy<BoardAgentService> DefaultInstance = new(CreateDefault);
@@ -220,8 +221,24 @@ public sealed class BoardAgentService : IAsyncDisposable
             PersistedState state = await LoadStateUnsafeAsync(cancellationToken).ConfigureAwait(false);
             List<PersistedDelivery> deliveries = await LoadDeliveriesUnsafeAsync(cancellationToken).ConfigureAwait(false);
             PersistedDelivery? delivery = deliveries.SingleOrDefault(d => d.ConfirmationHash == key);
-            if (delivery is null || delivery.Status is BoardAgentDeliveryStatuses.NeedsConfirmation or BoardAgentDeliveryStatuses.Queued or BoardAgentDeliveryStatuses.Sending)
-                return null;
+            bool created = delivery is null;
+            if (delivery is null)
+            {
+                delivery = new PersistedDelivery
+                {
+                    CommentId = context.CommentId,
+                    CardId = context.CardId,
+                    ProjectRoot = context.ProjectRoot,
+                    Host = context.Host,
+                    Session = context.Session,
+                    Body = string.Empty,
+                    ConfirmationHash = key,
+                    Status = BoardAgentDeliveryStatuses.Acknowledged,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                };
+                deliveries.Add(delivery);
+            }
+            if (!created && delivery.Status == BoardAgentDeliveryStatuses.Acknowledged) return ToDelivery(delivery);
             delivery.Status = BoardAgentDeliveryStatuses.Acknowledged;
             delivery.Body = string.Empty;
             delivery.Error = null;
@@ -339,17 +356,12 @@ public sealed class BoardAgentService : IAsyncDisposable
         try
         {
             PersistedState state = await LoadStateUnsafeAsync(cancellationToken).ConfigureAwait(false);
-            state.Hosts[host] = new PersistedHost
-            {
-                ManualPath = fullPath,
-                ResolvedPath = resolution.ExecutablePath,
-                EntryPath = resolution.EntryPath,
-                Mode = resolution.Mode,
-                SupportsSession = resolution.SupportsSession,
-                DetectedVia = detectedVia,
-                UriScheme = resolution.UriScheme
-            };
-            _resolutions[host] = resolution;
+            PersistedHost configuration = state.Hosts.GetValueOrDefault(host) ?? new PersistedHost();
+            configuration.ManualPath = fullPath;
+            SaveResolution(configuration, resolution);
+            configuration.DetectedVia = detectedVia;
+            state.Hosts[host] = configuration;
+            _resolutions[host] = ApplyHostSettings(resolution, configuration);
             await SaveStateUnsafeAsync(state, cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -363,6 +375,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         host = NormalizeHost(host);
         string fullRoot = NormalizeProjectRoot(projectRoot);
         if (!_resolutions.TryGetValue(host, out BoardAgentHostResolution? resolution)) return null;
+        if (!resolution.Enabled) return null;
         if (!string.IsNullOrWhiteSpace(resolution.UriScheme))
             return new BoardAgentLaunchTarget("uri", null, $"{resolution.UriScheme}://", fullRoot);
         return resolution.Mode == "app" && File.Exists(resolution.ExecutablePath)
@@ -453,9 +466,9 @@ public sealed class BoardAgentService : IAsyncDisposable
         }
 
         BoardAgentProcessSpec processSpec = BuildProcessSpec(delivery, resolution);
-        await SetDeliveryErrorAsync(key, BoardAgentDeliveryStatuses.Sending, null).ConfigureAwait(false);
+        if (!await TrySetSendingAsync(key).ConfigureAwait(false)) return;
         BoardAgentProcessResult result;
-        try { result = await _processRunner.ExecuteAsync(processSpec, _defaultTimeout, cancellationToken).ConfigureAwait(false); }
+        try { result = await _processRunner.ExecuteAsync(processSpec, TimeSpan.FromSeconds(resolution.TimeoutSeconds), cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception)
         {
@@ -491,11 +504,29 @@ public sealed class BoardAgentService : IAsyncDisposable
             List<PersistedDelivery> deliveries = await LoadDeliveriesUnsafeAsync(CancellationToken.None).ConfigureAwait(false);
             PersistedDelivery? delivery = deliveries.SingleOrDefault(d => d.ConfirmationHash == key);
             if (delivery is null) return;
+            if (delivery.Status == BoardAgentDeliveryStatuses.Acknowledged && status != BoardAgentDeliveryStatuses.Acknowledged) return;
             delivery.Status = status;
             delivery.Error = error;
             if (status is not (BoardAgentDeliveryStatuses.Queued or BoardAgentDeliveryStatuses.Sending)) delivery.Body = string.Empty;
             delivery.UpdatedAt = DateTimeOffset.UtcNow;
             await SaveDeliveriesUnsafeAsync(deliveries, CancellationToken.None).ConfigureAwait(false);
+        }
+        finally { _stateGate.Release(); RaisePendingChanged(); }
+    }
+
+    private async Task<bool> TrySetSendingAsync(string key)
+    {
+        await _stateGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            List<PersistedDelivery> deliveries = await LoadDeliveriesUnsafeAsync(CancellationToken.None).ConfigureAwait(false);
+            PersistedDelivery? delivery = deliveries.SingleOrDefault(d => d.ConfirmationHash == key);
+            if (delivery is null || delivery.Status != BoardAgentDeliveryStatuses.Queued) return false;
+            delivery.Status = BoardAgentDeliveryStatuses.Sending;
+            delivery.Error = null;
+            delivery.UpdatedAt = DateTimeOffset.UtcNow;
+            await SaveDeliveriesUnsafeAsync(deliveries, CancellationToken.None).ConfigureAwait(false);
+            return true;
         }
         finally { _stateGate.Release(); RaisePendingChanged(); }
     }
@@ -614,10 +645,13 @@ public sealed class BoardAgentService : IAsyncDisposable
     {
         configChanged = false;
         PersistedHost configuration = state.Hosts.GetValueOrDefault(host) ?? new PersistedHost();
+        if (!configuration.Enabled)
+            return ApplyHostSettings(new BoardAgentHostResolution(host, "none", null, null, "disabled", UriScheme(host), false, true), configuration);
+
         if (!string.IsNullOrWhiteSpace(configuration.ManualPath))
         {
             BoardAgentHostResolution? manual = ResolveManual(host, configuration.ManualPath!, configuration.DetectedVia ?? "manual");
-            if (manual is not null) return manual;
+            if (manual is not null) return ApplyHostSettings(manual, configuration);
             configuration.ManualPath = null;
             configuration.ResolvedPath = null;
             configuration.EntryPath = null;
@@ -631,7 +665,7 @@ public sealed class BoardAgentService : IAsyncDisposable
             BoardAgentHostResolution saved = FromPersisted(host, configuration);
             if (host != "qoder" || !TryFindLatestQoderVersionNear(saved.ExecutablePath, out string? newest) ||
                 string.Equals(newest, saved.ExecutablePath, StringComparison.OrdinalIgnoreCase))
-                return saved;
+                return ApplyHostSettings(saved, configuration);
         }
         if (configuration.ResolvedPath is not null || configuration.EntryPath is not null)
         {
@@ -649,7 +683,7 @@ public sealed class BoardAgentService : IAsyncDisposable
             SaveResolution(configuration, cli);
             state.Hosts[host] = configuration;
             configChanged = true;
-            return cli;
+            return ApplyHostSettings(cli, configuration);
         }
 
         foreach (string scheme in GetSchemes(host))
@@ -662,7 +696,7 @@ public sealed class BoardAgentService : IAsyncDisposable
                 SaveResolution(configuration, app);
                 state.Hosts[host] = configuration;
                 configChanged = true;
-                return app;
+                return ApplyHostSettings(app, configuration);
             }
         }
 
@@ -678,20 +712,21 @@ public sealed class BoardAgentService : IAsyncDisposable
             SaveResolution(configuration, app);
             state.Hosts[host] = configuration;
             configChanged = true;
-            return app;
+            return ApplyHostSettings(app, configuration);
         }
 
         string? candidate = FindCommonRootCandidate(host);
         if (candidate is not null)
         {
             BoardAgentHostResolution pending = CreateAppResolution(host, candidate, "common-root", UriScheme(host)) with { PendingPath = candidate };
-            return pending;
+            return ApplyHostSettings(pending, configuration);
         }
 
         string? availableScheme = GetSchemes(host).FirstOrDefault(s => _platform.GetUrlProtocolCommands(s).Any());
-        return availableScheme is not null
+        BoardAgentHostResolution fallback = availableScheme is not null
             ? new BoardAgentHostResolution(host, "app", null, null, "uri-registry", availableScheme, false, true)
             : new BoardAgentHostResolution(host, "none", null, null, "none", null, false, true);
+        return ApplyHostSettings(fallback, configuration);
     }
 
     private bool TryFindCli(string host, out string? executable, out string? entryPath, out string detectedVia)
@@ -872,6 +907,35 @@ public sealed class BoardAgentService : IAsyncDisposable
             config.UriScheme ?? UriScheme(host), config.Mode is null ? mode == "cli" : config.SupportsSession, true);
     }
 
+    private BoardAgentHostResolution ApplyHostSettings(BoardAgentHostResolution resolution, PersistedHost configuration)
+    {
+        if (!configuration.Enabled)
+        {
+            return resolution with
+            {
+                Mode = "none",
+                ExecutablePath = null,
+                EntryPath = null,
+                DetectedVia = "disabled",
+                UriScheme = null,
+                SupportsSession = false,
+                PendingPath = null,
+                Enabled = false,
+                TimeoutSeconds = configuration.TimeoutSeconds ?? (int)Math.Ceiling(_defaultTimeout.TotalSeconds),
+                ArgumentTemplate = configuration.ArgumentTemplate,
+                MessageTransport = configuration.MessageTransport
+            };
+        }
+
+        return resolution with
+        {
+            Enabled = true,
+            TimeoutSeconds = configuration.TimeoutSeconds ?? (int)Math.Ceiling(_defaultTimeout.TotalSeconds),
+            ArgumentTemplate = configuration.ArgumentTemplate,
+            MessageTransport = configuration.MessageTransport
+        };
+    }
+
     private static void SaveResolution(PersistedHost config, BoardAgentHostResolution resolution)
     {
         config.ResolvedPath = resolution.ExecutablePath;
@@ -1008,7 +1072,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         resolution.ExecutablePath,
         resolution.EntryPath,
         resolution.DetectedVia,
-        resolution.Mode != "none" && resolution.PendingPath is null,
+        resolution.Enabled && resolution.Mode != "none" && resolution.PendingPath is null,
         resolution.PendingPath is not null,
         resolution.PendingPath,
         resolution.SupportsSession,
@@ -1017,36 +1081,85 @@ public sealed class BoardAgentService : IAsyncDisposable
 
     private static BoardAgentProcessSpec BuildProcessSpec(PersistedDelivery delivery, BoardAgentHostResolution resolution)
     {
+        if (delivery.Session is null || delivery.Session.StartsWith("-", StringComparison.Ordinal))
+            throw new InvalidOperationException("An exact session id is required for host delivery.");
+        if (resolution.TimeoutSeconds is < 1 or > MaximumHostTimeoutSeconds)
+            throw new InvalidOperationException($"Host timeout must be between 1 and {MaximumHostTimeoutSeconds} seconds.");
+
+        string[] builtInTemplate = delivery.Host switch
+        {
+            "codex" => ["exec", "resume", "{session}", "-"],
+            "claude" or "codebuddy" => ["--resume", "{session}", "-p"],
+            "opencode" => ["run", "-s", "{session}"],
+            "zcode" => ["--prompt={message}", "--resume", "{session}"],
+            "qoder" => ["--resume", "{session}", "--print"],
+            _ => throw new InvalidOperationException("The host has no exact-session CLI adapter.")
+        };
+        string transport = resolution.MessageTransport ?? (delivery.Host == "zcode" ? "argument" : "stdin");
+        string[] template = resolution.ArgumentTemplate ?? builtInTemplate;
+        ValidateArgumentTemplate(template, transport);
+
         var arguments = new List<string>();
         if (resolution.EntryPath is not null) arguments.Add(resolution.EntryPath);
-        string? standardInput = null;
-        switch (delivery.Host)
+        foreach (string argument in template)
         {
-            case "codex":
-                arguments.AddRange(["exec", "resume", delivery.Session!, "-"]);
-                standardInput = delivery.Body;
-                break;
-            case "claude":
-            case "codebuddy":
-                arguments.AddRange(["--resume", delivery.Session!, "-p"]);
-                standardInput = delivery.Body;
-                break;
-            case "opencode":
-                arguments.AddRange(["run", "-s", delivery.Session!]);
-                standardInput = delivery.Body;
-                break;
-            case "zcode":
-                arguments.Add($"--prompt={delivery.Body}");
-                arguments.AddRange(["--resume", delivery.Session!]);
-                break;
-            case "qoder":
-                arguments.AddRange(["--resume", delivery.Session!, "--print"]);
-                standardInput = delivery.Body;
-                break;
-            default:
-                throw new InvalidOperationException("The host has no exact-session CLI adapter.");
+            arguments.Add(Regex.Replace(argument, @"\{([^{}]*)\}", match => match.Groups[1].Value switch
+            {
+                "session" => delivery.Session!,
+                "message" => delivery.Body,
+                "project" => delivery.ProjectRoot,
+                _ => throw new InvalidOperationException("Host argument template contains an unsupported token.")
+            }));
         }
+        if (arguments.Sum(argument => argument.Length) > 30000)
+            throw new InvalidOperationException("Host argument template expands beyond the supported command line length.");
+        string? standardInput = transport == "stdin" ? delivery.Body : null;
         return new BoardAgentProcessSpec(resolution.ExecutablePath!, arguments, delivery.ProjectRoot, standardInput);
+    }
+
+    private static void ValidateArgumentTemplate(string[] template, string transport)
+    {
+        if (transport is not ("stdin" or "argument"))
+            throw new InvalidOperationException("MessageTransport must be 'stdin' or 'argument'.");
+        if (template.Length is < 1 or > 128)
+            throw new InvalidOperationException("ArgumentTemplate must contain between 1 and 128 arguments.");
+
+        int sessionCount = 0;
+        int messageCount = 0;
+        foreach (string? argument in template)
+        {
+            if (string.IsNullOrWhiteSpace(argument) || argument.Length > 4096 || argument.Any(char.IsControl))
+                throw new InvalidOperationException("ArgumentTemplate contains an empty, oversized, or control-character argument.");
+
+            MatchCollection tokens = Regex.Matches(argument, @"\{([^{}]*)\}");
+            foreach (Match token in tokens)
+            {
+                switch (token.Groups[1].Value)
+                {
+                    case "session": sessionCount++; break;
+                    case "message": messageCount++; break;
+                    case "project": break;
+                    default: throw new InvalidOperationException("ArgumentTemplate contains an unsupported token.");
+                }
+            }
+            string withoutTokens = Regex.Replace(argument, @"\{[^{}]*\}", string.Empty);
+            if (withoutTokens.Contains('{') || withoutTokens.Contains('}'))
+                throw new InvalidOperationException("ArgumentTemplate contains an unmatched token brace.");
+
+            if (argument.Contains("{message}", StringComparison.Ordinal))
+            {
+                int marker = argument.IndexOf("{message}", StringComparison.Ordinal);
+                int equals = argument.LastIndexOf('=', marker);
+                if (transport != "argument" || !argument.StartsWith("--", StringComparison.Ordinal) || equals < 2)
+                    throw new InvalidOperationException("An argument prompt must be bound to an option value, such as --prompt={message}.");
+            }
+        }
+
+        if (sessionCount == 0) throw new InvalidOperationException("ArgumentTemplate must bind the exact {session} token.");
+        if (transport == "argument" && messageCount != 1)
+            throw new InvalidOperationException("Argument transport requires exactly one safely bound {message} token.");
+        if (transport == "stdin" && messageCount != 0)
+            throw new InvalidOperationException("Stdin transport must not include a {message} token.");
     }
 
     private static BoardAgentCommentContext ValidateContext(BoardAgentCommentContext context)
@@ -1117,6 +1230,10 @@ public sealed class BoardAgentService : IAsyncDisposable
 
     private sealed class PersistedHost
     {
+        public bool Enabled { get; set; } = true;
+        public int? TimeoutSeconds { get; set; }
+        public string[]? ArgumentTemplate { get; set; }
+        public string? MessageTransport { get; set; }
         public string? ManualPath { get; set; }
         public string? ResolvedPath { get; set; }
         public string? EntryPath { get; set; }
@@ -1156,6 +1273,9 @@ public sealed class SystemBoardAgentProcessRunner : IBoardAgentProcessRunner
             RedirectStandardError = true,
             WorkingDirectory = spec.WorkingDirectory
         };
+        startInfo.Environment.Remove("TOOLBOX_BOARD_ACTOR");
+        startInfo.Environment.Remove("CODEX_THREAD_ID");
+        startInfo.Environment.Remove("CODEX_SESSION_ID");
         foreach (string argument in spec.Arguments) startInfo.ArgumentList.Add(argument);
 
         using var process = new Process { StartInfo = startInfo };

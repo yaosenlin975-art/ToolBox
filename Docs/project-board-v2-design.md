@@ -206,7 +206,7 @@ UI：
 
 | 操作 | CLI | 语义 |
 |---|---|---|
-| `board.comment.add` | `board comment add --id <cardId> [--parent-id <commentId>] --body <text> [--actor <id>] [--session <id>] [--host <name>]` | 新增评论/回复；回复自动写 `routing`（目标 = 父评论 origin 或沿链最近的 origin）。用户回复（actor=local-user）时立即按 `routing.host` 触发投递：CLI 适配器直接调用；GUI 适配器唤起应用 + 剪贴板；正文 ≤ 16 KiB |
+| `board.comment.add` | `board comment add --id <cardId> [--parent-id <commentId>] --body <text> [--actor <id>] [--session <id>] [--host <name>]` | 新增评论/回复；正文 UTF-8 ≤ 16 KiB；routing 固定最近祖先 origin 快照。创建本机待确认记录，仅用户明确设置 always 时自动排队 |
 | `board.comment.get` | `board comment get --comment-id <uuid>` | 返回评论、所属项目/卡片及 boardRevision/commentRevision |
 | `board.comment.list` | `board comment list --id <cardId> [--include-deleted] [--limit <1..100>] [--cursor <token>]` | 分页返回扁平评论数组，游标绑定 commentRevision |
 | `board.comment.update` | `board comment update --comment-id <uuid> --body <text> [--actor <id>]` | 仅作者可改；更新时间戳 |
@@ -241,44 +241,33 @@ UI：
 
 ```json
 {
-  "hosts": [
-    {
-      "id": "codex",
-      "displayName": "Codex",
-      "mode": "cli",
-      "resolvedPath": "<探测结果，例如 %APPDATA%\\npm\\codex.cmd>",
-      "detectedVia": "path",
-      "detectedAt": "2026-10-15T03:00:00Z",
+  "policy": "confirm",
+  "hosts": {
+    "codex": {
+      "enabled": true,
       "argumentTemplate": ["exec", "resume", "{session}", "-"],
       "messageTransport": "stdin",
-      "sessionIdPattern": "^[0-9a-fA-F-]{36}$",
-      "fallbackArguments": ["exec", "resume", "--last", "-"],
-      "workingDirectory": "project",
       "timeoutSeconds": 120
     },
-    {
-      "id": "qoder",
-      "displayName": "Qoder CN",
-      "mode": "app",
-      "uriTemplate": "qoder://",
-      "resolvedPath": "",
-      "detectedVia": "uri-registry",
-      "clipboardFallback": true
+    "qoder": {
+      "enabled": true
     }
-  ]
+  }
 }
 ```
 
 本机路径只写入 `%AppData%/ToolBox/board-agents.json`，不进入项目数据；每台机器各自探测、各自保存。内置模板绑定的是"宿主 id + 参数模板"，不是安装路径：
 
+`hosts.<id>` 可编辑 enabled、manualPath、timeoutSeconds、argumentTemplate、messageTransport；其余解析字段由服务维护。enabled 缺省 true；timeoutSeconds 为 1–3600 秒，缺省 120；policy 为 confirm 或用户明确设置的 always。模板仅支持 `{session}`、`{message}`、`{project}`，必须绑定精确 session。stdin 模板不包含 message；argument 模板须将唯一消息绑定为 `--name={message}` 选项值，不接受独立消息插槽或 shell 文本。省略模板使用内置行为。
+
 | 宿主 id | 模式 | 参数模板 | 说明 |
 |---|---|---|---|
-| `codex` | cli | `codex exec resume {session} -`（消息走 stdin）；无会话时 `exec resume --last -` | 会话取 `CODEX_THREAD_ID` |
-| `claude` | cli | `claude --resume {session} -p`；无会话 `claude -c -p` | 消息走 stdin；无环境变量时用绑定或续最近，实现首日核对 stdin 读取行为 |
-| `codebuddy` | cli | `codebuddy --resume {session} -p`；无会话 `codebuddy -c -p` | 同上 |
-| `opencode` | cli | `opencode run -s {session}`；无会话 `opencode run -c` | 消息走参数 |
-| `zcode` | cli | `node "<ZCode 安装目录>\resources\glm\zcode.cjs" -p --resume {session}`；无会话 `-c -p` | 安装目录探测得到；`node` 不可用时降级 app 模式；会话形如 `sess_<uuid>` |
-| `qoder` | cli（已安装 CLI 时）/ app | `qoderclicn <参数>`，参数以实现时 `qoderclicn --help` 为准；无 CLI 时 `qoder://` + 宿主内拉取 | `qoderclicn` 为独立安装项，不随 IDE 打包；探测顺序 `QODERCN_CLI_BIN` → PATH → `~/.qoder-cn/bin/qoderclicn/qoderclicn.exe` |
+| `codex` | cli | `codex exec resume {session} -` | 消息走 stdin；会话取真实 CODEX_THREAD_ID 或显式绑定 |
+| `claude` | cli | `claude --resume {session} -p` | 消息走 stdin；缺会话改为宿主/项目拉取 |
+| `codebuddy` | cli | `codebuddy --resume {session} -p` | 消息走 stdin；缺会话改为宿主/项目拉取 |
+| `opencode` | cli | `opencode run -s {session}` | 消息走 stdin |
+| `zcode` | cli | `node <发现的 entry> --resume={session} --prompt={message}` | 安装目录和 Node 分别探测；消息为绑定值，不解析为独立选项 |
+| `qoder` | cli（已安装 CLI 时）/ app | `qoder --resume {session} --print` | 消息走 stdin；无 CLI 用宿主内拉取，打开应用由用户触发 |
 | `workbuddy` | app + 宿主内拉取 | `workbuddy://` 或探测到的 exe | 未发现 CLI 与 hooks；回复走未读队列 + 技能/MCP 拉取（§5.7）；注册表路径当前失效，实现时先解析真实安装位置 |
 | `trae` | app + 宿主内拉取 | `trae-cn://` 或探测到的 exe | `trae-cn`/`trae-solo-cn` 启动器仅支持 VS Code 式参数（diff/merge/goto/new-window/wait），无提示词入口；TRAE SOLO CN 归入同一适配器 |
 
@@ -299,7 +288,7 @@ UI：
 - 不注入权限绕过参数（如 `--dangerously-skip-permissions`、`--yolo`、`--force`），沿用宿主自身权限设置；工作目录固定为看板项目根。
 - 投递在后台执行，超时按适配器配置（默认 120 秒）；只记录退出码与错误摘要（截断 2 KiB），宿主输出不写回评论。
 - 用户发送前 UI 明确显示"将通过 <宿主> 会话 <id> 发送"；投递失败时保留回复文本、显示失败原因，并提供"重试 / 复制 / 打开应用"。
-- 适配器缺失、宿主 CLI 卸载或版本变更导致参数不兼容时：先按本节重新探测一次；仍失败则投递标记 failed，自动降级为复制 + 唤起应用，不静默丢失回复。
+- 适配器缺失、宿主 CLI 卸载或版本变更导致参数不兼容时：重新探测一次；仍失败标记 failed，保留文本并提供复制/打开应用按钮，由用户操作触发。
 
 ### 5.7 无 CLI 宿主的替代通道（本机核实日期 2026-10-15）
 
@@ -452,15 +441,15 @@ notStarted --claim--> inProgress --submit--> pendingReview --close--> closed
 agent 在宿主 H 会话 S 评论 C0(origin={H,S})
 用户回复 C1(parent=C0)
   ├ routing={H,S}
-  ├ 适配器 mode=cli  → 调用宿主 CLI 续接会话并送入回复文本 → delivery=delivered
-  ├ 适配器 mode=app  → 唤起应用 + 回复文本进剪贴板 → delivery=clipboard，用户粘贴发送
-  └ 适配器缺失/失败 → delivery=failed，保留文本，提供重试/复制/打开应用
+  ├ 精确会话且 CLI 可用 → 等待确认（或本机 always）→ 排队续接 → submitted
+  ├ 无精确会话/仅 GUI → manualPullRequired，宿主按项目拉取并 ack
+  └ 适配器失败 → failed；超时 → unknown，保留文本，用户核实后重试
 agent 下回合：CLI 投递由宿主直接续接；未配置适配器时用 comment inbox --session S 读取并 ack
 ```
 
 回复到回复：路由沿父链上溯到最近的 `origin`。用户评论（无 origin）不产生 routing。
 
-投递细节：`board.comment.add`（actor=local-user 且带 routing）触发后台投递，立即返回评论 ID 与 `delivery=pending`；状态写入本机 `board-deliveries.json`。同一评论重复投递按 `commentId` 去重，已 delivered 的记录不重复执行。
+投递细节：`board.comment.add` 保存 routed 回复并建立本机投递记录；默认 needsConfirmation。确认摘要绑定项目、卡片、评论、正文与路由；submitted 不重复执行，ack 是已处理事实。状态写入本机 board-deliveries.json。复制和打开应用仅由用户操作触发。
 
 ### 8.4 附件写入
 
@@ -544,6 +533,8 @@ agent 下回合：CLI 投递由宿主直接续接；未配置适配器时用 com
 - 图片按流限量并计算 hash，实际解码验证格式，再保存生成的 ID 路径；拒绝路径重解析与越界。添加保存失败清理新文件。删除先改名 tombstone 并写限定 journal，再删 metadata；恢复按 metadata 是否仍存在决定还原或清理，清理失败保留 journal。缺失/篡改只返回标记。
 - comment.add 只保存评论并建立待确认投递记录；默认 confirm，只有用户明确设置的本机 always 才自动提交。发送确认绑定正文与 routing 快照，修改后须重新确认。无 session 时绝不使用 --last/-c/--continue，降级 host+project inbox；Qoder 官方 CLI 命令使用 qoder，未安装时保留 GUI pull。
 - host-only inbox 领取按执行 actor 原子保留租约，ack 必须匹配目标和当前领取者；已投递不等于已处理。CLI 退出 0 记 submitted，ack 记 acknowledged；超时记 unknown，不自动重放。GUI 打开和复制分别由用户操作触发，不自动覆写剪贴板。
+- 项目评论的 ack 是已处理事实；迁移项目或缺少本机投递记录时仍返回 acknowledged，不再启动投递。pull ack 可取消尚未启动的排队发送；编辑正文清除 ack 和收件租约，新正文重新处理并确认。
+- 外部宿主进程不继承启动 ToolBox 的 TOOLBOX_BOARD_ACTOR 及已知执行会话标识；保留无关用户环境，目标会话由精确参数指定。技能只复用已在自身续接上下文中记录的 actor。
 - 宿主探测读取本机配置、PATH/npm、URL 协议和卸载注册项、版本目录，失败允许手工配置；失效重探。原生 exe/Node entry 使用参数数组；不把 cmd/ps1 shim 当 exe，不拼接任意 shell 文本，不加执行策略/权限绕过参数。宿主测试全部使用假进程，不续接真实会话。
 - 投递服务与存储分离，由共享 BoardAgentService 路由 comment.deliver/delivery，UI 与 IPC 走同一入口。Core Store 提供精确评论上下文查询；本机适配器与状态存 AppData。可用 hooks 的回注契约未验证时不安装，技能首步 pull。技能按用户授权的目标目录安装，不自动改宿主设置。
 - 所有看板 MessageBox 改为主题化 Confirm/Notify，字段校验内联。Esc 取消；普通输入 Enter 提交，危险确认默认取消，不把删除设为 Enter 默认动作。保留对话框/拖放开始时 boardId、revision 快照。界面区分未绑定与 host 已绑定但缺精确 session。

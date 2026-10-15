@@ -4,6 +4,37 @@ using ToolBox.Core.Boards;
 using ToolBox.Core.BoardAgents;
 using ToolBox.Core.Todo;
 
+if (args.Length == 2 && args[0] == "--probe-agent-env")
+{
+    await File.WriteAllTextAsync(args[1], JsonSerializer.Serialize(new
+    {
+        actor = Environment.GetEnvironmentVariable("TOOLBOX_BOARD_ACTOR"),
+        codexThread = Environment.GetEnvironmentVariable("CODEX_THREAD_ID"),
+        codexSession = Environment.GetEnvironmentVariable("CODEX_SESSION_ID"),
+        path = Environment.GetEnvironmentVariable("PATH"),
+        marker = Environment.GetEnvironmentVariable("TOOLBOX_AGENT_TEST_MARKER")
+    }));
+    return 0;
+}
+
+if (args.Length == 1 && args[0] == "--probe-installed")
+{
+    string probeAppData = Path.Combine(Path.GetTempPath(), "toolbox-boardagents-probe-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(probeAppData);
+    try
+    {
+        await using var service = new BoardAgentService(new BoardAgentServiceOptions { AppDataDirectory = probeAppData });
+        IReadOnlyList<BoardAgentHostInfo> hosts = await service.DiscoverAsync(refresh: true);
+        foreach (BoardAgentHostInfo host in hosts)
+            Console.WriteLine($"{host.Host}: available={host.Available}; mode={host.Mode}; via={host.DetectedVia}; path={host.ResolvedPath ?? host.CandidatePath ?? "-"}; entry={host.EntryPath ?? "-"}");
+    }
+    finally
+    {
+        try { Directory.Delete(probeAppData, recursive: true); } catch (IOException) { }
+    }
+    return 0;
+}
+
 var tests = new (string Name, Func<Task> Run)[]
 {
     ("confirmation hash binds project, card, routing and body", HashBindsContextAsync),
@@ -23,6 +54,12 @@ var tests = new (string Name, Func<Task> Run)[]
     ("comment add queues only a local confirmation and returns delivery", CommentAddCreatesConfirmationAsync),
     ("saved comment remains successful when delivery setup fails", SavedCommentSurvivesDeliveryFailureAsync),
     ("comment acknowledgement updates local delivery independently", CommentAckUpdatesDeliveryAsync),
+    ("acknowledged comment is terminal without a local delivery record", AcknowledgedCommentIsTerminalAsync),
+    ("acknowledgement records missing and pending delivery states", AcknowledgementClosesPendingStatesAsync),
+    ("acknowledgement suppresses a queued send", QueuedAcknowledgementStopsPendingWorkAsync),
+    ("agent child process clears inherited actor and session ids", AgentChildEnvironmentIsIsolatedAsync),
+    ("host JSON disables launch and applies safe argv and timeout", HostJsonConfigurationAsync),
+    ("invalid host argv templates fail before process start", InvalidHostTemplatesAreRejectedAsync),
     ("stale confirmation and invalid delivery payload are rejected", StaleConfirmationAndPayloadValidationAsync),
     ("unknown retry requires verification and request id is idempotent", CommandUnknownRetryIsVerifiedAndIdempotentAsync)
 };
@@ -163,6 +200,213 @@ static async Task CommentAckUpdatesDeliveryAsync()
     Assert(runner.Calls.Count == 1, "ack started a second host process");
 }
 
+static async Task AcknowledgedCommentIsTerminalAsync()
+{
+    using var fixture = new Fixture();
+    var runner = new FakeRunner(new BoardAgentProcessResult(0, false, string.Empty));
+    await using var agents = fixture.CreateService(new FakePlatform(fixture.Root, fixture.Root, []), runner);
+    ProjectBoardCommentContext context = CreateBoardContext(fixture.ProjectRoot, acknowledgedAt: DateTime.UtcNow);
+    await agents.SetManualHostPathAsync("claude", Touch(Path.Combine(fixture.Root, "claude", "claude.exe")));
+    var command = new BoardCommandService((request, _) => request.Operation switch
+    {
+        "board.comment.get" => Task.FromResult(TaskResponse.Success(request, context)),
+        "board.card.get" => Task.FromResult(TaskResponse.Success(request, new { card = new { deletedAt = (DateTime?)null } })),
+        _ => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "unexpected operation"))
+    }, agents);
+
+    TaskResponse read = await command.ExecuteAsync(BoardRequest("board.comment.delivery", new { project = "demo", commentId = context.Comment.Id }));
+    BoardAgentDelivery? readDelivery = ((BoardCommentDeliveryResult)read.Data!).Delivery;
+    Assert(read.Ok && readDelivery?.Status == BoardAgentDeliveryStatuses.Acknowledged, "acknowledged comment without local state was displayed as pending");
+
+    string token = BoardAgentService.GetConfirmationHash(ToAgentContext(context));
+    TaskResponse deliver = await command.ExecuteAsync(BoardRequest("board.comment.deliver", new
+    {
+        project = "demo", commentId = context.Comment.Id, confirm = true, confirmationToken = token
+    }));
+    await agents.DrainAsync();
+    Assert(deliver.Ok && ((BoardCommentDeliveryResult)deliver.Data!).Delivery?.Status == BoardAgentDeliveryStatuses.Acknowledged,
+        "deliver changed an already acknowledged comment to a sendable state");
+    ProjectBoardCommentContext unrouted = context with { Comment = context.Comment with { Routing = null } };
+    var unroutedCommand = new BoardCommandService((request, _) => Task.FromResult(TaskResponse.Success(request, unrouted)), agents);
+    TaskResponse unroutedRead = await unroutedCommand.ExecuteAsync(BoardRequest("board.comment.delivery", new { project = "demo", commentId = context.Comment.Id }));
+    BoardAgentDelivery? unroutedDelivery = ((BoardCommentDeliveryResult)unroutedRead.Data!).Delivery;
+    Assert(unroutedDelivery?.Status == BoardAgentDeliveryStatuses.Acknowledged && unroutedDelivery.Host.Length == 0,
+        "an acknowledged unrouted comment used an invented or origin-derived host");
+
+    await agents.SetDeliveryPolicyAsync("always");
+    var addCommand = new BoardCommandService((request, _) => request.Operation switch
+    {
+        "board.comment.add" => Task.FromResult(TaskResponse.Success(request, new { comment = context.Comment, cardId = context.CardId })),
+        "board.comment.get" => Task.FromResult(TaskResponse.Success(request, context)),
+        _ => Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "unexpected operation"))
+    }, agents);
+    TaskResponse add = await addCommand.ExecuteAsync(BoardRequest("board.comment.add", new { project = "demo", id = context.CardId, body = context.Comment.Body }));
+    using JsonDocument addData = JsonDocument.Parse(JsonSerializer.Serialize(add.Data, TaskProtocol.Options));
+    Assert(addData.RootElement.GetProperty("delivery").GetProperty("status").GetString() == BoardAgentDeliveryStatuses.Acknowledged,
+        "an already acknowledged saved comment did not retain its terminal delivery state");
+    Assert(runner.Calls.Count == 0, "an acknowledged comment started a host process");
+}
+
+static async Task AcknowledgementClosesPendingStatesAsync()
+{
+    using var fixture = new Fixture();
+    var runner = new FakeRunner(new BoardAgentProcessResult(0, false, string.Empty));
+    await using var agents = fixture.CreateService(new FakePlatform(fixture.Root, fixture.Root, []), runner);
+    await agents.SetManualHostPathAsync("claude", Touch(Path.Combine(fixture.Root, "claude", "claude.exe")));
+
+    BoardAgentCommentContext missing = Context(fixture.ProjectRoot, host: "claude");
+    BoardAgentDelivery? created = await agents.MarkAcknowledgedAsync(missing);
+    Assert(created?.Status == BoardAgentDeliveryStatuses.Acknowledged, "acknowledgement did not create a local record for a portable project");
+    string deliveryPath = Path.Combine(Path.GetDirectoryName(agents.GetConfigPath())!, "board-deliveries.json");
+    Assert((await File.ReadAllTextAsync(deliveryPath)).Contains("acknowledged", StringComparison.Ordinal), "new acknowledgement was not persisted");
+
+    BoardAgentCommentContext pending = missing with { CommentId = "comment-pending" };
+    BoardAgentDelivery before = await agents.EnqueueAsync(pending);
+    Assert(before.Status == BoardAgentDeliveryStatuses.NeedsConfirmation, "setup did not create the expected confirmation record");
+    BoardAgentDelivery? acknowledged = await agents.MarkAcknowledgedAsync(pending);
+    Assert(acknowledged?.Status == BoardAgentDeliveryStatuses.Acknowledged, "acknowledgement did not close a needsConfirmation record");
+    Assert(runner.Calls.Count == 0, "acknowledging a pending comment started a host process");
+}
+
+static async Task QueuedAcknowledgementStopsPendingWorkAsync()
+{
+    using var fixture = new Fixture();
+    var runner = new BlockingRunner();
+    await using var agents = fixture.CreateService(new FakePlatform(fixture.Root, fixture.Root, []), runner);
+    await agents.SetManualHostPathAsync("claude", Touch(Path.Combine(fixture.Root, "claude", "claude.exe")));
+    await agents.SetDeliveryPolicyAsync("always");
+
+    BoardAgentCommentContext first = Context(fixture.ProjectRoot, host: "claude") with { CommentId = "comment-active" };
+    BoardAgentCommentContext queued = first with { CommentId = "comment-queued" };
+    Assert((await agents.EnqueueAsync(first)).Status == BoardAgentDeliveryStatuses.Queued, "first delivery did not queue");
+    await runner.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+    Assert((await agents.MarkAcknowledgedAsync(first))?.Status == BoardAgentDeliveryStatuses.Acknowledged,
+        "active delivery could not be marked acknowledged");
+    Assert((await agents.EnqueueAsync(queued)).Status == BoardAgentDeliveryStatuses.Queued, "second delivery did not remain queued");
+
+    BoardAgentDelivery? acknowledged = await agents.MarkAcknowledgedAsync(queued);
+    Assert(acknowledged?.Status == BoardAgentDeliveryStatuses.Acknowledged, "queued delivery was not marked acknowledged");
+    runner.Release.TrySetResult(new BoardAgentProcessResult(0, false, string.Empty));
+    await agents.DrainAsync();
+
+    Assert(runner.Calls.Count == 1, "a queued acknowledged comment started a host process");
+    Assert((await agents.GetDeliveryAsync(queued))?.Status == BoardAgentDeliveryStatuses.Acknowledged, "worker downgraded acknowledged state after another send completed");
+    Assert((await agents.GetDeliveryAsync(first))?.Status == BoardAgentDeliveryStatuses.Acknowledged, "an active process result downgraded acknowledged state");
+}
+
+static async Task AgentChildEnvironmentIsIsolatedAsync()
+{
+    using var fixture = new Fixture();
+    string outputPath = Path.Combine(fixture.Root, "child-env.json");
+    string[] clearedNames = ["TOOLBOX_BOARD_ACTOR", "CODEX_THREAD_ID", "CODEX_SESSION_ID"];
+    Dictionary<string, string?> oldValues = clearedNames.Append("TOOLBOX_AGENT_TEST_MARKER")
+        .ToDictionary(name => name, Environment.GetEnvironmentVariable, StringComparer.Ordinal);
+    string? oldPath = Environment.GetEnvironmentVariable("PATH");
+    try
+    {
+        Environment.SetEnvironmentVariable("TOOLBOX_BOARD_ACTOR", "parent-actor-marker");
+        Environment.SetEnvironmentVariable("CODEX_THREAD_ID", "parent-thread-marker");
+        Environment.SetEnvironmentVariable("CODEX_SESSION_ID", "parent-session-marker");
+        Environment.SetEnvironmentVariable("TOOLBOX_AGENT_TEST_MARKER", "keep-this-marker");
+        var runner = new SystemBoardAgentProcessRunner();
+        BoardAgentProcessResult result = await runner.ExecuteAsync(new BoardAgentProcessSpec(
+            Environment.ProcessPath ?? throw new InvalidOperationException("The test process path is unavailable."),
+            ["--probe-agent-env", outputPath],
+            fixture.Root,
+            null), TimeSpan.FromSeconds(10), CancellationToken.None);
+        Assert(result.ExitCode == 0 && !result.TimedOut, "fake child probe failed");
+        using JsonDocument probe = JsonDocument.Parse(await File.ReadAllTextAsync(outputPath));
+        JsonElement child = probe.RootElement;
+        Assert(clearedNames.All(name => child.GetProperty(name switch
+        {
+            "TOOLBOX_BOARD_ACTOR" => "actor",
+            "CODEX_THREAD_ID" => "codexThread",
+            _ => "codexSession"
+        }).ValueKind == JsonValueKind.Null), "agent child inherited a parent actor or execution session id");
+        Assert(child.GetProperty("path").GetString() == oldPath, "agent child did not retain PATH");
+        Assert(child.GetProperty("marker").GetString() == "keep-this-marker", "agent child lost an unrelated environment variable");
+    }
+    finally
+    {
+        foreach ((string name, string? value) in oldValues) Environment.SetEnvironmentVariable(name, value);
+    }
+}
+
+static async Task HostJsonConfigurationAsync()
+{
+    using (var disabledFixture = new Fixture())
+    {
+        string exe = Touch(Path.Combine(disabledFixture.Root, "claude", "claude.exe"));
+        await WriteHostConfigurationAsync(disabledFixture, "claude", new
+        {
+            manualPath = exe,
+            enabled = false,
+            timeoutSeconds = 120
+        });
+        var runner = new FakeRunner(new BoardAgentProcessResult(0, false, string.Empty));
+        await using var service = disabledFixture.CreateService(new FakePlatform(disabledFixture.Root, disabledFixture.Root, []), runner);
+        BoardAgentHostInfo host = (await service.DiscoverAsync(refresh: true)).Single(info => info.Host == "claude");
+        Assert(!host.Available, "disabled host became available during discovery");
+        BoardAgentCommentContext context = Context(disabledFixture.ProjectRoot);
+        BoardAgentDelivery delivery = await service.EnqueueAsync(context, BoardAgentService.GetConfirmationHash(context));
+        await service.DrainAsync();
+        Assert(delivery.Status == BoardAgentDeliveryStatuses.Failed && runner.Calls.Count == 0, "disabled host launched a process");
+        string saved = await File.ReadAllTextAsync(service.GetConfigPath());
+        Assert(saved.Contains("\"enabled\": false", StringComparison.Ordinal), "discovery re-enabled the disabled host");
+    }
+
+    using var configuredFixture = new Fixture();
+    string configuredExe = Touch(Path.Combine(configuredFixture.Root, "claude", "claude.exe"));
+    await WriteHostConfigurationAsync(configuredFixture, "claude", new
+    {
+        manualPath = configuredExe,
+        enabled = true,
+        timeoutSeconds = 37,
+        argumentTemplate = new[] { "--resume", "{session}", "--prompt={message}" },
+        messageTransport = "argument"
+    });
+    var configuredRunner = new FakeRunner(new BoardAgentProcessResult(0, false, string.Empty));
+    await using var configuredService = configuredFixture.CreateService(new FakePlatform(configuredFixture.Root, configuredFixture.Root, []), configuredRunner);
+    string body = "--dangerously-skip-permissions\n--help \"中文\"\\tail";
+    BoardAgentCommentContext custom = Context(configuredFixture.ProjectRoot) with { Body = body };
+    await configuredService.EnqueueAsync(custom, BoardAgentService.GetConfirmationHash(custom));
+    await configuredService.DrainAsync();
+    BoardAgentProcessSpec spec = configuredRunner.Calls.Single();
+    Assert(spec.Arguments.SequenceEqual(["--resume", "session-1", "--prompt=" + body]), "custom template did not preserve safe bound prompt argv");
+    Assert(spec.StandardInput is null, "argument transport also wrote the prompt to stdin");
+    Assert(configuredRunner.Timeouts.Single() == TimeSpan.FromSeconds(37), "per-host timeout override was ignored");
+}
+
+static async Task InvalidHostTemplatesAreRejectedAsync()
+{
+    foreach ((string[] template, int timeoutSeconds, string transport) in new[]
+    {
+        (new[] { "--resume", "{session}", "--prompt={message}", "{unknown}" }, 30, "argument"),
+        (new[] { "--resume", "{session}", "{message}" }, 30, "argument"),
+        (new[] { "--resume", "{session}" }, 3601, "stdin"),
+        (new[] { "--resume", "{session}" }, 30, "shell")
+    })
+    {
+        using var fixture = new Fixture();
+        string exe = Touch(Path.Combine(fixture.Root, "claude", "claude.exe"));
+        await WriteHostConfigurationAsync(fixture, "claude", new
+        {
+            manualPath = exe,
+            enabled = true,
+            timeoutSeconds,
+            argumentTemplate = template,
+            messageTransport = transport
+        });
+        var runner = new FakeRunner(new BoardAgentProcessResult(0, false, string.Empty));
+        await using var service = fixture.CreateService(new FakePlatform(fixture.Root, fixture.Root, []), runner);
+        BoardAgentCommentContext context = Context(fixture.ProjectRoot);
+        await service.EnqueueAsync(context, BoardAgentService.GetConfirmationHash(context));
+        await service.DrainAsync();
+        Assert((await service.GetDeliveryAsync(context))?.Status == BoardAgentDeliveryStatuses.Failed, "invalid argument template was not marked failed");
+        Assert(runner.Calls.Count == 0, "invalid argument template started a host process");
+    }
+}
+
 static async Task StaleConfirmationAndPayloadValidationAsync()
 {
     using var fixture = new Fixture();
@@ -286,6 +530,7 @@ static async Task NpmShimSessionDeliveryAsync()
     Assert(spec.FileName == node, "npm shim was executed instead of native node");
     Assert(spec.Arguments.SequenceEqual([entry, "--resume", "session-17", "-p"]), "Claude argv did not bind exact session");
     Assert(spec.StandardInput == context.Body, "Claude prompt was not passed on stdin");
+    Assert(runner.Timeouts.Single() == TimeSpan.FromSeconds(120), "the default host timeout was not 120 seconds");
     Assert(!string.Equals(spec.FileName, shim, StringComparison.OrdinalIgnoreCase), "shell shim was launched");
     Assert((await service.GetDeliveryAsync(context))?.Status == BoardAgentDeliveryStatuses.Submitted, "zero exit did not become submitted");
 
@@ -510,7 +755,7 @@ static async Task ChangedEventIsolatedAsync()
 static BoardAgentCommentContext Context(string root, string host = "claude", string? session = "session-1") =>
     new("comment-1", "card-1", root, host, session, "Send this comment safely.");
 
-static ProjectBoardCommentContext CreateBoardContext(string root, string host = "claude", string? session = "session-1")
+static ProjectBoardCommentContext CreateBoardContext(string root, string host = "claude", string? session = "session-1", DateTime? acknowledgedAt = null)
 {
     DateTime now = DateTime.UtcNow;
     var comment = new ProjectBoardComment(
@@ -522,7 +767,9 @@ static ProjectBoardCommentContext CreateBoardContext(string root, string host = 
         new ProjectBoardCommentRouting(host, session),
         now,
         now,
-        null);
+        null,
+        acknowledgedAt,
+        acknowledgedAt is null ? null : "human");
     return new ProjectBoardCommentContext(
         new ProjectBoardRegistration(Guid.Parse("00000000-0000-0000-0000-000000000100"), "demo", root),
         Guid.Parse("00000000-0000-0000-0000-000000000102"),
@@ -551,6 +798,18 @@ static void AssertPayloadFields(TaskRequest request, params string[] expected)
     string[] fields = request.Payload!.Value.EnumerateObject().Select(property => property.Name).OrderBy(name => name, StringComparer.Ordinal).ToArray();
     string[] sortedExpected = expected.OrderBy(name => name, StringComparer.Ordinal).ToArray();
     Assert(fields.SequenceEqual(sortedExpected), $"query forwarded unexpected fields: {string.Join(",", fields)}");
+}
+
+static Task WriteHostConfigurationAsync(Fixture fixture, string host, object hostConfiguration)
+{
+    Directory.CreateDirectory(fixture.AppData);
+    var state = new
+    {
+        policy = "confirm",
+        hosts = new Dictionary<string, object> { [host] = hostConfiguration }
+    };
+    var options = new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true };
+    return File.WriteAllTextAsync(Path.Combine(fixture.AppData, "board-agents.json"), JsonSerializer.Serialize(state, options));
 }
 
 static string NewTempDirectory()
@@ -625,12 +884,28 @@ sealed class FakeRunner(params BoardAgentProcessResult[] results) : IBoardAgentP
 {
     private readonly ConcurrentQueue<BoardAgentProcessResult> _results = new(results);
     public ConcurrentQueue<BoardAgentProcessSpec> Calls { get; } = new();
+    public ConcurrentQueue<TimeSpan> Timeouts { get; } = new();
     public Task<BoardAgentProcessResult> ExecuteAsync(BoardAgentProcessSpec spec, TimeSpan timeout, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         Calls.Enqueue(spec);
+        Timeouts.Enqueue(timeout);
         if (!_results.TryDequeue(out BoardAgentProcessResult? result)) result = new BoardAgentProcessResult(0, false, string.Empty);
         return Task.FromResult(result);
+    }
+}
+
+sealed class BlockingRunner : IBoardAgentProcessRunner
+{
+    public ConcurrentQueue<BoardAgentProcessSpec> Calls { get; } = new();
+    public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource<BoardAgentProcessResult> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public Task<BoardAgentProcessResult> ExecuteAsync(BoardAgentProcessSpec spec, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        Calls.Enqueue(spec);
+        Started.TrySetResult();
+        return Release.Task.WaitAsync(cancellationToken);
     }
 }
 

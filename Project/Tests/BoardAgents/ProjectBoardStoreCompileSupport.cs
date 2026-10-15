@@ -1,13 +1,11 @@
 using ToolBox.Core.Todo;
 
-namespace ToolBox.Core.Todo;
+namespace ToolBox.Core.Boards;
 
-// ProjectBoardStore's default adapter reaches TodoStore only for add-to-todo.
-// BoardAgents tests inject a fake board executor and never call this compile-only path.
-internal sealed class TodoStore
+public sealed class ProjectBoardStore
 {
-    public static TodoStore Instance { get; } = new();
+    public static ProjectBoardStore Instance { get; } = new();
 
-    public Task<TaskResponse> ExecuteTaskAsync(TaskRequest request) =>
-        Task.FromResult(TaskResponse.Failure(request, "INTERNAL_ERROR", "TodoStore is not used by BoardAgents tests."));
+    public Task<TaskResponse> ExecuteAsync(TaskRequest request) =>
+        throw new InvalidOperationException("BoardAgents tests must inject a fake store executor.");
 }
