@@ -16,7 +16,8 @@
 - [ ] S1：Core/Boards 模型、v1 内存迁移、状态与租约、受影响事项写保护、任意深度树。扩展 Tests/Boards，验证双 actor 竞争、过期接管、返工、全部绕过入口和深链。
 - [ ] S2：Core/Boards 评论/回复、精确 routing、inbox 保留与 ack、双 revision/分页、自动 comments.json 外置及恢复。验证 500/501 与字节边界、hash/CAS/损坏恢复。
 - [ ] S3：Core/Boards 图片添加/移除/预览上下文、实际解码、路径与 10MiB 限制、删除 journal。验证失败回滚、崩溃恢复、缺失/篡改标记。
-- [ ] D1：Core/BoardAgents 本机配置、8 宿主发现、类型化启动、确认/always、提交与 ack 分离、超时 unknown、失败与手工兜底。Tests/BoardAgents 使用假宿主验证 argv/stdin、路径失效、幂等和超时。
+- [x] D1：Core/BoardAgents 本机配置、8 宿主发现、类型化启动、确认/always、提交与 ack 分离、超时 unknown、失败与手工兜底。假宿主检查通过。
+- [ ] D2：共享 BoardCommandService 接线存储、投递与 ack；UI/IPC 共用入口；投递查询无发送副作用；已保存评论不能因投递失败被伪报失败。
 - [x] C1：TaskProtocol、AgentCapabilities、Cli/BoardCommands 接入 18 新操作与旧操作扩展；同步全部 schema/flag/错误码；协议与无副作用 CLI 检查通过。
 - [ ] C2：CLI 隔离集成覆盖四态、树、评论、附件、投递及冲突；与完成后的 Store/投递服务对齐。
 - [ ] U1：Views/Boards 统一主题弹窗与内联校验；根卡徽标、详情子树/图片/评论/会话绑定/回复确认/投递状态。中英同步，保留 modal/drag 快照。Tests/BoardsUi 与独立真实 WPF harness 验证关键动作和双主题资源。
@@ -31,6 +32,8 @@
 ## 当前进度
 
 2026-10-15：完成三个独立只读设计审查，存储/投递/UI 的冲突已归并到设计 §13；进入 S1 与 D1 实施。
+
+Multica：`CSH-50`（issue `01a13e47-5591-7cdf-9542-6a0bd6014fb8`），项目 `82b4b0bb-ebe7-4cad-936f-104aa87a90b5`，工作区 `7c978b4b-04d5-4e9c-b911-78ae2cb21aa1`；当前 in_progress，已留首条进度评论。CLI 需显式指定该 workspace-id；默认工作区 project list 返回资源不存在。完成自测后评论 @qa-test-engineer 再置 in_review，父代理不置 done。
 
 ### 已冻结接线契约
 
@@ -48,3 +51,10 @@
 - `dotnet build Project/Cli/ToolBox.Cli.csproj -c Debug`：0 警告/0 错误；该次后只补能力输出元数据，由上述协议工程重编译验证。
 - claim help 返回 0；ttl=481、mine 缺 host、deliver 确认缺 token、未知参数返回 2/INVALID_ARGUMENT。未触发业务存储或真实宿主投递。
 - 下一步：U1 已开始；S1 完成后继续 S2/S3，再统一 C2/主程序构建。
+
+### D1 证据
+
+- `dotnet run --project Project/Tests/BoardAgents/BoardAgents.Tests.csproj`：13/13 通过。
+- 覆盖默认确认、明确 always、幂等、失效重探、common-root 确认、npm shim 解析、无 session 拉取、崩溃 sending→unknown、超时及 runner I/O 异常。
+- OpenCode/Qoder 用 stdin；ZCode 用绑定值参数；危险选项样式正文、换行、引号和中文不改变进程选项。
+- 未调用真实宿主会话；主 App 在 D2 类未就绪时因缺 BoardCommandService 构建失败，等待接线后统一验证。
