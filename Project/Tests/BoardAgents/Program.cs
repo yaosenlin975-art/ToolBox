@@ -40,6 +40,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("confirmation hash binds project, card, routing and body", HashBindsContextAsync),
     ("npm shim uses native node and exact session delivery", NpmShimSessionDeliveryAsync),
     ("native npm shim resolves executable without running shim", NativeNpmShimResolutionAsync),
+    ("npm node shim resolves an extensionless shebang entry to node argv", ExtensionlessNpmNodeShimResolutionAsync),
+    ("extensionless npm entry without Node evidence is rejected", UnsafeExtensionlessNpmEntryIsRejectedAsync),
     ("prompt-looking options stay prompt data", PromptOptionInjectionAsync),
     ("unknown requires verification and retry token", UnknownRequiresVerifiedRetryAsync),
     ("post-start runner I/O failure becomes unknown", RunnerIoFailureBecomesUnknownAsync),
@@ -637,6 +639,64 @@ static async Task NativeNpmShimResolutionAsync()
     Assert(opencode.ResolvedPath == native && opencode.EntryPath is null, "service did not target the shim's native executable");
     Assert(opencode.DetectedVia == "npm-shim", "native npm shim discovery source was lost");
 }
+
+static async Task ExtensionlessNpmNodeShimResolutionAsync()
+{
+    using var fixture = new Fixture();
+    string npm = Path.Combine(fixture.Root, "npm");
+    string nodeDirectory = Path.Combine(fixture.Root, "node");
+    string node = Touch(Path.Combine(nodeDirectory, "node.exe"));
+    string entry = Touch(Path.Combine(npm, "node_modules", "@tencent-ai", "codebuddy-code", "bin", "codebuddy"),
+        "#!/usr/bin/env node\r\nprocess.exit(0);\r\n");
+    string shim = Touch(Path.Combine(npm, "codebuddy.ps1"), CodeBuddyNodeShimText("$basedir/node_modules/@tencent-ai/codebuddy-code/bin/codebuddy"));
+    var runner = new FakeRunner(new BoardAgentProcessResult(0, false, string.Empty));
+    await using var service = fixture.CreateService(
+        new FakePlatform(Path.Combine(fixture.Root, "profile"), Path.Combine(fixture.Root, "local"), [nodeDirectory, npm]), runner);
+
+    BoardAgentHostInfo codebuddy = (await service.DiscoverAsync()).Single(host => host.Host == "codebuddy");
+    Assert(codebuddy.Available && codebuddy.Mode == "cli", "extensionless CodeBuddy npm entry was not discovered as CLI");
+    Assert(codebuddy.ResolvedPath == node && codebuddy.EntryPath == entry, "discovery did not select PATH node.exe and exact extensionless entry");
+    Assert(codebuddy.DetectedVia == "npm-shim", "extensionless Node shim source was lost");
+
+    BoardAgentCommentContext context = Context(fixture.ProjectRoot, host: "codebuddy", session: "codebuddy-session");
+    await service.EnqueueAsync(context, BoardAgentService.GetConfirmationHash(context));
+    await service.DrainAsync();
+    BoardAgentProcessSpec spec = runner.Calls.Single();
+    Assert(spec.FileName == node, "CodeBuddy delivery did not launch the independently discovered Node executable");
+    Assert(spec.Arguments.SequenceEqual([entry, "--resume", "codebuddy-session", "-p"]), "CodeBuddy argv did not use the exact extensionless entry and session");
+    Assert(spec.StandardInput == context.Body, "CodeBuddy prompt was not passed on stdin");
+    Assert(!string.Equals(spec.FileName, shim, StringComparison.OrdinalIgnoreCase), "CodeBuddy PowerShell shim was executed");
+}
+
+static async Task UnsafeExtensionlessNpmEntryIsRejectedAsync()
+{
+    foreach ((string leaf, string contents) in new[]
+    {
+        ("codebuddy", "process.exit(0);\r\n"),
+        ("codebuddy.txt", "#!/usr/bin/env node\r\nprocess.exit(0);\r\n")
+    })
+    {
+        using var fixture = new Fixture();
+        string npm = Path.Combine(fixture.Root, "npm");
+        string nodeDirectory = Path.Combine(fixture.Root, "node");
+        Touch(Path.Combine(nodeDirectory, "node.exe"));
+        Touch(Path.Combine(npm, "node_modules", "@tencent-ai", "codebuddy-code", "bin", leaf), contents);
+        Touch(Path.Combine(npm, "codebuddy.ps1"), CodeBuddyNodeShimText("$basedir/node_modules/@tencent-ai/codebuddy-code/bin/" + leaf));
+        await using var service = fixture.CreateService(
+            new FakePlatform(Path.Combine(fixture.Root, "profile"), Path.Combine(fixture.Root, "local"), [nodeDirectory, npm]), new FakeRunner());
+
+        BoardAgentHostInfo codebuddy = (await service.DiscoverAsync()).Single(host => host.Host == "codebuddy");
+        Assert(!codebuddy.Available && codebuddy.Mode == "none", $"unsafe entry '{leaf}' was accepted as a Node CLI");
+    }
+}
+
+static string CodeBuddyNodeShimText(string entryPath) =>
+    "$basedir=Split-Path $MyInvocation.MyCommand.Definition -Parent\r\n" +
+    "if (Test-Path \"$basedir/node.exe\") {\r\n" +
+    "  & \"$basedir/node$exe\"  \"" + entryPath + "\" $args\r\n" +
+    "} else {\r\n" +
+    "  & \"node$exe\"  \"" + entryPath + "\" $args\r\n" +
+    "}\r\n";
 
 static async Task NoSessionStaysManualAsync()
 {

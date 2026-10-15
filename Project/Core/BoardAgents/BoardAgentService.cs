@@ -786,7 +786,7 @@ public sealed class BoardAgentService : IAsyncDisposable
     {
         executablePath = null;
         entryPath = null;
-        if (TryReadNodeShimEntry(shimPath, out string? nodeEntry))
+        if (TryReadNodeShimEntry(shimPath, command, out string? nodeEntry))
         {
             if (nodePath is not null)
             {
@@ -831,7 +831,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         return false;
     }
 
-    private bool TryReadNodeShimEntry(string shimPath, out string? entryPath)
+    private bool TryReadNodeShimEntry(string shimPath, string command, out string? entryPath)
     {
         entryPath = null;
         string text;
@@ -846,7 +846,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         Match quoted = Regex.Match(text, "\"(?<path>[^\"]*node_modules[\\\\/][^\"]+?\\.(?:mjs|cjs|js))\"", RegexOptions.IgnoreCase);
         Match unquoted = Regex.Match(text, "(?<path>(?:[A-Z]:[\\\\/])?[^\\s\"']*node_modules[\\\\/][^\\s\"']+?\\.(?:mjs|cjs|js))", RegexOptions.IgnoreCase);
         string? raw = quoted.Success ? quoted.Groups["path"].Value : unquoted.Success ? unquoted.Groups["path"].Value : null;
-        if (raw is null) return false;
+        if (raw is null) return TryReadExtensionlessNodeShimEntry(shimPath, command, text, out entryPath);
         try
         {
             string expanded = Path.IsPathRooted(raw) ? raw : Path.Combine(directory, raw);
@@ -857,6 +857,51 @@ public sealed class BoardAgentService : IAsyncDisposable
         }
         catch (ArgumentException) { return false; }
         catch (NotSupportedException) { return false; }
+    }
+
+    private static bool TryReadExtensionlessNodeShimEntry(string shimPath, string command, string text, out string? entryPath)
+    {
+        entryPath = null;
+        if (!Path.GetExtension(shimPath).Equals(".ps1", StringComparison.OrdinalIgnoreCase)) return false;
+
+        Match invocation = Regex.Match(
+            text,
+            "(?:^\\s*|\\|\\s*)&\\s*\"(?<node>(?:[^\"]*[\\\\/])?node(?:\\.exe|\\$exe)?)\"\\s+\"(?<entry>[^\"]+)\"(?=\\s|$)",
+            RegexOptions.IgnoreCase | RegexOptions.Multiline);
+        if (!invocation.Success) return false;
+
+        string raw = invocation.Groups["entry"].Value.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+        try
+        {
+            string candidate = Path.GetFullPath(Path.IsPathRooted(raw) ? raw : Path.Combine(Path.GetDirectoryName(shimPath)!, raw));
+            if (Path.GetExtension(candidate).Length != 0 ||
+                !Path.GetFileName(candidate).Equals(command, StringComparison.OrdinalIgnoreCase) ||
+                !candidate.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    .Any(segment => segment.Equals("node_modules", StringComparison.OrdinalIgnoreCase)) ||
+                !File.Exists(candidate) || !HasNodeShebang(candidate))
+                return false;
+
+            entryPath = candidate;
+            return true;
+        }
+        catch (ArgumentException) { return false; }
+        catch (NotSupportedException) { return false; }
+        catch (PathTooLongException) { return false; }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
+    }
+
+    private static bool HasNodeShebang(string path)
+    {
+        try
+        {
+            using var reader = File.OpenText(path);
+            string? firstLine = reader.ReadLine();
+            if (firstLine?.StartsWith('\uFEFF') == true) firstLine = firstLine[1..];
+            return firstLine == "#!/usr/bin/env node";
+        }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
     }
 
     private BoardAgentHostResolution CreateAppResolution(string host, string exePath, string via, string? scheme)
