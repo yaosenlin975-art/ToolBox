@@ -25,6 +25,9 @@ public sealed class TaskResponse
     public object? Data { get; set; }
     public TaskError? Error { get; set; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? Warnings { get; set; }
+
     [JsonIgnore]
     public int ExitCode => Ok ? 0 : Error?.Code switch
     {
@@ -107,7 +110,12 @@ public static class TaskProtocol
         "board.get" or
         "board.column.list" or "board.column.create" or "board.column.update" or "board.column.delete" or "board.column.move" or
         "board.card.list" or "board.card.get" or "board.card.create" or "board.card.update" or "board.card.move" or
-        "board.card.delete" or "board.card.restore" or "board.card.add-to-todo";
+        "board.card.delete" or "board.card.restore" or "board.card.add-to-todo" or
+        "board.card.claim" or "board.card.release" or "board.card.submit" or "board.card.close" or "board.card.reopen" or
+        "board.comment.add" or "board.comment.get" or "board.comment.list" or "board.comment.update" or
+        "board.comment.delete" or "board.comment.inbox" or "board.comment.ack" or "board.comment.bind" or
+        "board.comment.deliver" or "board.comment.delivery" or
+        "board.attachment.add" or "board.attachment.list" or "board.attachment.remove";
 
     public static void ValidatePayload(string operation, JsonElement payload)
     {

@@ -106,74 +106,164 @@ public static class AgentCapabilities
 
         LocalBoardCapability("board.get", "Read the complete board for a registered project.", ObjectSchema(
             ProjectContextProperties(), anyOf: ["project", "cwd"]),
-            ["schemaVersion", "boardId", "name", "revision", "columns[]", "cards[]"], ["reads the project board"],
+            ["schemaVersion", "boardId", "name", "revision", "boardRevision", "commentRevision", "columns[]", "cards[]"], ["reads the project board"],
             "A same-user ToolBox host and a resolvable project board must be available."),
 
         LocalBoardCapability("board.column.list", "List columns for a project board.", ObjectSchema(
             ProjectContextProperties(), anyOf: ["project", "cwd"]),
-            ["columns", "revision"], ["reads the project board"],
+            ["columns", "revision", "boardRevision", "commentRevision"], ["reads the project board"],
             "A same-user ToolBox host and a resolvable project board must be available."),
 
         LocalBoardCapability("board.column.create", "Create a column on a project board.", ObjectSchema(
-            WithProjectContext(["title", "order", "revision"]), ["title"]),
-            ["column", "revision"], ["writes the project board"],
+            WithProjectContext(["title", "order", "status", "revision"]), ["title"]),
+            ["column", "revision", "boardRevision", "commentRevision"], ["writes the project board"],
             "A same-user ToolBox host, a resolvable project board, and a valid title must be available."),
 
         LocalBoardCapability("board.column.update", "Update a column title or position.", ObjectSchema(
-            WithProjectContext(["id", "title", "order", "revision"]), ["id"], anyOf: ["title", "order"]),
-            ["column", "revision"], ["writes the project board"],
+            WithProjectContext(["id", "title", "order", "status", "revision"]), ["id"], anyOf: ["title", "order", "status"]),
+            ["column", "revision", "boardRevision", "commentRevision"], ["writes the project board"],
             "A same-user ToolBox host and a resolvable project board must be available; submit the latest revision when supplied."),
 
         LocalBoardCapability("board.column.delete", "Delete a column, optionally moving its cards to another column.", ObjectSchema(
             WithProjectContext(["id", "targetColumnId", "revision"]), ["id"]),
-            ["column", "revision"], ["deletes a project board column", "requires targetColumnId when the column contains cards"],
+            ["column", "revision", "boardRevision", "commentRevision"], ["deletes a project board column", "requires targetColumnId when the column contains cards"],
             "A same-user ToolBox host and a resolvable project board must be available; deleting a populated column requires a valid target column."),
 
         LocalBoardCapability("board.column.move", "Move a column to a new position.", ObjectSchema(
             WithProjectContext(["id", "order", "revision"]), ["id", "order"]),
-            ["column", "revision"], ["writes column order in the project board"],
+            ["column", "revision", "boardRevision", "commentRevision"], ["writes column order in the project board"],
             "A same-user ToolBox host and a resolvable project board must be available; submit the latest revision when supplied."),
 
         LocalBoardCapability("board.card.list", "List cards on a project board, including deleted cards when requested.", ObjectSchema(
-            WithProjectContext(["columnId", "includeDeleted"])),
-            ["cards", "revision"], ["reads the project board"],
+            WithProjectContext(["columnId", "includeDeleted", "status", "parentId", "rootsOnly", "available", "mine", "actor", "host", "session"])),
+            ["cards", "revision", "boardRevision", "commentRevision"], ["reads the project board"],
             "A same-user ToolBox host and a resolvable project board must be available."),
 
         LocalBoardCapability("board.card.get", "Read one card by ID.", ObjectSchema(
             WithProjectContext(["id"]), ["id"]),
-            ["card", "revision"], ["reads the project board"],
+            ["card", "revision", "boardRevision", "commentRevision", "card.claim", "commentCount", "attachmentCount", "childCount", "childClosedCount"], ["reads the project board"],
             "A same-user ToolBox host and a resolvable project board must be available."),
 
         LocalBoardCapability("board.card.create", "Create a card on a project board.", ObjectSchema(
-            WithProjectContext(["title", "description", "priority", "tags", "dueDate", "columnId", "order", "revision"]), ["title"]),
-            ["card", "revision"], ["writes the project board"],
+            WithProjectContext(["title", "description", "priority", "tags", "dueDate", "columnId", "order", "parentId", "revision", "actor", "host", "session"]), ["title"]),
+            ["card", "revision", "boardRevision", "commentRevision"], ["writes the project board"],
             "A same-user ToolBox host, a resolvable project board, and a valid title must be available."),
 
         LocalBoardCapability("board.card.update", "Update supplied card fields.", ObjectSchema(
-            WithProjectContext(["id", "title", "description", "priority", "tags", "dueDate", "columnId", "order", "revision"]), ["id"],
-            anyOf: ["title", "description", "priority", "tags", "dueDate", "columnId", "order"]),
-            ["card", "revision"], ["writes the project board"],
+            WithProjectContext(["id", "title", "description", "priority", "tags", "dueDate", "columnId", "order", "parentId", "clearParentId", "revision", "actor", "host", "session"]), ["id"],
+            anyOf: ["title", "description", "priority", "tags", "dueDate", "columnId", "order", "parentId", "clearParentId"]),
+            ["card", "revision", "boardRevision", "commentRevision"], ["writes the project board"],
             "A same-user ToolBox host and a resolvable project board must be available; submit the latest revision when supplied."),
 
         LocalBoardCapability("board.card.move", "Move a card to a column and position.", ObjectSchema(
-            WithProjectContext(["id", "targetColumnId", "order", "revision"]), ["id", "targetColumnId"]),
-            ["card", "revision"], ["writes the project board"],
+            WithProjectContext(["id", "targetColumnId", "order", "transition", "revision", "actor", "host", "session", "ttlMinutes"]), ["id", "targetColumnId"]),
+            ["card", "revision", "boardRevision", "commentRevision"], ["writes the project board"],
             "A same-user ToolBox host and a resolvable project board must be available; the destination column must exist."),
 
         LocalBoardCapability("board.card.delete", "Move a card to the board recycle bin.", ObjectSchema(
-            WithProjectContext(["id", "revision"]), ["id"]),
-            ["card", "revision"], ["soft-deletes the card on the project board"],
+            WithProjectContext(["id", "revision", "actor", "host", "session"]), ["id"]),
+            ["card", "revision", "boardRevision", "commentRevision"], ["soft-deletes the card on the project board"],
             "A same-user ToolBox host and a resolvable project board must be available."),
 
         LocalBoardCapability("board.card.restore", "Restore a card from the board recycle bin.", ObjectSchema(
-            WithProjectContext(["id", "revision"]), ["id"]),
-            ["card", "revision"], ["restores the card on the project board"],
+            WithProjectContext(["id", "revision", "actor", "host", "session"]), ["id"]),
+            ["card", "revision", "boardRevision", "commentRevision"], ["restores the card on the project board"],
             "A same-user ToolBox host and a resolvable project board must be available."),
 
         LocalBoardCapability("board.card.add-to-todo", "Copy a board card into personal Todo.", ObjectSchema(
             WithProjectContext(["id", "revision"]), ["id"]),
             ["todoId"], ["creates a personal Todo linked to the board card", "repeated requests use the saved card-to-Todo association"],
             "A same-user ToolBox host, a resolvable project board, and the personal Todo store must be available."),
+
+        LocalBoardCapability("board.card.claim", "Atomically claim a card or renew its lease.", ObjectSchema(
+            WithProjectContext(["id", "actor", "host", "session", "ttlMinutes", "columnId", "order", "revision"]), ["id", "actor", "host"]),
+            ["card", "revision", "boardRevision", "commentRevision", "claim", "claim.expiresAt"], ["writes card status and claim", "moves the card when columnId/order are supplied"],
+            "The same-user ToolBox host and a resolvable project board must be available; another live claim returns CONFLICT."),
+
+        LocalBoardCapability("board.card.release", "Release the current actor's card claim.", ObjectSchema(
+            WithProjectContext(["id", "actor", "host", "session", "columnId", "order", "revision"]), ["id", "actor", "host"]),
+            ["card", "revision", "boardRevision", "commentRevision"], ["clears the current claim and returns the card to notStarted"],
+            "The same-user ToolBox host and a resolvable project board must be available; only the current claim owner can release."),
+
+        LocalBoardCapability("board.card.submit", "Submit the current actor's card for review.", ObjectSchema(
+            WithProjectContext(["id", "actor", "host", "session", "columnId", "order", "revision"]), ["id", "actor", "host"]),
+            ["card", "revision", "boardRevision", "commentRevision"], ["sets pendingReview and clears the claim"],
+            "The same-user ToolBox host and a resolvable project board must be available; only the current claim owner can submit."),
+
+        LocalBoardCapability("board.card.close", "Close a card after review.", ObjectSchema(
+            WithProjectContext(["id", "actor", "host", "session", "columnId", "order", "revision"]), ["id", "actor", "host"]),
+            ["card", "revision", "boardRevision", "commentRevision"], ["sets closed and clears the claim"],
+            "The same-user ToolBox host and a resolvable project board must be available; all active descendants must be closed."),
+
+        LocalBoardCapability("board.card.reopen", "Reopen a reviewed or closed card.", ObjectSchema(
+            WithProjectContext(["id", "actor", "host", "session", "columnId", "order", "revision"]), ["id", "actor", "host"]),
+            ["card", "revision", "boardRevision", "commentRevision"], ["sets notStarted and clears the claim and assignee"],
+            "The same-user ToolBox host and a resolvable project board must be available; another live claim cannot be cleared."),
+
+        LocalBoardCapability("board.comment.add", "Add a comment or reply to a board card.", ObjectSchema(
+            WithProjectContext(["id", "parentId", "body", "actor", "host", "session", "revision", "commentRevision"]), ["id", "body"]),
+            ["comment", "revision", "boardRevision", "commentRevision", "delivery"], ["writes a comment", "creates a pending delivery record when routing applies"],
+            "The same-user ToolBox host and a resolvable project board must be available; comment bodies are limited to 16 KiB."),
+
+        LocalBoardCapability("board.comment.get", "Read one board comment by ID.", ObjectSchema(
+            WithProjectContext(["commentId"]), ["commentId"]),
+            ["comment", "revision", "boardRevision", "commentRevision"], ["reads one comment"],
+            "The same-user ToolBox host and a resolvable project board must be available."),
+
+        LocalBoardCapability("board.comment.list", "List comments for one card with stable pagination.", ObjectSchema(
+            WithProjectContext(["id", "includeDeleted", "limit", "cursor", "commentRevision"]), ["id"]),
+            ["comments[]", "revision", "boardRevision", "commentRevision", "nextCursor"], ["reads comments without changing them"],
+            "The same-user ToolBox host and a resolvable project board must be available; cursor pages are bound to commentRevision."),
+
+        LocalBoardCapability("board.comment.update", "Update a comment written by the current actor.", ObjectSchema(
+            WithProjectContext(["commentId", "body", "actor", "host", "session", "revision", "commentRevision"]), ["commentId", "body"]),
+            ["comment", "revision", "boardRevision", "commentRevision"], ["updates a comment body"],
+            "The same-user ToolBox host and a resolvable project board must be available; only the author can update a comment."),
+
+        LocalBoardCapability("board.comment.delete", "Soft-delete a comment.", ObjectSchema(
+            WithProjectContext(["commentId", "actor", "host", "session", "revision", "commentRevision"]), ["commentId"]),
+            ["comment", "revision", "boardRevision", "commentRevision"], ["soft-deletes a comment"],
+            "The same-user ToolBox host and a resolvable project board must be available."),
+
+        LocalBoardCapability("board.comment.inbox", "Reserve a page of unacknowledged replies routed to a host or session.", ObjectSchema(
+            WithProjectContext(["host", "session", "actor", "ttlMinutes", "limit", "cursor", "commentRevision"]), ["host", "actor"]),
+            ["comments[]", "revision", "boardRevision", "commentRevision", "nextCursor", "claimId", "claimExpiresAt"], ["reads and atomically reserves matching inbox replies"],
+            "The same-user ToolBox host and a resolvable project board must be available; reservations last 5–480 minutes."),
+
+        LocalBoardCapability("board.comment.ack", "Acknowledge a reserved inbox reply.", ObjectSchema(
+            WithProjectContext(["commentId", "actor", "host", "session", "claimId", "revision", "commentRevision"]), ["commentId", "actor", "host", "claimId"]),
+            ["comment", "revision", "boardRevision", "commentRevision"], ["marks a reply as acknowledged"],
+            "The same-user ToolBox host and a resolvable project board must be available; the current reservation and target identity must match."),
+
+        LocalBoardCapability("board.comment.bind", "Bind a comment to a host and optional session.", ObjectSchema(
+            WithProjectContext(["commentId", "actor", "host", "session", "targetHost", "targetSession", "clear", "revision", "commentRevision"]), ["commentId"]),
+            ["comment", "revision", "boardRevision", "commentRevision"], ["updates the comment origin for future replies"],
+            "The same-user ToolBox host and a resolvable project board must be available; clear cannot be combined with target host/session."),
+
+        LocalBoardCapability("board.comment.deliver", "Deliver a reply using the saved routing snapshot.", ObjectSchema(
+            WithProjectContext(["commentId", "confirm", "verifiedUnknown", "confirmationToken", "revision", "commentRevision"]), ["commentId"]),
+            ["commentId", "delivery", "confirmationHash"], ["may send comment text to the routed host after confirmation"],
+            "The same-user ToolBox host, board agent service, and an applicable host adapter must be available."),
+
+        LocalBoardCapability("board.comment.delivery", "Read local delivery state and the current confirmation hash.", ObjectSchema(
+            WithProjectContext(["commentId", "revision", "commentRevision"]), ["commentId"]),
+            ["commentId", "delivery", "confirmationHash"], ["reads local delivery state"],
+            "The same-user ToolBox host and board agent service must be available."),
+
+        LocalBoardCapability("board.attachment.add", "Attach an explicitly named local image to a card.", ObjectSchema(
+            WithProjectContext(["id", "file", "actor", "host", "session", "revision"]), ["id", "file"]),
+            ["attachment", "revision", "boardRevision", "commentRevision"], ["copies the selected image into project board assets"],
+            "The same-user ToolBox host and a resolvable project board must be available; only supported images up to 10 MiB are accepted."),
+
+        LocalBoardCapability("board.attachment.list", "List card attachments and their availability.", ObjectSchema(
+            WithProjectContext(["id"]), ["id"]),
+            ["attachments[]", "revision", "boardRevision", "commentRevision"], ["reads attachment metadata and file existence"],
+            "The same-user ToolBox host and a resolvable project board must be available."),
+
+        LocalBoardCapability("board.attachment.remove", "Remove one card attachment.", ObjectSchema(
+            WithProjectContext(["attachmentId", "actor", "host", "session", "revision"]), ["attachmentId"]),
+            ["attachmentId", "revision", "boardRevision", "commentRevision"], ["removes attachment metadata and its stored image"],
+            "The same-user ToolBox host and a resolvable project board must be available."),
 
         Create("host.stop", "Stop the existing background task host.", EmptyObjectSchema(),
             [], ["stops the background ToolBox host if running"], []),
@@ -238,15 +328,31 @@ public static class AgentCapabilities
         "project.register" => " --path <directory> [--init] [--replace-path]",
         "project.get" or "project.unregister" => " [--project <project>] [--cwd <directory>]",
         "board.get" or "board.column.list" => " [--project <project>] [--cwd <directory>]",
-        "board.column.create" => " [--project <project>] [--cwd <directory>] --title <title> [--order <n>] [--revision <revision>]",
-        "board.column.update" => " [--project <project>] [--cwd <directory>] --id <uuid> --input <json-file|-> [--revision <revision>]",
+        "board.column.create" => " [--project <project>] [--cwd <directory>] --title <title> [--order <n>] [--status <status>] [--revision <revision>]",
+        "board.column.update" => " [--project <project>] [--cwd <directory>] --id <uuid> [--title <title>|--order <n>|--status <status>|--clear-status] [--revision <revision>]",
         "board.column.delete" => " [--project <project>] [--cwd <directory>] --id <uuid> [--target-column-id <uuid>] [--revision <revision>]",
         "board.column.move" => " [--project <project>] [--cwd <directory>] --id <uuid> --order <n> [--revision <revision>]",
-        "board.card.get" or "board.card.delete" or "board.card.restore" or "board.card.add-to-todo" => " [--project <project>] [--cwd <directory>] --id <uuid> [--revision <revision>]",
-        "board.card.update" => " [--project <project>] [--cwd <directory>] --id <uuid> --input <json-file|-> [--revision <revision>]",
-        "board.card.create" => " [--project <project>] [--cwd <directory>] --input <json-file|->",
-        "board.card.move" => " [--project <project>] [--cwd <directory>] --id <uuid> --target-column-id <uuid> [--order <n>] [--revision <revision>]",
-        "board.card.list" => " [--project <project>] [--cwd <directory>] [--column-id <uuid>] [--include-deleted]",
+        "board.card.get" or "board.card.add-to-todo" => " [--project <project>] [--cwd <directory>] --id <uuid> [--revision <revision>]",
+        "board.card.delete" or "board.card.restore" => " [--project <project>] [--cwd <directory>] --id <uuid> [--actor <id>] [--host <name>] [--session <id>] [--revision <revision>]",
+        "board.card.update" => " [--project <project>] [--cwd <directory>] --id <uuid> [--title <title>|--description <text>|--priority <0-2>|--tags <tag...>|--due-date <time>|--clear-due-date|--column-id <uuid>|--order <n>|--parent-id <uuid>|--clear-parent-id] [--actor <id>] [--host <name>] [--session <id>] [--revision <revision>] [--input <json-file|->]",
+        "board.card.create" => " [--project <project>] [--cwd <directory>] --title <title> [--description <text>] [--priority <0-2>] [--tags <tag...>] [--due-date <time>] [--column-id <uuid>] [--order <n>] [--parent-id <uuid>] [--actor <id>] [--host <name>] [--session <id>] [--revision <revision>] [--input <json-file|->]",
+        "board.card.move" => " [--project <project>] [--cwd <directory>] --id <uuid> --target-column-id <uuid> [--order <n>] [--transition <claim|release|submit|close|reopen>] [--actor <id>] [--host <name>] [--session <id>] [--ttl-minutes <n>] [--revision <revision>]",
+        "board.card.list" => " [--project <project>] [--cwd <directory>] [--column-id <uuid>] [--include-deleted] [--status <status>] [--parent-id <uuid>] [--roots-only] [--available] [--mine] [--actor <id>] [--host <name>] [--session <id>]",
+        "board.card.claim" => " [--project <project>] [--cwd <directory>] --id <uuid> --actor <id> --host <name> [--session <id>] [--ttl-minutes <n>] [--column-id <uuid>] [--order <n>] [--revision <revision>]",
+        "board.card.release" or "board.card.submit" or "board.card.close" or "board.card.reopen" => " [--project <project>] [--cwd <directory>] --id <uuid> --actor <id> --host <name> [--session <id>] [--column-id <uuid>] [--order <n>] [--revision <revision>]",
+        "board.comment.add" => " [--project <project>] [--cwd <directory>] --id <card-id> --body <text> [--parent-id <comment-id>] [--actor <id>] [--host <name>] [--session <id>] [--revision <revision>] [--comment-revision <revision>]",
+        "board.comment.get" => " [--project <project>] [--cwd <directory>] --comment-id <uuid>",
+        "board.comment.list" => " [--project <project>] [--cwd <directory>] --id <card-id> [--include-deleted] [--limit <1-100>] [--cursor <cursor>] [--comment-revision <revision>]",
+        "board.comment.update" => " [--project <project>] [--cwd <directory>] --comment-id <uuid> --body <text> [--actor <id>] [--host <name>] [--session <id>] [--revision <revision>] [--comment-revision <revision>]",
+        "board.comment.delete" => " [--project <project>] [--cwd <directory>] --comment-id <uuid> [--actor <id>] [--host <name>] [--session <id>] [--revision <revision>] [--comment-revision <revision>]",
+        "board.comment.inbox" => " [--project <project>] [--cwd <directory>] --host <name> --actor <id> [--session <id>] [--ttl-minutes <n>] [--limit <1-100>] [--cursor <cursor>] [--comment-revision <revision>]",
+        "board.comment.ack" => " [--project <project>] [--cwd <directory>] --comment-id <uuid> --claim-id <id> --actor <id> --host <name> [--session <id>] [--revision <revision>] [--comment-revision <revision>]",
+        "board.comment.bind" => " [--project <project>] [--cwd <directory>] --comment-id <uuid> [--target-host <name>] [--target-session <id>|--clear] [--actor <id>] [--host <name>] [--session <id>] [--revision <revision>] [--comment-revision <revision>]",
+        "board.comment.deliver" => " [--project <project>] [--cwd <directory>] --comment-id <uuid> [--confirm --confirmation-token <hash>] [--verified-unknown] [--revision <revision>] [--comment-revision <revision>]",
+        "board.comment.delivery" => " [--project <project>] [--cwd <directory>] --comment-id <uuid> [--revision <revision>] [--comment-revision <revision>]",
+        "board.attachment.add" => " [--project <project>] [--cwd <directory>] --id <card-id> --file <absolute-path> [--actor <id>] [--host <name>] [--session <id>] [--revision <revision>]",
+        "board.attachment.list" => " [--project <project>] [--cwd <directory>] --id <card-id>",
+        "board.attachment.remove" => " [--project <project>] [--cwd <directory>] --attachment-id <uuid> [--actor <id>] [--host <name>] [--session <id>] [--revision <revision>]",
         "capabilities.get" => " <name>",
         "task.get" or "task.complete" or "task.reopen" or "task.delete" or "task.restore" => " <id>",
         _ => ""
@@ -269,7 +375,7 @@ public static class AgentCapabilities
         {
             properties[field] = field switch
             {
-                "id" or "columnId" or "targetColumnId" => new { type = "string", format = "uuid" },
+                "id" or "columnId" or "targetColumnId" or "parentId" or "commentId" or "attachmentId" => new { type = "string", format = "uuid" },
                 "title" => new { type = "string", minLength = 1 },
                 "description" => new { type = "string" },
                 "priority" => new { type = "integer", minimum = 0, maximum = 2 },
@@ -277,7 +383,18 @@ public static class AgentCapabilities
                 "dueDate" => new { type = new[] { "string", "null" }, format = "date-time" },
                 "order" => new { type = "integer" },
                 "revision" => new { type = "integer", format = "int64" },
+                "commentRevision" => new { type = "integer", format = "int64" },
                 "includeDeleted" => new { type = "boolean", @default = false },
+                "rootsOnly" or "available" or "mine" or "clearParentId" or "clear" or "confirm" or "verifiedUnknown" => new { type = "boolean" },
+                "status" => new { type = new[] { "string", "null" }, @enum = new string?[] { "notStarted", "inProgress", "pendingReview", "closed", null } },
+                "transition" => new { type = "string", @enum = new[] { "claim", "release", "submit", "close", "reopen" } },
+                "actor" or "host" or "session" or "targetHost" or "targetSession" or "claimId" => new { type = "string", minLength = 1 },
+                "file" => new { type = "string", format = "absolute-path", minLength = 1 },
+                "body" => new { type = "string", minLength = 1, maxLength = 16384 },
+                "cursor" => new { type = "string", minLength = 1, maxLength = 1024 },
+                "confirmationToken" => new { type = "string", minLength = 1, maxLength = 128 },
+                "ttlMinutes" => new { type = "integer", minimum = 5, maximum = 480 },
+                "limit" => new { type = "integer", minimum = 1, maximum = 100, @default = 20 },
                 _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown board schema field.")
             };
         }

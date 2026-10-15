@@ -11,6 +11,8 @@ internal static class Program
         {
             CheckAllowedOperations();
             CheckCardCapabilitySchemas();
+            CheckV2CapabilitySchemas();
+            CheckResponseWarnings();
             CheckRejectedRequests();
             CheckExistingOperations();
             Console.WriteLine($"PASS ({checks} checks)");
@@ -31,7 +33,11 @@ internal static class Program
             "board.get",
             "board.column.list", "board.column.create", "board.column.update", "board.column.delete", "board.column.move",
             "board.card.list", "board.card.get", "board.card.create", "board.card.update", "board.card.move",
-            "board.card.delete", "board.card.restore", "board.card.add-to-todo"
+            "board.card.delete", "board.card.restore", "board.card.add-to-todo",
+            "board.card.claim", "board.card.release", "board.card.submit", "board.card.close", "board.card.reopen",
+            "board.comment.add", "board.comment.get", "board.comment.list", "board.comment.update", "board.comment.delete",
+            "board.comment.inbox", "board.comment.ack", "board.comment.bind", "board.comment.deliver", "board.comment.delivery",
+            "board.attachment.add", "board.attachment.list", "board.attachment.remove"
         ];
 
         foreach (string operation in operations)
@@ -79,6 +85,51 @@ internal static class Program
             .Select(value => value.GetProperty("required")[0].GetString()!).ToArray();
         Check(updateFields.Contains("columnId", StringComparer.Ordinal) && updateFields.Contains("order", StringComparer.Ordinal),
             "card update permits columnId and order as update fields");
+    }
+
+    private static void CheckV2CapabilitySchemas()
+    {
+        var requiredProperties = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["board.card.claim"] = ["id", "actor", "host", "ttlMinutes", "columnId", "order", "revision"],
+            ["board.card.release"] = ["id", "actor", "host", "columnId", "order", "revision"],
+            ["board.card.submit"] = ["id", "actor", "host", "columnId", "order", "revision"],
+            ["board.card.close"] = ["id", "actor", "host", "columnId", "order", "revision"],
+            ["board.card.reopen"] = ["id", "actor", "host", "columnId", "order", "revision"],
+            ["board.comment.add"] = ["id", "parentId", "body", "actor", "host", "session", "revision", "commentRevision"],
+            ["board.comment.get"] = ["commentId"],
+            ["board.comment.list"] = ["id", "includeDeleted", "limit", "cursor", "commentRevision"],
+            ["board.comment.update"] = ["commentId", "body", "actor", "host", "session", "revision", "commentRevision"],
+            ["board.comment.delete"] = ["commentId", "actor", "host", "session", "revision", "commentRevision"],
+            ["board.comment.inbox"] = ["host", "session", "actor", "ttlMinutes", "limit", "cursor", "commentRevision"],
+            ["board.comment.ack"] = ["commentId", "actor", "host", "session", "claimId", "revision", "commentRevision"],
+            ["board.comment.bind"] = ["commentId", "actor", "host", "session", "targetHost", "targetSession", "clear", "revision", "commentRevision"],
+            ["board.comment.deliver"] = ["commentId", "confirm", "verifiedUnknown", "confirmationToken", "revision", "commentRevision"],
+            ["board.comment.delivery"] = ["commentId", "revision", "commentRevision"],
+            ["board.attachment.add"] = ["id", "file", "actor", "host", "session", "revision"],
+            ["board.attachment.list"] = ["id"],
+            ["board.attachment.remove"] = ["attachmentId", "actor", "host", "session", "revision"]
+        };
+
+        foreach (var (name, expectedFields) in requiredProperties)
+        {
+            Check(AgentCapabilities.TryGet(name, out var capability), name + " capability exists");
+            JsonElement properties = capability.InputSchema.GetProperty("properties");
+            foreach (string field in expectedFields)
+                Check(properties.TryGetProperty(field, out _), name + " schema includes " + field);
+            Check(capability.OutputFields.Length > 0 && capability.Effects.Length > 0 && capability.Command.StartsWith("toolbox-cli board ", StringComparison.Ordinal),
+                name + " publishes output, effects, and command");
+            TaskProtocol.Validate(Request(name, "{}"));
+        }
+    }
+
+    private static void CheckResponseWarnings()
+    {
+        var request = new TaskRequest { Operation = "board.get" };
+        string withoutWarnings = JsonSerializer.Serialize(TaskResponse.Success(request), TaskProtocol.Options);
+        Check(!withoutWarnings.Contains("warnings", StringComparison.Ordinal), "null warnings omitted for v1 responses");
+        string withWarnings = JsonSerializer.Serialize(new TaskResponse { RequestId = request.RequestId, Ok = true, Warnings = ["migrated"] }, TaskProtocol.Options);
+        Check(withWarnings.Contains("\"warnings\":[\"migrated\"]", StringComparison.Ordinal), "migration warnings serialize when present");
     }
 
     private static void CheckExistingOperations()
