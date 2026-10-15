@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using ToolBox.Core.Boards;
 using ToolBox.Core.BoardAgents;
@@ -30,6 +31,8 @@ public sealed class BoardsView : UserControl
     private readonly Dictionary<Guid, int> attachmentCounts = [];
     private readonly Dictionary<Guid, int> descendantCounts = [];
     private readonly Dictionary<Guid, int> closedDescendantCounts = [];
+    private readonly List<(TextBlock Label, ProjectBoardClaim Claim)> leaseLabels = [];
+    private readonly DispatcherTimer leaseTimer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(30) };
     private IReadOnlyList<ProjectBoardRegistration> projects = [];
     private ProjectBoard? board;
     private string? selectedBoardId;
@@ -110,6 +113,7 @@ public sealed class BoardsView : UserControl
         Grid.SetRow(content, 2);
         root.Children.Add(content);
         Content = root;
+        leaseTimer.Tick += (_, _) => RefreshLeaseDisplays();
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
     }
@@ -121,6 +125,7 @@ public sealed class BoardsView : UserControl
         if (isLoaded) return;
         isLoaded = true;
         lifecycleVersion++;
+        leaseTimer.Start();
         store.Changed += Store_Changed;
         agentService.Changed += AgentService_Changed;
         App.LanguageChanged += OnLanguageChanged;
@@ -132,6 +137,7 @@ public sealed class BoardsView : UserControl
         if (!isLoaded) return;
         isLoaded = false;
         lifecycleVersion++;
+        leaseTimer.Stop();
         refreshQueued = false;
         store.Changed -= Store_Changed;
         agentService.Changed -= AgentService_Changed;
@@ -372,6 +378,7 @@ public sealed class BoardsView : UserControl
     private void RenderBoard()
     {
         double offset = columnsScroller.HorizontalOffset;
+        leaseLabels.Clear();
         columnsPanel.Children.Clear();
         bool hasBoard = board != null;
         var content = (Grid)columnsScroller.Parent;
@@ -512,7 +519,11 @@ public sealed class BoardsView : UserControl
             var meta = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
             meta.Children.Add(StatusBadge(card.Status));
             if (card.Claim is { } claim)
-                meta.Children.Add(Label(string.Format(Text("Lang_Board_ClaimSummary", "{0} · {1}"), ClaimOwner(claim), RemainingLease(claim.ExpiresAt)), tertiary: true));
+            {
+                var leaseLabel = Label(ClaimSummary(claim), tertiary: true);
+                leaseLabels.Add((leaseLabel, claim));
+                meta.Children.Add(leaseLabel);
+            }
             int descendantCount = descendantCounts.TryGetValue(card.Id, out int childCount) ? childCount : CountDescendants(card.Id);
             if (descendantCount > 0)
             {
@@ -998,6 +1009,15 @@ public sealed class BoardsView : UserControl
         ? Text("Lang_Board_ClaimedByYou", "Claimed by you")
         : $"{claim.ActorId} · {claim.HostId}{(claim.SessionId == null ? "" : " · " + claim.SessionId)}";
 
+    private string ClaimSummary(ProjectBoardClaim claim) => string.Format(
+        Text("Lang_Board_ClaimSummary", "{0} · {1}"), ClaimOwner(claim), RemainingLease(claim.ExpiresAt));
+
+    private void RefreshLeaseDisplays()
+    {
+        if (!isLoaded || Dispatcher.HasShutdownStarted) return;
+        foreach (var (label, claim) in leaseLabels) label.Text = ClaimSummary(claim);
+    }
+
     private string RemainingLease(DateTime expiresAt)
     {
         TimeSpan remaining = expiresAt - DateTime.UtcNow;
@@ -1011,10 +1031,12 @@ public sealed class BoardsView : UserControl
         {
             "inProgress" => ("Lang_Board_StatusInProgress", "In progress", "AccentSoftBrush"),
             "pendingReview" => ("Lang_Board_StatusPendingReview", "Pending review", "WarningSoftBrush"),
-            "closed" => ("Lang_Board_StatusClosed", "Closed", "SuccessBrush"),
+            "closed" => ("Lang_Board_StatusClosed", "Closed", "BgTertiaryBrush"),
             _ => ("Lang_Board_StatusNotStarted", "Not started", "BgTertiaryBrush")
         };
         var label = Label(Text(key, fallback), tertiary: true);
+        label.FontWeight = FontWeights.SemiBold;
+        label.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
         label.Margin = new Thickness(0);
         var badge = new Border { Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(0, 0, 8, 2), CornerRadius = new CornerRadius(4), Child = label };
         badge.SetResourceReference(Border.BackgroundProperty, brush);

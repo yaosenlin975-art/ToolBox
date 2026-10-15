@@ -8,6 +8,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using ToolBox.Core.BoardAgents;
 using ToolBox.Core.Boards;
@@ -21,6 +22,7 @@ internal sealed class BoardCardDetailsWindow : Window
 {
     private const string LocalActor = "local-user";
     private const string LocalHost = "toolbox-ui";
+    private readonly IBoardDialogService dialogService;
     private readonly BoardCommandService commands = BoardCommandService.Instance;
     private readonly BoardAgentService agents = BoardAgentService.Instance;
     private readonly ProjectBoardStore store = ProjectBoardStore.Instance;
@@ -33,7 +35,8 @@ internal sealed class BoardCardDetailsWindow : Window
     private readonly StackPanel commentPanel = new();
     private readonly TextBlock errorText = new();
     private readonly TextBlock statusText = new();
-    private readonly TextBlock summaryText = new();
+    private TextBlock summaryText = new();
+    private readonly DispatcherTimer leaseTimer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(30) };
     private readonly HashSet<Guid> collapsedCards = [];
     private IReadOnlyList<ProjectBoardCard> cards;
     private IReadOnlyList<ProjectBoardComment> comments = [];
@@ -45,10 +48,13 @@ internal sealed class BoardCardDetailsWindow : Window
     private bool loaded;
     private bool mutationInFlight;
     private bool selectionLoading = true;
+    private TextBlock? claimSummaryText;
+    private WrapPanel? statusActionRow;
 
-    public BoardCardDetailsWindow(Window? owner, ProjectBoard board, ProjectBoardRegistration registration, ProjectBoardCard card, BoardDetailsSnapshot snapshot)
+    public BoardCardDetailsWindow(Window? owner, ProjectBoard board, ProjectBoardRegistration registration, ProjectBoardCard card, BoardDetailsSnapshot snapshot, IBoardDialogService? dialogService = null)
     {
         Owner = owner;
+        this.dialogService = dialogService ?? new WpfBoardDialogService();
         this.registration = registration;
         initialBoard = board;
         cards = board.Cards;
@@ -68,8 +74,9 @@ internal sealed class BoardCardDetailsWindow : Window
         ShowInTaskbar = false;
         SetResourceReference(BackgroundProperty, "BgBrush");
         BuildContent(card);
+        leaseTimer.Tick += (_, _) => RefreshLeaseUi();
         Loaded += OnLoaded;
-        Closed += (_, _) => { store.Changed -= StoreChanged; agents.Changed -= AgentChanged; App.LanguageChanged -= LanguageChanged; };
+        Closed += (_, _) => { leaseTimer.Stop(); store.Changed -= StoreChanged; agents.Changed -= AgentChanged; App.LanguageChanged -= LanguageChanged; };
     }
 
     private void BuildContent(ProjectBoardCard selected)
@@ -150,6 +157,7 @@ internal sealed class BoardCardDetailsWindow : Window
     {
         if (loaded) return;
         loaded = true;
+        leaseTimer.Start();
         store.Changed += StoreChanged;
         agents.Changed += AgentChanged;
         App.LanguageChanged += LanguageChanged;
@@ -250,19 +258,26 @@ internal sealed class BoardCardDetailsWindow : Window
     {
         activeCardId = card.Id;
         Title = card.Title;
-        summaryText.Text = string.Format(Text("Lang_Board_ActiveCardSummary", "{0} · {1}"), card.Title, StatusText(card.Status));
+        summaryText = new TextBlock { Text = string.Format(Text("Lang_Board_ActiveCardSummary", "{0} · {1}"), card.Title, StatusText(card.Status)) };
         var details = new StackPanel();
         details.Children.Add(summaryText);
+        claimSummaryText = null;
         if (card.Claim is { } claim)
-            details.Children.Add(Label(string.Format(Text("Lang_Board_ClaimSummary", "{0} · {1}"), ClaimOwner(claim), RemainingLease(claim.ExpiresAt)), tertiary: true));
+        {
+            claimSummaryText = Label(ClaimSummary(claim), tertiary: true);
+            details.Children.Add(claimSummaryText);
+        }
         var actionRow = new WrapPanel { Margin = new Thickness(0, 6, 0, 6) };
-        AddStatusActions(actionRow, card);
+        statusActionRow = new WrapPanel();
+        AddStatusActions(statusActionRow, card);
+        actionRow.Children.Add(statusActionRow);
+        actionRow.Children.Add(Button("Lang_Board_EditCard", "Edit", async (_, _) => await EditSelectedCardAsync(card)));
         actionRow.Children.Add(Button("Lang_Board_DeleteCard", "Move to recycle bin", async (_, _) => await DeleteCardAsync(card)));
         var parentRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 10) };
         var parentSelector = new ComboBox { MinWidth = 210, Height = 32, DisplayMemberPath = nameof(ParentChoice.Label), SelectedValuePath = nameof(ParentChoice.Id) };
         var choices = GetParentChoices(card);
         parentSelector.ItemsSource = choices;
-        parentSelector.SelectedValue = card.ParentId;
+        parentSelector.SelectedItem = choices.FirstOrDefault(choice => choice.Id == card.ParentId);
         parentRow.Children.Add(parentSelector);
         var saveParent = Button("Lang_Board_ChangeParent", "Change parent", async (_, _) =>
         {
@@ -277,6 +292,10 @@ internal sealed class BoardCardDetailsWindow : Window
         body.TextWrapping = TextWrapping.Wrap;
         body.Margin = new Thickness(0, 0, 0, 10);
         details.Children.Add(body);
+        string[] priorities = [Text("Lang_Board_Normal", "Normal"), Text("Lang_Board_Important", "Important"), Text("Lang_Board_Urgent", "Urgent")];
+        details.Children.Add(Label($"{Text("Lang_Board_Priority", "Priority")}: {priorities[Math.Clamp(card.Priority, 0, priorities.Length - 1)]}", tertiary: true));
+        if (card.Tags.Count > 0) details.Children.Add(Label($"{Text("Lang_Board_Tags", "Tags")}: {string.Join(" · ", card.Tags)}", tertiary: true));
+        if (card.DueDate.HasValue) details.Children.Add(Label($"{Text("Lang_Board_DueDate", "Due date")}: {card.DueDate.Value.ToLocalTime():d}", tertiary: true));
         selectionPanel.Children.Clear();
         selectionPanel.Children.Add(details);
         RenderTree();
@@ -340,6 +359,55 @@ internal sealed class BoardCardDetailsWindow : Window
         if (!string.IsNullOrEmpty(action)) panel.Children.Add(Button(StatusKey(action), StatusFallback(action), (_, _) => _ = ApplyStatusAsync(card, action), "BtnDefault"));
         if (card.Status == "pendingReview") panel.Children.Add(Button("Lang_Board_Reopen", "Reopen", (_, _) => _ = ApplyStatusAsync(card, "reopen")));
         if (card.Status == "inProgress" && IsClaimExpired(card.Claim)) panel.Children.Add(Button("Lang_Board_Claim", "Claim", (_, _) => _ = ApplyStatusAsync(card, "claim"), "BtnPrimary"));
+    }
+
+    private void RefreshLeaseUi()
+    {
+        if (!loaded || Dispatcher.HasShutdownStarted || FindCard(activeCardId) is not { } card) return;
+        if (card.Claim is { } claim && claimSummaryText != null) claimSummaryText.Text = ClaimSummary(claim);
+        if (statusActionRow == null) return;
+        statusActionRow.Children.Clear();
+        AddStatusActions(statusActionRow, card);
+    }
+
+    private async Task EditSelectedCardAsync(ProjectBoardCard card)
+    {
+        BoardDetailsSnapshot captured = snapshot;
+        Guid capturedCardId = card.Id;
+        BoardCardDraft? draft = dialogService.EditCard(this, Text("Lang_Board_CardEditTitle", "Edit board card"), card);
+        if (draft == null || captured.BoardId != snapshot.BoardId) return;
+        try
+        {
+            var payload = new Dictionary<string, object?>
+            {
+                ["project"] = captured.BoardId,
+                ["revision"] = captured.Revision,
+                ["id"] = capturedCardId.ToString("D"),
+                ["title"] = draft.Title,
+                ["description"] = draft.Description,
+                ["priority"] = draft.Priority,
+                ["tags"] = draft.Tags,
+                ["dueDate"] = draft.DueDate,
+                ["actor"] = LocalActor,
+                ["host"] = LocalHost,
+                ["session"] = null
+            };
+            JsonElement data = await ExecuteDataAsync("board.card.update", payload);
+            AcceptMutation(data, isComment: false);
+            ProjectBoardCard updated = ReadCard(data) ?? card with
+            {
+                Title = draft.Title,
+                Description = draft.Description,
+                Priority = draft.Priority,
+                Tags = draft.Tags,
+                DueDate = draft.DueDate,
+                UpdatedAt = DateTime.UtcNow
+            };
+            cards = cards.Select(existing => existing.Id == capturedCardId ? updated : existing).ToArray();
+            RenderTree();
+            RenderSelection(updated);
+        }
+        catch (Exception ex) { ShowError(ex); }
     }
 
     private async Task ApplyStatusAsync(ProjectBoardCard card, string action)
@@ -1056,6 +1124,9 @@ internal sealed class BoardCardDetailsWindow : Window
     private string ClaimOwner(ProjectBoardClaim claim) => claim.ActorId == LocalActor && claim.HostId == LocalHost && claim.SessionId == null
         ? Text("Lang_Board_ClaimedByYou", "Claimed by you") : $"{claim.ActorId} · {claim.HostId}{(claim.SessionId == null ? "" : " · " + claim.SessionId)}";
 
+    private string ClaimSummary(ProjectBoardClaim claim) => string.Format(
+        Text("Lang_Board_ClaimSummary", "{0} · {1}"), ClaimOwner(claim), RemainingLease(claim.ExpiresAt));
+
     private string RemainingLease(DateTime expiresAt)
     {
         TimeSpan remaining = expiresAt - DateTime.UtcNow;
@@ -1076,9 +1147,9 @@ internal sealed class BoardCardDetailsWindow : Window
 
     private Border SmallStatus(string status)
     {
-        var label = Label(StatusText(status), tertiary: true); label.Margin = new Thickness(0);
+        var label = Label(StatusText(status), tertiary: true); label.Margin = new Thickness(0); label.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
         var badge = new Border { Child = label, Padding = new Thickness(5, 2, 5, 2), CornerRadius = new CornerRadius(4), Margin = new Thickness(4, 0, 0, 0) };
-        badge.SetResourceReference(Border.BackgroundProperty, status switch { "inProgress" => "AccentSoftBrush", "pendingReview" => "WarningSoftBrush", "closed" => "SuccessBrush", _ => "BgTertiaryBrush" });
+        badge.SetResourceReference(Border.BackgroundProperty, status switch { "inProgress" => "AccentSoftBrush", "pendingReview" => "WarningSoftBrush", _ => "BgTertiaryBrush" });
         return badge;
     }
 

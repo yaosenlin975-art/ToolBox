@@ -58,15 +58,150 @@ internal static class Program
         Assert(FindProject(store, "board.card.create") == boardId.ToString("D"), "Card create used the newly selected board instead of the dialog snapshot.");
 
         VerifyDeepTreeAndStatusActions(view, registration, columnId);
+        VerifyLeaseRefresh(view, registration, column);
+        VerifyDetailEditUsesOpeningSnapshot(store, registration, column);
         VerifyConfirmationDefaults(registration, column, card);
         VerifyAttachmentPath(registration, column, card);
         VerifyConfirmCancelDoesNotSend(store, registration, column);
         VerifyThemeAndLanguageResources();
 
         view.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent, view));
+        Assert(!GetLeaseTimer(view).IsEnabled, "The board lease timer continued after the view was unloaded.");
         Application.Current?.Shutdown();
         Console.WriteLine("Board UI checks passed.");
         return 0;
+    }
+
+    private static void VerifyLeaseRefresh(BoardsView view, ProjectBoardRegistration registration, ProjectBoardColumn column)
+    {
+        DateTime now = DateTime.UtcNow;
+        Guid boardId = registration.BoardId;
+        var claim = new ProjectBoardClaim("other-host", "other-user", "session-1", now, now, now.AddMilliseconds(300));
+        var card = CreateCard(Guid.NewGuid(), column.Id, "Lease expiry");
+        card = card with { Status = "inProgress", Claim = claim };
+        var board = CreateBoard(boardId, column, card, 10);
+        typeof(BoardsView).GetField("board", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(view, board);
+        typeof(BoardsView).GetMethod("RenderBoard", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(view, null);
+
+        DispatcherTimer boardTimer = GetLeaseTimer(view);
+        Assert(boardTimer.IsEnabled, "The board lease timer did not start when the view loaded.");
+        boardTimer.Stop();
+        boardTimer.Interval = TimeSpan.FromMilliseconds(10);
+        boardTimer.Start();
+        var leaseLabels = (System.Collections.IList)typeof(BoardsView).GetField("leaseLabels", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+        object leaseEntry = leaseLabels[0]!;
+        var label = (TextBlock)leaseEntry.GetType().GetField("Item1")!.GetValue(leaseEntry)!;
+        Assert(!label.Text.Contains("expired", StringComparison.OrdinalIgnoreCase), "The root card lease was already expired before the timer test began.");
+        PumpDispatcher(TimeSpan.FromMilliseconds(500));
+        Assert(label.Text.Contains("expired", StringComparison.OrdinalIgnoreCase), "The root card lease label did not change to expired after timer ticks.");
+        boardTimer.Stop();
+        boardTimer.Interval = TimeSpan.FromSeconds(30);
+        boardTimer.Start();
+
+        DateTime detailNow = DateTime.UtcNow;
+        ProjectBoardCard detailCard = card with
+        {
+            Claim = claim with { ClaimedAt = detailNow, HeartbeatAt = detailNow, ExpiresAt = detailNow.AddMinutes(5) }
+        };
+        ProjectBoard detailBoard = CreateBoard(boardId, column, detailCard, 11);
+        var details = new BoardCardDetailsWindow(null, detailBoard, registration, detailCard,
+            new(boardId.ToString("D"), detailBoard.Revision, detailBoard.CommentRevision));
+        DispatcherTimer detailTimer = GetLeaseTimer(details);
+        detailTimer.Interval = TimeSpan.FromMilliseconds(10);
+        TextBlock previousSummary = (TextBlock)typeof(BoardCardDetailsWindow).GetField("summaryText", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(details)!;
+        try
+        {
+            details.Show();
+            ToolBox.App.RaiseLanguageChanged();
+            PumpDispatcher(TimeSpan.FromMilliseconds(50));
+            TextBlock refreshedSummary = (TextBlock)typeof(BoardCardDetailsWindow).GetField("summaryText", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(details)!;
+            Assert(!ReferenceEquals(previousSummary, refreshedSummary), "The language change reused a summary TextBlock with an existing logical parent.");
+            var summary = (TextBlock)typeof(BoardCardDetailsWindow).GetField("claimSummaryText", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(details)!;
+            Assert(!summary.Text.Contains("expired", StringComparison.OrdinalIgnoreCase), "The active detail claim was shown as expired before its deadline.");
+            VerifyRootParentSelector(details);
+            var actionRow = (Panel)typeof(BoardCardDetailsWindow).GetField("statusActionRow", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(details)!;
+            Assert(actionRow.Children.Count == 0, "An active foreign claim exposed a claim action before its deadline.");
+            ProjectBoardCard expiredCard = detailCard with { Claim = detailCard.Claim! with { ExpiresAt = DateTime.UtcNow.AddSeconds(-1) } };
+            typeof(BoardCardDetailsWindow).GetField("cards", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(details, new[] { expiredCard });
+            PumpDispatcher(TimeSpan.FromMilliseconds(50));
+            Assert(summary.Text.Contains("expired", StringComparison.OrdinalIgnoreCase), "The details lease summary did not change to expired after a timer tick.");
+            Button[] actions = actionRow.Children.OfType<Button>().ToArray();
+            Assert(actions.Length == 1, "An expired foreign claim did not expose only the claim action.");
+        }
+        finally { details.Close(); }
+        Assert(!detailTimer.IsEnabled, "The details lease timer continued after the window closed.");
+    }
+
+    private static DispatcherTimer GetLeaseTimer(object owner) => (DispatcherTimer)owner.GetType()
+        .GetField("leaseTimer", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(owner)!;
+
+    private static void PumpDispatcher(TimeSpan duration)
+    {
+        var frame = new DispatcherFrame();
+        var timeout = new DispatcherTimer(DispatcherPriority.ApplicationIdle) { Interval = duration };
+        timeout.Tick += (_, _) => { timeout.Stop(); frame.Continue = false; };
+        timeout.Start();
+        Dispatcher.PushFrame(frame);
+        timeout.Stop();
+    }
+
+    private static void VerifyRootParentSelector(BoardCardDetailsWindow details)
+    {
+        var selectionPanel = (StackPanel)typeof(BoardCardDetailsWindow).GetField("selectionPanel", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(details)!;
+        ComboBox selector = FindVisualChildren<ComboBox>(selectionPanel).Single();
+        Assert(selector.SelectedItem != null, "A root card's parent selector did not show its No parent choice.");
+        object choice = selector.SelectedItem!;
+        Assert(choice.GetType().GetProperty("Id")?.GetValue(choice) == null, "A root card's parent selector did not select the null-parent choice.");
+    }
+
+    private static void VerifyDetailEditUsesOpeningSnapshot(ProjectBoardStore store, ProjectBoardRegistration registration, ProjectBoardColumn column)
+    {
+        ProjectBoardCard original = CreateCard(Guid.NewGuid(), column.Id, "Original detail") with { DueDate = DateTime.UtcNow.Date.AddDays(1) };
+        ProjectBoard board = CreateBoard(registration.BoardId, column, original, 20) with { CommentRevision = 4 };
+        ProjectBoard externalBoard = board with { Revision = 21, Cards = [original with { Title = "External update" }] };
+        ProjectBoardCard edited = original with
+        {
+            Title = "Edited card",
+            Description = "Edited description",
+            Priority = 2,
+            Tags = ["edited"],
+            DueDate = null,
+            UpdatedAt = DateTime.UtcNow
+        };
+        Func<TaskRequest, TaskResponse>? priorHandler = store.RequestHandler;
+        ProjectBoard? priorBoard = store.CurrentBoard;
+        var dialogs = new SimulatedBoardDialogs();
+        var details = new BoardCardDetailsWindow(null, board, registration, original,
+            new(registration.BoardId.ToString("D"), board.Revision, board.CommentRevision), dialogs);
+        store.CurrentBoard = board;
+        store.RequestHandler = request => request.Operation == "board.card.update"
+            ? Success(new { revision = 21, boardRevision = 21, card = edited })
+            : priorHandler?.Invoke(request) ?? Success(null);
+        dialogs.DuringEdit = () => PublishChangedDuringModal(store, details.Dispatcher, externalBoard);
+        try
+        {
+            details.Show();
+            var selectionPanel = (StackPanel)typeof(BoardCardDetailsWindow).GetField("selectionPanel", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(details)!;
+            string[] beforeEditText = FindVisualChildren<TextBlock>(selectionPanel).Select(text => text.Text).ToArray();
+            Assert(beforeEditText.Any(text => text.Contains("Priority", StringComparison.OrdinalIgnoreCase) && text.Contains("Important", StringComparison.OrdinalIgnoreCase)), "The detail summary did not show priority.");
+            Assert(beforeEditText.Any(text => text.Contains("Tags", StringComparison.OrdinalIgnoreCase) && text.Contains("tag", StringComparison.OrdinalIgnoreCase)), "The detail summary did not show tags.");
+            Assert(beforeEditText.Any(text => text.Contains("Due date", StringComparison.OrdinalIgnoreCase)), "The detail summary did not show the due date.");
+
+            Task edit = (Task)typeof(BoardCardDetailsWindow).GetMethod("EditSelectedCardAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(details, [original])!;
+            edit.GetAwaiter().GetResult();
+            Assert(FindRevision(store, "board.card.update") == 20, "Detail edit used the refreshed revision instead of its pre-dialog snapshot.");
+            Assert(FindProject(store, "board.card.update") == registration.BoardId.ToString("D"), "Detail edit changed projects while the editor was open.");
+            using JsonDocument request = JsonDocument.Parse(store.Requests.Last(request => request.Operation == "board.card.update").Payload!.Value.GetRawText());
+            Assert(request.RootElement.GetProperty("id").GetString() == original.Id.ToString("D"), "Detail edit changed card identity while the editor was open.");
+            var cards = (IReadOnlyList<ProjectBoardCard>)typeof(BoardCardDetailsWindow).GetField("cards", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(details)!;
+            Assert(cards.Single(card => card.Id == original.Id).Title == "Edited card", "Detail edit did not update the selected card summary.");
+        }
+        finally
+        {
+            details.Close();
+            store.RequestHandler = priorHandler;
+            store.CurrentBoard = priorBoard;
+        }
     }
 
     private static void VerifyDeepTreeAndStatusActions(BoardsView view, ProjectBoardRegistration registration, Guid columnId)
@@ -231,7 +366,47 @@ internal static class Program
             var keys = ThemeKeys(Path.Combine(theme, file));
             foreach (string key in new[] { "BgSecondaryBrush", "BgTertiaryBrush", "BgElevatedBrush", "TextPrimaryBrush", "TextTertiaryBrush", "AccentBrush", "SuccessBrush", "WarningSoftBrush", "ErrorBrush", "BorderBrush", "BorderDefaultBrush" })
                 Assert(keys.Contains(key), $"{file} is missing the {key} resource used by the board UI.");
+            VerifyStatusBadgeContrast(Path.Combine(theme, file));
         }
+    }
+
+    private static void VerifyStatusBadgeContrast(string themePath)
+    {
+        XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        var colors = XDocument.Load(themePath).Descendants(presentation + "SolidColorBrush")
+            .Where(element => element.Attribute(xaml + "Key") != null)
+            .ToDictionary(element => element.Attribute(xaml + "Key")!.Value,
+                element => (Color)ColorConverter.ConvertFromString(element.Attribute("Color")!.Value), StringComparer.Ordinal);
+        Color foreground = colors["TextPrimaryBrush"];
+        Color surface = colors["BgSecondaryBrush"];
+        Assert(Contrast(foreground, Composite(colors["AccentSoftBrush"], surface)) >= 4.5, $"Status badge text contrast is too low in {Path.GetFileName(themePath)} over AccentSoftBrush.");
+        Assert(Contrast(foreground, Composite(colors["WarningSoftBrush"], surface)) >= 4.5, $"Status badge text contrast is too low in {Path.GetFileName(themePath)} over WarningSoftBrush.");
+        Assert(Contrast(foreground, colors["BgTertiaryBrush"]) >= 4.5, $"Status badge text contrast is too low in {Path.GetFileName(themePath)} over BgTertiaryBrush.");
+    }
+
+    private static Color Composite(Color foreground, Color background)
+    {
+        double alpha = foreground.A / 255d;
+        return Color.FromRgb(
+            (byte)Math.Round(foreground.R * alpha + background.R * (1 - alpha)),
+            (byte)Math.Round(foreground.G * alpha + background.G * (1 - alpha)),
+            (byte)Math.Round(foreground.B * alpha + background.B * (1 - alpha)));
+    }
+
+    private static double Contrast(Color first, Color second)
+    {
+        double Luminance(Color color)
+        {
+            static double Channel(byte value)
+            {
+                double linear = value / 255d;
+                return linear <= 0.04045 ? linear / 12.92 : Math.Pow((linear + 0.055) / 1.055, 2.4);
+            }
+            return 0.2126 * Channel(color.R) + 0.7152 * Channel(color.G) + 0.0722 * Channel(color.B);
+        }
+        double a = Luminance(first), b = Luminance(second);
+        return (Math.Max(a, b) + 0.05) / (Math.Min(a, b) + 0.05);
     }
 
     private static string FindWorkspaceRoot()
