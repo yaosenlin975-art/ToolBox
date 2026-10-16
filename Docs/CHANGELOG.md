@@ -2,6 +2,17 @@
 
 本文件记录每次功能开发/修复的变更内容。
 
+## [2026-10-16] 项目看板 v2：架构级评审整改
+
+- 死代码清理：删除全仓零调用的 `ProjectBoardStore.ProjectGetOrListRequest`、`BoardsView` 的死赋值与两处 `await Task.CompletedTask` 占位、`BoardAgentService` 恒等 no-op 局部变量与冗余 `with` 复制、`ProjectBoardComments` 冗余 revision 判据及其死参数，以及全仓无引用的语言键 `Lang_Board_DeliveryConfirmation`（中英同步删除）。
+- 评审未成立予以保留（留证备查）：`OperationFields.ttlMinutes`、`board.card.claim` 不可达判据、`InboxPull` 死字段、`RequiresPathConfirmation`/`CandidatePath`、附件 journal 与回滚被忽略的返回值、`Revision`/`BoardRevision` 双字段，经核实为已测试契约或 §13 冻结契约字段，不改。
+- 补齐两处设计未落实项：§6.2 四态四色（Light/Dark 新增 `SuccessSoftBrush`，`closed` 徽标改用，列表与详情树两处）；§12 投递策略补 UI 入口（详情窗口内联「总是自动发送（本机）」开关）；§5.6 第 5 步候选路径确认复活（`ConfirmHostPathAsync` 接通详情窗口内联按钮）。
+- 性能优化：新增读路径快照缓存（键为规范化路径 + `LastWriteTimeUtc` + `Length`，写路径仍重算 hash 做 CAS）；`Unregister` 清理已知 hash 集合；评论外置判据复用已算出的序列化长度；`BoardsView` 卡片查找 O(n²) 改字典；子项计数合并为单次遍历；`LoadDeliveriesAsync` 无用户评论时短路；详情缩略图按 `(RelativePath, Sha256)` 缓存并关窗清空；`DiscoverAsync` 加 30 秒会话级缓存；`DrainErrorAsync` 加超时上界。
+- 隐私整改：看板视图与详情窗口 4 处裸异常文案改为不暴露本地路径的通用文案 + `Debug.WriteLine`；`ShowOperationError` 新增 string 重载以保留已本地化提示。
+- 编码规范整改：新增文件补文件头注释；using 重排为「项目/第三方 → System」分组；const 改全大写下划线；私有字段去 `_` 前缀（含跨 3 个 partial 文件同步改名）；本轮新增 void 方法改 `return this` 链式调用（事件处理器/`override`/接口契约/`private static` 除外）。
+- 测试同步：`Tests/BoardsUi` 桩补齐投递策略与候选路径确认相关 API 及宿主/策略/确认路径记录，新增候选路径按钮可见性与投递开关断言；子项计数断言适配返回 `(Total, Closed)` 元组。
+- 验证：主程序 Debug 0 error / 200 warning（与基线持平）；CLI 0 error / 0 warning；`Boards`、`BoardAgents` 27/27、`BoardsUi`、`BoardsProtocol` 234 全绿；CLI 集成 639；真实 WPF live 47/47。
+
 ## [2026-10-15] 项目看板 v2：四态协作、评论与图片附件
 
 - 卡片新增四态（未开始/进行中/待验收/已关闭）与执行身份：`claim/release/submit/close/reopen` 原子认领与租约（默认 30 分钟，5–480），状态与列映射彼此独立；新增子事项树、认领与租约写入保护，CLI 同步扩展 18 个新操作。

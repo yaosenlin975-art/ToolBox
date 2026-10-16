@@ -1,21 +1,22 @@
+// 项目看板存储：注册表与 board.json 的读写、校验、CAS 与原子替换。
+using ToolBox.Core.Todo;
+
 using System;
-using System.IO;
 using System.Diagnostics;
+using System.IO;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
-using ToolBox.Core.Todo;
 
 namespace ToolBox.Core.Boards;
 
 public sealed partial class ProjectBoardStore
 {
-    private const int SchemaVersion = 2;
-    private const int LegacySchemaVersion = 1;
-    private const int RegistrySchemaVersion = 1;
-    private const int RequestCacheLimit = 256;
+    private const int SCHEMA_VERSION = 2;
+    private const int LEGACY_SCHEMA_VERSION = 1;
+    private const int REGISTRY_SCHEMA_VERSION = 1;
+    private const int REQUEST_CACHE_LIMIT = 256;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = false,
@@ -41,6 +42,8 @@ public sealed partial class ProjectBoardStore
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly Dictionary<Guid, string> knownBoardHashes = [];
     private readonly Dictionary<Guid, string> knownCommentHashes = [];
+    // 读路径快照缓存：键为 (board.json 规范路径, LastWriteTimeUtc, Length)，避免每次读都重新读盘、解析与校验。
+    private readonly Dictionary<(string Path, DateTime LastWriteTimeUtc, long Length), BoardSnapshot> boardSnapshotCache = [];
     private bool pendingNotification;
     private readonly Dictionary<Guid, (string Fingerprint, TaskResponse Response)> requestCache = [];
     private readonly Queue<Guid> requestOrder = [];
@@ -79,7 +82,7 @@ public sealed partial class ProjectBoardStore
             try
             {
                 ValidateRequest(request);
-                _currentRequest = request;
+                currentRequest = request;
                 response = await ExecuteCoreAsync(request).ConfigureAwait(false);
                 if (currentWarnings is { Count: > 0 }) response.Warnings = currentWarnings;
                 if (JsonSerializer.SerializeToUtf8Bytes(response, TaskProtocol.Options).Length > TaskProtocol.MaxBytes)
@@ -96,7 +99,7 @@ public sealed partial class ProjectBoardStore
             catch (Exception) { response = TaskResponse.Failure(request, "INTERNAL_ERROR", "The project board command failed."); }
 
             if (response.Ok && currentWarnings is { Count: > 0 }) response.Warnings = currentWarnings;
-            _currentRequest = null;
+            currentRequest = null;
             if (requestId != Guid.Empty) CacheResponse(requestId, fingerprint, response);
             return response;
         }
@@ -175,7 +178,7 @@ public sealed partial class ProjectBoardStore
                 new ProjectBoardColumn(Guid.NewGuid(), "待验收", 2, "pendingReview"),
                 new ProjectBoardColumn(Guid.NewGuid(), "完成", 3, "closed")
             };
-            board = new ProjectBoard(SchemaVersion, Guid.NewGuid(), new DirectoryInfo(path).Name, 1, columns, []);
+            board = new ProjectBoard(SCHEMA_VERSION, Guid.NewGuid(), new DirectoryInfo(path).Name, 1, columns, []);
         }
         else board = ReadBoard(path).Board;
 
@@ -189,37 +192,39 @@ public sealed partial class ProjectBoardStore
             throw new TaskCommandException("CONFLICT", "This board ID is registered at another path; set replacePath=true to update it.", "replacePath");
 
         var registration = new ProjectBoardRegistration(board.BoardId, board.Name, path);
-        EnsureResponseFits(TaskResponse.Success(_currentRequest!, registration));
+        EnsureResponseFits(TaskResponse.Success(currentRequest!, registration));
         if (initialize) SaveNewBoard(path, board, registration);
         if (sameBoard != null) registry.State.Projects[registry.State.Projects.IndexOf(sameBoard)] = registration;
         else registry.State.Projects.Add(registration);
         WriteRegistry(registry.State, registry.Hash);
         NotifyChanged();
-        return TaskResponse.Success(_currentRequest!, registration);
+        return TaskResponse.Success(currentRequest!, registration);
     }
 
-    private TaskRequest? _currentRequest;
+    private TaskRequest? currentRequest;
 
     private TaskResponse ProjectList()
     {
         var registry = ReadRegistry();
-        return TaskResponse.Success(_currentRequest!, registry.State.Projects.ToArray());
+        return TaskResponse.Success(currentRequest!, registry.State.Projects.ToArray());
     }
 
     private TaskResponse ProjectGet(JsonElement payload)
     {
         var (registration, _) = ResolveProject(payload);
-        return TaskResponse.Success(_currentRequest!, registration);
+        return TaskResponse.Success(currentRequest!, registration);
     }
 
     private TaskResponse Unregister(JsonElement payload)
     {
         RegistrySnapshot registry = ReadRegistry();
         ProjectBoardRegistration registration = ResolveProject(payload, registry.State);
-        TaskResponse result = TaskResponse.Success(_currentRequest!, registration);
+        TaskResponse result = TaskResponse.Success(currentRequest!, registration);
         EnsureResponseFits(result);
         registry.State.Projects.RemoveAll(p => p.BoardId == registration.BoardId);
         registry.State.TodoLinks.RemoveAll(link => link.BoardId == registration.BoardId);
+        knownBoardHashes.Remove(registration.BoardId);
+        knownCommentHashes.Remove(registration.BoardId);
         WriteRegistry(registry.State, registry.Hash);
         NotifyChanged();
         return result;
@@ -228,13 +233,13 @@ public sealed partial class ProjectBoardStore
     private TaskResponse BoardGet(JsonElement payload)
     {
         var (registration, snapshot) = ReadProjectBoard(payload);
-        return TaskResponse.Success(_currentRequest!, ProjectBoardResponse(snapshot.Board));
+        return TaskResponse.Success(currentRequest!, ProjectBoardResponse(snapshot.Board));
     }
 
     private TaskResponse ColumnList(JsonElement payload)
     {
         var (_, snapshot) = ReadProjectBoard(payload);
-        return TaskResponse.Success(_currentRequest!, new { columns = snapshot.Board.Columns, revision = snapshot.Board.Revision, boardRevision = snapshot.Board.Revision, commentRevision = snapshot.Board.CommentRevision });
+        return TaskResponse.Success(currentRequest!, new { columns = snapshot.Board.Columns, revision = snapshot.Board.Revision, boardRevision = snapshot.Board.Revision, commentRevision = snapshot.Board.CommentRevision });
     }
 
     private TaskResponse ColumnCreate(JsonElement payload)
@@ -252,7 +257,7 @@ public sealed partial class ProjectBoardStore
         columns.Insert(order, created);
         columns = ReorderColumns(columns);
         var updated = snapshot.Board with { Columns = columns, Revision = NextRevision(snapshot.Board) };
-        TaskResponse result = TaskResponse.Success(_currentRequest!, new { column = updated.Columns.Single(c => c.Id == created.Id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
+        TaskResponse result = TaskResponse.Success(currentRequest!, new { column = updated.Columns.Single(c => c.Id == created.Id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
         SaveBoard(registration.Path, snapshot, updated, result);
         NotifyChanged();
         return result;
@@ -285,7 +290,7 @@ public sealed partial class ProjectBoardStore
         }
         else columns[index] = column;
         var updated = snapshot.Board with { Columns = ReorderColumns(columns), Revision = NextRevision(snapshot.Board) };
-        TaskResponse result = TaskResponse.Success(_currentRequest!, new { column = updated.Columns.Single(c => c.Id == id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
+        TaskResponse result = TaskResponse.Success(currentRequest!, new { column = updated.Columns.Single(c => c.Id == id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
         SaveBoard(registration.Path, snapshot, updated, result);
         NotifyChanged();
         return result;
@@ -328,7 +333,7 @@ public sealed partial class ProjectBoardStore
             Cards = newCards,
             Revision = NextRevision(snapshot.Board)
         };
-        TaskResponse result = TaskResponse.Success(_currentRequest!, new { column = deleted, revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
+        TaskResponse result = TaskResponse.Success(currentRequest!, new { column = deleted, revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
         SaveBoard(registration.Path, snapshot, updated, result);
         NotifyChanged();
         return result;
@@ -349,7 +354,7 @@ public sealed partial class ProjectBoardStore
         columns.Insert(Math.Min(order, columns.Count), moved);
         columns = ReorderColumns(columns);
         var updated = snapshot.Board with { Columns = columns, Revision = NextRevision(snapshot.Board) };
-        TaskResponse result = TaskResponse.Success(_currentRequest!, new { column = columns.Single(c => c.Id == id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
+        TaskResponse result = TaskResponse.Success(currentRequest!, new { column = columns.Single(c => c.Id == id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
         SaveBoard(registration.Path, snapshot, updated, result);
         NotifyChanged();
         return result;
@@ -383,7 +388,7 @@ public sealed partial class ProjectBoardStore
                 (!mine || (c.Claim != null && SameIdentity(c.Claim, host!, actor!, session!))))
             .OrderBy(c => columnOrder[c.ColumnId]).ThenBy(c => c.ParentId).ThenBy(c => c.Order).ThenBy(c => c.Id)
             .Select(card => ProjectCardResponse(snapshot.Board, card)).ToArray();
-        return TaskResponse.Success(_currentRequest!, new { cards, revision = snapshot.Board.Revision, boardRevision = snapshot.Board.Revision, commentRevision = snapshot.Board.CommentRevision });
+        return TaskResponse.Success(currentRequest!, new { cards, revision = snapshot.Board.Revision, boardRevision = snapshot.Board.Revision, commentRevision = snapshot.Board.CommentRevision });
     }
 
     private TaskResponse CardGet(JsonElement payload)
@@ -393,7 +398,7 @@ public sealed partial class ProjectBoardStore
         var card = snapshot.Board.Cards.FirstOrDefault(c => c.Id == id)
             ?? throw new TaskCommandException("NOT_FOUND", "Board card not found.", "id");
         var children = snapshot.Board.Cards.Where(c => c.ParentId == id && c.DeletedAt == null).ToArray();
-        return TaskResponse.Success(_currentRequest!, new
+        return TaskResponse.Success(currentRequest!, new
         {
             card = ProjectCardResponse(snapshot.Board, card),
             commentCount = card.Comments?.Count(comment => comment.DeletedAt == null) ?? 0,
@@ -441,7 +446,7 @@ public sealed partial class ProjectBoardStore
         cards.RemoveAll(c => c.ColumnId == columnId && c.ParentId == parentId);
         cards.AddRange(ReorderOneColumn(inColumn));
         var updated = snapshot.Board with { Cards = ReorderCards(cards, snapshot.Board.Columns), Revision = NextRevision(snapshot.Board) };
-        TaskResponse result = TaskResponse.Success(_currentRequest!, new { card = updated.Cards.Single(c => c.Id == card.Id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
+        TaskResponse result = TaskResponse.Success(currentRequest!, new { card = updated.Cards.Single(c => c.Id == card.Id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
         SaveBoard(registration.Path, snapshot, updated, result);
         NotifyChanged();
         return result;
@@ -498,7 +503,7 @@ public sealed partial class ProjectBoardStore
         cards.RemoveAll(c => c.ColumnId == targetColumn && c.ParentId == targetParent);
         cards.AddRange(ReorderOneColumn(targetCards));
         var updated = snapshot.Board with { Cards = ReorderCards(cards, snapshot.Board.Columns), Revision = NextRevision(snapshot.Board) };
-        TaskResponse result = TaskResponse.Success(_currentRequest!, new { card = updated.Cards.Single(c => c.Id == id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
+        TaskResponse result = TaskResponse.Success(currentRequest!, new { card = updated.Cards.Single(c => c.Id == id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
         SaveBoard(registration.Path, snapshot, updated, result);
         NotifyChanged();
         return result;
@@ -538,7 +543,7 @@ public sealed partial class ProjectBoardStore
         cards.RemoveAll(c => c.ColumnId == targetId && c.ParentId == card.ParentId);
         cards.AddRange(ReorderOneColumn(target));
         var updated = snapshot.Board with { Cards = ReorderCards(cards, snapshot.Board.Columns), Revision = NextRevision(snapshot.Board) };
-        TaskResponse result = TaskResponse.Success(_currentRequest!, new { card = updated.Cards.Single(c => c.Id == id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
+        TaskResponse result = TaskResponse.Success(currentRequest!, new { card = updated.Cards.Single(c => c.Id == id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
         SaveBoard(registration.Path, snapshot, updated, result);
         NotifyChanged();
         return result;
@@ -598,7 +603,7 @@ public sealed partial class ProjectBoardStore
             ? item with { DeletedAt = deleted ? now : null, UpdatedAt = now }
             : item).ToArray();
         var updated = snapshot.Board with { Cards = cards, Revision = NextRevision(snapshot.Board) };
-        TaskResponse result = TaskResponse.Success(_currentRequest!, new { card = cards.Single(c => c.Id == id), affectedCount = changedIds.Count, revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
+        TaskResponse result = TaskResponse.Success(currentRequest!, new { card = cards.Single(c => c.Id == id), affectedCount = changedIds.Count, revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
         SaveBoard(registration.Path, snapshot, updated, result);
         NotifyChanged();
         return result;
@@ -639,7 +644,7 @@ public sealed partial class ProjectBoardStore
             throw new TaskCommandException("CONFLICT", "The target column does not map to the resulting status.", "columnId");
         var updatedCards = RelocateCard(snapshot.Board, transitioned with { UpdatedAt = now }, targetColumnId, OptionalInt(payload, "order"));
         var updated = snapshot.Board with { Cards = updatedCards, Revision = NextRevision(snapshot.Board) };
-        TaskResponse result = TaskResponse.Success(_currentRequest!, new { card = updated.Cards.Single(c => c.Id == id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
+        TaskResponse result = TaskResponse.Success(currentRequest!, new { card = updated.Cards.Single(c => c.Id == id), revision = updated.Revision, boardRevision = updated.Revision, commentRevision = updated.CommentRevision });
         SaveBoard(registration.Path, snapshot, updated, result);
         NotifyChanged();
         return result;
@@ -647,7 +652,7 @@ public sealed partial class ProjectBoardStore
 
     private TaskResponse ClaimConflictResponse(ProjectBoardCard card, string type)
     {
-        TaskResponse response = TaskResponse.Failure(_currentRequest, "CONFLICT", "Card is being worked on by another agent.", "id");
+        TaskResponse response = TaskResponse.Failure(currentRequest, "CONFLICT", "Card is being worked on by another agent.", "id");
         response.Data = new
         {
             conflictType = type,
@@ -718,9 +723,9 @@ public sealed partial class ProjectBoardStore
         if (!SameIdentity(card.Claim, identity)) throw new TaskCommandException("CONFLICT", "Only the current claim owner can perform this action.", "actor");
     }
 
-    private void EnsureWritable(ProjectBoardCard card, BoardIdentity? identity, DateTime now)
+    private ProjectBoardStore EnsureWritable(ProjectBoardCard card, BoardIdentity? identity, DateTime now)
     {
-        if (card.Status != "inProgress") return;
+        if (card.Status != "inProgress") return this;
         if (card.Claim == null) throw Corrupt("An in-progress card has no claim.");
         if (card.Claim.ExpiresAt <= now)
         {
@@ -734,6 +739,7 @@ public sealed partial class ProjectBoardStore
             claimConflictType = "CLAIMED_BY_OTHER";
             throw new TaskCommandException("CONFLICT", "Card is being worked on by another agent.", "id");
         }
+        return this;
     }
 
     private static void EnsureCardActive(ProjectBoardCard card, string field)
@@ -908,8 +914,6 @@ public sealed partial class ProjectBoardStore
         return success;
     }
 
-    private TaskResponse ProjectGetOrListRequest(TaskRequest request, object data) => TaskResponse.Success(request, data);
-
     private (ProjectBoardRegistration Registration, BoardSnapshot Snapshot) ReadProjectBoard(JsonElement payload)
     {
         var (registration, _) = ResolveProject(payload);
@@ -949,6 +953,13 @@ public sealed partial class ProjectBoardStore
         string file = GetBoardPath(root, allowMissingDirectory: false);
         RejectReparsePoint(file);
         if (!File.Exists(file)) throw new TaskCommandException("NOT_FOUND", "The registered project board file was not found.", "project");
+        var fileInfo = new FileInfo(file);
+        (string Path, DateTime LastWriteTimeUtc, long Length) cacheKey = (file, fileInfo.LastWriteTimeUtc, fileInfo.Length);
+        if (boardSnapshotCache.TryGetValue(cacheKey, out BoardSnapshot? cachedSnapshot))
+        {
+            currentWarnings = cachedSnapshot.MigrationNotices;
+            return cachedSnapshot;
+        }
         try
         {
             byte[] bytes = File.ReadAllBytes(file);
@@ -959,7 +970,7 @@ public sealed partial class ProjectBoardStore
                 throw Corrupt("Board schema version is missing or invalid.");
             ProjectBoard board;
             string[] migrationNotices = [];
-            if (version == LegacySchemaVersion)
+            if (version == LEGACY_SCHEMA_VERSION)
             {
                 ValidateBoardV1Json(rootElement);
                 ProjectBoardV1 legacy = JsonSerializer.Deserialize<ProjectBoardV1>(bytes, JsonOptions)
@@ -989,7 +1000,7 @@ public sealed partial class ProjectBoardStore
                     card.DueDate, card.CreatedAt, card.UpdatedAt, card.DeletedAt,
                     statusByColumn[card.ColumnId] == "inProgress" ? "notStarted" : statusByColumn[card.ColumnId] ?? "notStarted",
                     null, null, null, [], [])).ToArray();
-                board = new ProjectBoard(SchemaVersion, legacy.BoardId, legacy.Name, legacy.Revision, columns, cards, 0, false);
+                board = new ProjectBoard(SCHEMA_VERSION, legacy.BoardId, legacy.Name, legacy.Revision, columns, cards, 0, false);
                 var notices = new List<string>();
                 if (resetInProgress > 0)
                     notices.Add($"Migrated {resetInProgress} in-progress v1 card(s) to notStarted. Their column and order were preserved; claim each card before continuing work.");
@@ -1037,7 +1048,9 @@ public sealed partial class ProjectBoardStore
                 knownCommentHashes.Remove(board.BoardId);
             }
             currentWarnings = migrationNotices;
-            return new BoardSnapshot(board, hash, migrationNotices, commentsHash);
+            BoardSnapshot snapshot = new(board, hash, migrationNotices, commentsHash);
+            boardSnapshotCache[cacheKey] = snapshot;
+            return snapshot;
         }
         catch (TaskCommandException) { throw; }
         catch (JsonException) { throw Corrupt("Board data is not valid JSON or contains unknown fields."); }
@@ -1064,7 +1077,7 @@ public sealed partial class ProjectBoardStore
         catch (JsonException) { throw Corrupt("Project board registry is not valid JSON or contains unknown fields."); }
     }
 
-    private void WriteRegistry(RegistryState state, string? expectedHash)
+    private ProjectBoardStore WriteRegistry(RegistryState state, string? expectedHash)
     {
         EnsureRegistryPath(createDirectory: true);
         string? currentHash = null;
@@ -1076,21 +1089,23 @@ public sealed partial class ProjectBoardStore
         if (!string.Equals(currentHash, expectedHash, StringComparison.Ordinal))
             throw new TaskCommandException("CONFLICT", "Project board registry changed outside this command; reload before retrying.", "registry");
         WriteAtomic(registryPath, JsonSerializer.SerializeToUtf8Bytes(state, JsonOptions), expectedHash, "registry");
+        return this;
     }
 
-    private void SaveNewBoard(string root, ProjectBoard board, ProjectBoardRegistration registration)
+    private ProjectBoardStore SaveNewBoard(string root, ProjectBoard board, ProjectBoardRegistration registration)
     {
         string boardPath = GetBoardPath(root, allowMissingDirectory: true);
         ValidateBoard(board);
-        EnsureResponseFits(TaskResponse.Success(_currentRequest!, registration));
-        EnsureResponseFits(TaskResponse.Success(_currentRequest!, ProjectBoardResponse(board)));
+        EnsureResponseFits(TaskResponse.Success(currentRequest!, registration));
+        EnsureResponseFits(TaskResponse.Success(currentRequest!, ProjectBoardResponse(board)));
         byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(board, JsonOptions);
         EnsureBoardDirectory(root, create: true);
         WriteNewAtomic(boardPath, bytes);
         knownBoardHashes[board.BoardId] = Hash(bytes);
+        return this;
     }
 
-    private void SaveBoard(string root, BoardSnapshot before, ProjectBoard updated, TaskResponse result)
+    private ProjectBoardStore SaveBoard(string root, BoardSnapshot before, ProjectBoard updated, TaskResponse result)
     {
         string boardPath = GetBoardPath(root, allowMissingDirectory: false);
         RejectReparsePoint(boardPath);
@@ -1101,25 +1116,26 @@ public sealed partial class ProjectBoardStore
         ValidateBoard(updated);
         if (before.MigrationNotices.Count > 0) result.Warnings = before.MigrationNotices;
         EnsureResponseFits(result);
-        EnsureResponseFits(TaskResponse.Success(_currentRequest!, ProjectBoardResponse(updated)));
-        if (!updated.CommentsExternal && ShouldExternalizeComments(updated))
+        EnsureResponseFits(TaskResponse.Success(currentRequest!, ProjectBoardResponse(updated)));
+        byte[] bytes = SerializeBoardStorage(updated);
+        if (!updated.CommentsExternal && ShouldExternalizeComments(updated, bytes.Length))
         {
             ExternalizeComments(root, before, updated);
-            return;
+            return this;
         }
-        byte[] bytes = SerializeBoardStorage(updated);
         WriteAtomic(boardPath, bytes, before.Hash, "revision");
         knownBoardHashes[updated.BoardId] = Hash(bytes);
+        return this;
     }
 
-    private void EnsureChangedCardsWritable(ProjectBoard before, ProjectBoard updated)
+    private ProjectBoardStore EnsureChangedCardsWritable(ProjectBoard before, ProjectBoard updated)
     {
         var updatedById = updated.Cards.ToDictionary(card => card.Id);
-        JsonElement payload = _currentRequest?.Payload ?? default;
+        JsonElement payload = currentRequest?.Payload ?? default;
         BoardIdentity? identity = payload.ValueKind == JsonValueKind.Object ? ReadIdentity(payload) : null;
         Guid? claimTransitionCard = null;
-        if (_currentRequest?.Operation == "board.card.claim" ||
-            (_currentRequest?.Operation == "board.card.move" && OptionalTransition(payload) == "claim"))
+        if (currentRequest?.Operation == "board.card.claim" ||
+            (currentRequest?.Operation == "board.card.move" && OptionalTransition(payload) == "claim"))
             claimTransitionCard = RequiredGuid(payload, "id");
         DateTime now = DateTime.UtcNow;
         foreach (ProjectBoardCard card in before.Cards)
@@ -1128,6 +1144,7 @@ public sealed partial class ProjectBoardStore
             if (card.Id == claimTransitionCard) continue;
             EnsureWritable(card, identity, now);
         }
+        return this;
     }
 
     internal static void WriteNewAtomic(string path, byte[] bytes)
@@ -1241,12 +1258,13 @@ public sealed partial class ProjectBoardStore
         return (hresult & 0xFFFF) is 32 or 33 or 1175;
     }
 
-    private void EnsureRegistryPath(bool createDirectory = false)
+    private ProjectBoardStore EnsureRegistryPath(bool createDirectory = false)
     {
         string directory = Path.GetDirectoryName(registryPath)!;
         if (createDirectory) Directory.CreateDirectory(directory);
         if (Directory.Exists(directory)) RejectReparsePoint(directory);
         RejectReparsePoint(registryPath);
+        return this;
     }
 
     private static string GetBoardPath(string root, bool allowMissingDirectory)
@@ -1594,7 +1612,7 @@ public sealed partial class ProjectBoardStore
 
     private static void ValidateBoardV1Json(JsonElement root)
     {
-        if (root.ValueKind != JsonValueKind.Object || root.GetProperty("schemaVersion").GetInt32() != LegacySchemaVersion)
+        if (root.ValueKind != JsonValueKind.Object || root.GetProperty("schemaVersion").GetInt32() != LEGACY_SCHEMA_VERSION)
             throw Corrupt("Board schema version is invalid.");
         RequireProperties(root, "schemaVersion", "boardId", "name", "revision", "columns", "cards");
         if (root.GetProperty("columns").ValueKind != JsonValueKind.Array || root.GetProperty("cards").ValueKind != JsonValueKind.Array)
@@ -1615,7 +1633,7 @@ public sealed partial class ProjectBoardStore
 
     private static void ValidateBoardV2Json(JsonElement root)
     {
-        if (root.ValueKind != JsonValueKind.Object || root.GetProperty("schemaVersion").GetInt32() != SchemaVersion)
+        if (root.ValueKind != JsonValueKind.Object || root.GetProperty("schemaVersion").GetInt32() != SCHEMA_VERSION)
             throw Corrupt("Board schema version is invalid.");
         RequireProperties(root, "schemaVersion", "boardId", "name", "revision", "commentRevision", "commentsExternal", "columns", "cards");
         if (root.GetProperty("columns").ValueKind != JsonValueKind.Array || root.GetProperty("cards").ValueKind != JsonValueKind.Array)
@@ -1758,7 +1776,7 @@ public sealed partial class ProjectBoardStore
 
     private static void ValidateBoard(ProjectBoard board)
     {
-        if (board.SchemaVersion != SchemaVersion || board.BoardId == Guid.Empty || string.IsNullOrWhiteSpace(board.Name) || board.Revision < 1 || board.CommentRevision < 0 || board.Columns.Count == 0 || board.Cards == null)
+        if (board.SchemaVersion != SCHEMA_VERSION || board.BoardId == Guid.Empty || string.IsNullOrWhiteSpace(board.Name) || board.Revision < 1 || board.CommentRevision < 0 || board.Columns.Count == 0 || board.Cards == null)
             throw Corrupt("Board header is invalid or uses an unknown schema version.");
         if (board.Columns.Any(c => c.Id == Guid.Empty || string.IsNullOrWhiteSpace(c.Title) || c.Order < 0) ||
             board.Columns.Select(c => c.Id).Distinct().Count() != board.Columns.Count ||
@@ -1822,7 +1840,7 @@ public sealed partial class ProjectBoardStore
 
     private static void ValidateRegistry(RegistryState state)
     {
-        if (state.SchemaVersion != RegistrySchemaVersion || state.Projects == null || state.TodoLinks == null) throw Corrupt("Project board registry uses an unknown schema version.");
+        if (state.SchemaVersion != REGISTRY_SCHEMA_VERSION || state.Projects == null || state.TodoLinks == null) throw Corrupt("Project board registry uses an unknown schema version.");
         if (state.Projects.Any(p => p == null || p.BoardId == Guid.Empty || string.IsNullOrWhiteSpace(p.Name) || string.IsNullOrWhiteSpace(p.Path) ||
                 !Path.IsPathFullyQualified(p.Path) || p.Path.StartsWith("\\\\", StringComparison.Ordinal)) ||
             state.Projects.Select(p => p.BoardId).Distinct().Count() != state.Projects.Count)
@@ -1863,12 +1881,18 @@ public sealed partial class ProjectBoardStore
         return result;
     }
 
-    private void NotifyChanged() => pendingNotification = true;
+    private ProjectBoardStore NotifyChanged()
+    {
+        pendingNotification = true;
+        boardSnapshotCache.Clear();
+        return this;
+    }
 
-    private void RaiseChanged()
+    private ProjectBoardStore RaiseChanged()
     {
         try { Changed?.Invoke(); }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] Project board change notification failed: {ex.Message}"); }
+        return this;
     }
 
     private static void LogIoFailure(Exception exception)
@@ -1882,15 +1906,16 @@ public sealed partial class ProjectBoardStore
 #endif
     }
 
-    private void CacheResponse(Guid id, string fingerprint, TaskResponse response)
+    private ProjectBoardStore CacheResponse(Guid id, string fingerprint, TaskResponse response)
     {
         requestCache[id] = (fingerprint, response);
         requestOrder.Enqueue(id);
-        while (requestOrder.Count > RequestCacheLimit)
+        while (requestOrder.Count > REQUEST_CACHE_LIMIT)
         {
             Guid expired = requestOrder.Dequeue();
             requestCache.Remove(expired);
         }
+        return this;
     }
 
     private static string Fingerprint(TaskRequest request)

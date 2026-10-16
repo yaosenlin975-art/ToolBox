@@ -27,6 +27,7 @@
     <SolidColorBrush x:Key="InfoBrush" Color="#64B5F6"/>
     <SolidColorBrush x:Key="WarningSoftBrush" Color="#14FFC107"/>
     <SolidColorBrush x:Key="ErrorSoftBrush" Color="#14FF5252"/>
+    <SolidColorBrush x:Key="SuccessSoftBrush" Color="#1400D2A0"/>
 
     <!-- Border -->
     <SolidColorBrush x:Key="BorderDefaultBrush" Color="#222430"/>

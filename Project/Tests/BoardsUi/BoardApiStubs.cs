@@ -75,8 +75,24 @@ namespace ToolBox.Core.BoardAgents
     {
         public static BoardAgentService Instance { get; } = new();
         public event Action? Changed;
+        public string DeliveryPolicy { get; set; } = "confirm";
+        public IReadOnlyList<BoardAgentHostInfo> Hosts { get; set; } = [];
+        public List<string> DeliveryPolicySets { get; } = [];
+        public List<(string Host, string Path)> ConfirmedPaths { get; } = [];
         public string GetConfigPath() => Path.Combine(Path.GetTempPath(), "board-agents.json");
-        public Task<IReadOnlyList<BoardAgentHostInfo>> DiscoverAsync(bool refresh = false, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<BoardAgentHostInfo>>([]);
+        public Task<IReadOnlyList<BoardAgentHostInfo>> DiscoverAsync(bool refresh = false, CancellationToken cancellationToken = default) => Task.FromResult(Hosts);
+        public Task<string> GetDeliveryPolicyAsync(CancellationToken cancellationToken = default) => Task.FromResult(DeliveryPolicy);
+        public Task SetDeliveryPolicyAsync(string policy, CancellationToken cancellationToken = default)
+        {
+            DeliveryPolicy = policy;
+            DeliveryPolicySets.Add(policy);
+            return Task.CompletedTask;
+        }
+        public Task ConfirmHostPathAsync(string host, string path, CancellationToken cancellationToken = default)
+        {
+            ConfirmedPaths.Add((host, path));
+            return Task.CompletedTask;
+        }
         public BoardAgentLaunchTarget? ResolveLaunch(string host, string projectRoot) => null;
         public void RaiseChanged() => Changed?.Invoke();
     }

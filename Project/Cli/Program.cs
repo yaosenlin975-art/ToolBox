@@ -1,3 +1,4 @@
+// CLI 入口：构建根命令与全局选项，把请求经 TaskIpc 发送到后台任务宿主，并输出结构化 JSON 响应。
 using System.CommandLine;
 using System.Text.Json;
 using ToolBox.Core.Todo;

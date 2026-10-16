@@ -1,20 +1,21 @@
 // 看板图片附件：元数据内嵌 board.json，图片本体存于项目内 .toolbox/board-assets。
 // 写入先按流限量读取并真实解码，再按 SHA256 去重并以临时文件原子改名；删除先写 tombstone journal 再删元数据。
+using ToolBox.Core.Todo;
+
 using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
-using ToolBox.Core.Todo;
 
 namespace ToolBox.Core.Boards;
 
 public sealed partial class ProjectBoardStore
 {
-    private const int AttachmentJournalSchemaVersion = 1;
-    private const int AttachmentMaxBytes = 10 * 1024 * 1024;
-    private const string AttachmentAssetsDirectoryName = "board-assets";
-    private const string AttachmentTombstoneSuffix = ".tombstone";
-    private const string AttachmentJournalFileName = "attachments.journal.json";
+    private const int ATTACHMENT_JOURNAL_SCHEMA_VERSION = 1;
+    private const int ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+    private const string ATTACHMENT_ASSETS_DIRECTORY_NAME = "board-assets";
+    private const string ATTACHMENT_TOMBSTONE_SUFFIX = ".tombstone";
+    private const string ATTACHMENT_JOURNAL_FILE_NAME = "attachments.journal.json";
 
     private static readonly HashSet<string> AttachmentExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -39,7 +40,7 @@ public sealed partial class ProjectBoardStore
         ProjectBoardAttachment? existing = (card.Attachments ?? [])
             .FirstOrDefault(item => string.Equals(item.Sha256, sha256, StringComparison.OrdinalIgnoreCase));
         if (existing != null)
-            return TaskResponse.Success(_currentRequest!, new
+            return TaskResponse.Success(currentRequest!, new
             {
                 attachment = existing,
                 revision = snapshot.Board.Revision,
@@ -59,7 +60,7 @@ public sealed partial class ProjectBoardStore
         {
             Revision = NextRevision(snapshot.Board)
         };
-        TaskResponse result = TaskResponse.Success(_currentRequest!, new
+        TaskResponse result = TaskResponse.Success(currentRequest!, new
         {
             attachment,
             revision = updated.Revision,
@@ -103,7 +104,7 @@ public sealed partial class ProjectBoardStore
                 hashMatch
             });
         }
-        return TaskResponse.Success(_currentRequest!, new
+        return TaskResponse.Success(currentRequest!, new
         {
             attachments = items,
             revision = snapshot.Board.Revision,
@@ -129,7 +130,7 @@ public sealed partial class ProjectBoardStore
         {
             Revision = NextRevision(snapshot.Board)
         };
-        TaskResponse result = TaskResponse.Success(_currentRequest!, new
+        TaskResponse result = TaskResponse.Success(currentRequest!, new
         {
             attachment,
             revision = updated.Revision,
@@ -191,7 +192,7 @@ public sealed partial class ProjectBoardStore
     {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         long length = stream.Length;
-        if (length > AttachmentMaxBytes)
+        if (length > ATTACHMENT_MAX_BYTES)
             throw new TaskCommandException("ATTACHMENT_TOO_LARGE", "An attachment must be at most 10 MiB.", "file");
         // 只按流读取受限字节数，避免把超大文件整体读入内存；多读一字节用于发现读取期间的增长。
         byte[] buffer = new byte[length + 1];
@@ -202,7 +203,7 @@ public sealed partial class ProjectBoardStore
             if (read == 0) break;
             total += read;
         }
-        if (total > AttachmentMaxBytes)
+        if (total > ATTACHMENT_MAX_BYTES)
             throw new TaskCommandException("ATTACHMENT_TOO_LARGE", "An attachment must be at most 10 MiB.", "file");
         return buffer[..total];
     }
@@ -229,11 +230,11 @@ public sealed partial class ProjectBoardStore
     }
 
     private static string AttachmentRelativePath(Guid cardId, Guid attachmentId, string extension) =>
-        $".toolbox/{AttachmentAssetsDirectoryName}/{cardId:D}/{attachmentId:D}{extension}";
+        $".toolbox/{ATTACHMENT_ASSETS_DIRECTORY_NAME}/{cardId:D}/{attachmentId:D}{extension}";
 
     private static string EnsureAttachmentDirectory(string root, Guid cardId)
     {
-        string assetsDirectory = Path.Combine(root, ".toolbox", AttachmentAssetsDirectoryName);
+        string assetsDirectory = Path.Combine(root, ".toolbox", ATTACHMENT_ASSETS_DIRECTORY_NAME);
         Directory.CreateDirectory(assetsDirectory);
         RejectReparsePoint(assetsDirectory);
         string cardDirectory = Path.Combine(assetsDirectory, cardId.ToString("D"));
@@ -277,13 +278,13 @@ public sealed partial class ProjectBoardStore
         }
     }
 
-    private static string GetAttachmentJournalPath(string root) => Path.Combine(root, ".toolbox", AttachmentJournalFileName);
+    private static string GetAttachmentJournalPath(string root) => Path.Combine(root, ".toolbox", ATTACHMENT_JOURNAL_FILE_NAME);
 
     private static AttachmentTombstoneEntry? BeginAttachmentRemoval(string root, Guid cardId, ProjectBoardAttachment attachment, string storedPath)
     {
         if (!File.Exists(storedPath)) return null;
         RejectReparsePoint(storedPath);
-        string tombstoneRelativePath = attachment.RelativePath + AttachmentTombstoneSuffix;
+        string tombstoneRelativePath = attachment.RelativePath + ATTACHMENT_TOMBSTONE_SUFFIX;
         string tombstonePath = ResolveToolboxPath(root, tombstoneRelativePath);
         // 先落盘删除意图（含待删文件当前内容的哈希），再改名，保证崩溃后可按 journal 判定还原或清理。
         var entry = new AttachmentTombstoneEntry(attachment.Id, cardId, attachment.RelativePath, tombstoneRelativePath, HashFile(storedPath));
@@ -295,7 +296,7 @@ public sealed partial class ProjectBoardStore
     private static void AppendTombstoneEntry(string root, AttachmentTombstoneEntry entry)
     {
         string path = GetAttachmentJournalPath(root);
-        AttachmentJournal journal = new(AttachmentJournalSchemaVersion, []);
+        AttachmentJournal journal = new(ATTACHMENT_JOURNAL_SCHEMA_VERSION, []);
         string? existingHash = null;
         if (File.Exists(path))
         {
@@ -307,7 +308,7 @@ public sealed partial class ProjectBoardStore
 
     private static AttachmentJournal WriteAttachmentJournal(string path, IReadOnlyList<AttachmentTombstoneEntry> entries, string? expectedExistingHash)
     {
-        var journal = new AttachmentJournal(AttachmentJournalSchemaVersion, entries);
+        var journal = new AttachmentJournal(ATTACHMENT_JOURNAL_SCHEMA_VERSION, entries);
         WriteAtomic(path, JsonSerializer.SerializeToUtf8Bytes(journal, JsonOptions), expectedExistingHash, "storage");
         return journal;
     }
@@ -329,7 +330,7 @@ public sealed partial class ProjectBoardStore
             }
             AttachmentJournal journal = JsonSerializer.Deserialize<AttachmentJournal>(bytes, JsonOptions)
                 ?? throw Corrupt("The attachment journal is empty.");
-            if (journal.SchemaVersion != AttachmentJournalSchemaVersion || journal.Entries == null)
+            if (journal.SchemaVersion != ATTACHMENT_JOURNAL_SCHEMA_VERSION || journal.Entries == null)
                 throw Corrupt("The attachment journal header is invalid.");
             foreach (AttachmentTombstoneEntry entry in journal.Entries)
             {
@@ -410,7 +411,7 @@ public sealed partial class ProjectBoardStore
             string directory = Path.Combine(root, ".toolbox");
             if (!Directory.Exists(directory)) return 0;
             RejectReparsePoint(directory);
-            string path = Path.Combine(directory, AttachmentJournalFileName);
+            string path = Path.Combine(directory, ATTACHMENT_JOURNAL_FILE_NAME);
             if (!File.Exists(path)) return 0;
             RejectReparsePoint(path);
             (AttachmentJournal journal, _) = ParseAttachmentJournal(path);

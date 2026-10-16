@@ -1,19 +1,23 @@
+// BoardsView.cs - 项目看板页面（列/卡片渲染、拖放排序、回收站、认领与状态流转）
+using ToolBox.Core.BoardAgents;
+using ToolBox.Core.Boards;
+using ToolBox.Core.Todo;
+
+using Microsoft.Win32;
+
+using System.Diagnostics;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
-using Microsoft.Win32;
-using ToolBox.Core.Boards;
-using ToolBox.Core.BoardAgents;
-using ToolBox.Core.Todo;
 
 namespace ToolBox.Views.Boards;
 
 public sealed class BoardsView : UserControl
 {
-    private const string CardDragFormat = "ToolBox.ProjectBoard.Card";
+    private const string CARD_DRAG_FORMAT = "ToolBox.ProjectBoard.Card";
     private readonly ProjectBoardStore store = ProjectBoardStore.Instance;
     private readonly BoardCommandService commandService = BoardCommandService.Instance;
     private readonly BoardAgentService agentService = BoardAgentService.Instance;
@@ -111,7 +115,6 @@ public sealed class BoardsView : UserControl
         emptyText.TextWrapping = TextWrapping.Wrap;
         empty.Child = emptyText;
         content.Children.Add(empty);
-        empty.Tag = emptyText;
         Grid.SetRow(content, 2);
         root.Children.Add(content);
         Content = root;
@@ -120,7 +123,7 @@ public sealed class BoardsView : UserControl
         Unloaded += OnUnloaded;
     }
 
-    public void Refresh() => QueueRefresh();
+    public BoardsView Refresh() => QueueRefresh();
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -150,13 +153,13 @@ public sealed class BoardsView : UserControl
     private void Store_Changed()
     {
         if (Dispatcher.CheckAccess()) QueueRefresh();
-        else Dispatcher.BeginInvoke(new Action(QueueRefresh));
+        else Dispatcher.BeginInvoke(new Action(() => QueueRefresh()));
     }
 
     private void AgentService_Changed()
     {
         if (Dispatcher.CheckAccess()) RenderBoard();
-        else Dispatcher.BeginInvoke(new Action(RenderBoard));
+        else Dispatcher.BeginInvoke(new Action(() => RenderBoard()));
     }
 
     private void OnLanguageChanged()
@@ -170,13 +173,14 @@ public sealed class BoardsView : UserControl
         if (isLoaded) RenderBoard();
     }
 
-    private void QueueRefresh()
+    private BoardsView QueueRefresh()
     {
-        if (!isLoaded || Dispatcher.HasShutdownStarted) return;
+        if (!isLoaded || Dispatcher.HasShutdownStarted) return this;
         refreshQueued = true;
-        if (refreshRunning) return;
+        if (refreshRunning) return this;
         refreshRunning = true;
         _ = DrainRefreshQueueAsync();
+        return this;
     }
 
     private async Task DrainRefreshQueueAsync()
@@ -237,22 +241,17 @@ public sealed class BoardsView : UserControl
             closedDescendantCounts.Clear();
             if (boardData.TryGetProperty("cards", out var cardData) && cardData.ValueKind == JsonValueKind.Array)
             {
+                var cardsById = new Dictionary<Guid, ProjectBoardCard>();
+                if (board is { } loadedCards) foreach (var candidate in loadedCards.Cards) cardsById[candidate.Id] = candidate;
                 foreach (var item in cardData.EnumerateArray())
                 {
                     if (!item.TryGetProperty("id", out var idData) || !idData.TryGetGuid(out Guid id)) continue;
+                    cardsById.TryGetValue(id, out ProjectBoardCard? card);
                     if (item.TryGetProperty("commentCount", out var countData) && countData.TryGetInt32(out int count)) commentCounts[id] = count;
                     else if (item.TryGetProperty("commentsCount", out countData) && countData.TryGetInt32(out count)) commentCounts[id] = count;
-                    else
-                    {
-                        ProjectBoardCard? card = board?.Cards.FirstOrDefault(c => c.Id == id);
-                        commentCounts[id] = card == null ? 0 : card.CommentCount > 0 ? card.CommentCount : card.Comments?.Count(c => c.DeletedAt == null) ?? 0;
-                    }
+                    else commentCounts[id] = card == null ? 0 : card.CommentCount > 0 ? card.CommentCount : card.Comments?.Count(c => c.DeletedAt == null) ?? 0;
                     if (item.TryGetProperty("attachmentCount", out countData) && countData.TryGetInt32(out count)) attachmentCounts[id] = count;
-                    else
-                    {
-                        ProjectBoardCard? card = board?.Cards.FirstOrDefault(c => c.Id == id);
-                        attachmentCounts[id] = card == null ? 0 : card.AttachmentCount > 0 ? card.AttachmentCount : card.Attachments?.Count ?? 0;
-                    }
+                    else attachmentCounts[id] = card == null ? 0 : card.AttachmentCount > 0 ? card.AttachmentCount : card.Attachments?.Count ?? 0;
                     if (item.TryGetProperty("childCount", out countData) && countData.TryGetInt32(out count)) descendantCounts[id] = count;
                     if (item.TryGetProperty("childClosedCount", out countData) && countData.TryGetInt32(out count)) closedDescendantCounts[id] = count;
                 }
@@ -265,7 +264,7 @@ public sealed class BoardsView : UserControl
             if (!IsCurrent(version)) return;
             isRendering = false;
             board = null;
-            SetStatus(ex.Message);
+            ShowOperationError(ex);
             RenderBoard();
         }
         finally
@@ -366,7 +365,7 @@ public sealed class BoardsView : UserControl
         if (!isBoardLoading && board?.Columns.OrderBy(c => c.Order).FirstOrDefault() is { } column) await CreateCardAsync(column.Id);
     }
 
-    private void UpdateToolbarState()
+    private BoardsView UpdateToolbarState()
     {
         bool selected = selectedBoardId != null;
         unregisterButton.IsEnabled = selected;
@@ -375,9 +374,10 @@ public sealed class BoardsView : UserControl
         trashButton.IsEnabled = selected && board != null && !isBoardLoading;
         columnsPanel.IsEnabled = board != null && !isBoardLoading;
         trashButton.SetResourceReference(ContentControl.ContentProperty, showRecycleBin ? "Lang_Board_BackToBoard" : "Lang_Board_ShowTrash");
+        return this;
     }
 
-    private void RenderBoard()
+    private BoardsView RenderBoard()
     {
         double offset = columnsScroller.HorizontalOffset;
         leaseLabels.Clear();
@@ -388,7 +388,7 @@ public sealed class BoardsView : UserControl
         empty.Visibility = hasBoard ? Visibility.Collapsed : Visibility.Visible;
         emptyText.Text = statusText.Text.Length > 0 ? statusText.Text : projects.Count == 0 ? Text("Lang_Board_Empty", "Select a project or register a project folder.") : Text("Lang_Loading", "Loading…");
         UpdateToolbarState();
-        if (board == null) return;
+        if (board == null) return this;
         var orderedColumns = board.Columns.OrderBy(c => c.Order).ToArray();
         foreach (var column in orderedColumns) columnsPanel.Children.Add(CreateColumn(column, orderedColumns));
         if (orderedColumns.Length == 0)
@@ -397,6 +397,7 @@ public sealed class BoardsView : UserControl
             emptyText.Text = Text("Lang_Board_NoColumns", "This board has no columns.");
         }
         Dispatcher.BeginInvoke(new Action(() => columnsScroller.ScrollToHorizontalOffset(offset)));
+        return this;
     }
 
     private UIElement CreateColumn(ProjectBoardColumn column, IReadOnlyList<ProjectBoardColumn> orderedColumns)
@@ -489,7 +490,7 @@ public sealed class BoardsView : UserControl
         if (!showRecycleBin)
         {
             var cardActions = new StackPanel { Orientation = Orientation.Horizontal };
-            var detailsButton = ResourceButton("Lang_Board_Details", "Details", async (_, _) => await OpenCardDetailsAsync(card));
+            var detailsButton = ResourceButton("Lang_Board_Details", "Details", (_, _) => OpenCardDetails(card));
             detailsButton.Padding = new Thickness(6, 3, 6, 3);
             detailsButton.MinHeight = 26;
             var edit = ResourceButton("Lang_Board_EditCard", "Edit", async (_, _) => await EditCardAsync(card));
@@ -526,10 +527,13 @@ public sealed class BoardsView : UserControl
                 leaseLabels.Add((leaseLabel, claim));
                 meta.Children.Add(leaseLabel);
             }
-            int descendantCount = descendantCounts.TryGetValue(card.Id, out int childCount) ? childCount : CountDescendants(card.Id);
+            bool hasTotal = descendantCounts.TryGetValue(card.Id, out int providedTotal);
+            bool hasClosed = closedDescendantCounts.TryGetValue(card.Id, out int providedClosed);
+            (int Total, int Closed) computed = hasTotal && hasClosed ? (providedTotal, 0) : CountDescendants(card.Id);
+            int descendantCount = hasTotal ? providedTotal : computed.Total;
             if (descendantCount > 0)
             {
-                int closed = closedDescendantCounts.TryGetValue(card.Id, out int closedCount) ? closedCount : CountClosedDescendants(card.Id);
+                int closed = hasClosed ? providedClosed : computed.Closed;
                 meta.Children.Add(Label(string.Format(Text("Lang_Board_DescendantProgress", "Subtasks {0}/{1} closed"), closed, descendantCount), tertiary: true));
             }
             int attachmentCount = attachmentCounts.TryGetValue(card.Id, out int imageCount) ? imageCount : card.Attachments?.Count ?? 0;
@@ -598,7 +602,7 @@ public sealed class BoardsView : UserControl
             menu.Items.Add(MenuItem("Lang_Board_RestoreCard", "Restore card", async (_, _) => await RestoreCardAsync(card)));
             return menu;
         }
-        menu.Items.Add(MenuItem("Lang_Board_Details", "Details", async (_, _) => await OpenCardDetailsAsync(card)));
+        menu.Items.Add(MenuItem("Lang_Board_Details", "Details", (_, _) => OpenCardDetails(card)));
         menu.Items.Add(MenuItem("Lang_Board_EditCard", "Edit", async (_, _) => await EditCardAsync(card)));
         var siblings = BoardCards(card.ColumnId);
         int index = siblings.FindIndex(c => c.Id == card.Id);
@@ -619,7 +623,7 @@ public sealed class BoardsView : UserControl
         return menu;
     }
 
-    private async void DragHandle_MouseMove(object sender, MouseEventArgs e)
+    private void DragHandle_MouseMove(object sender, MouseEventArgs e)
     {
         if (sender is not TextBlock handle || dragHandle != handle || dragCardId == null || e.LeftButton != MouseButtonState.Pressed) return;
         Point current = e.GetPosition(handle);
@@ -629,7 +633,7 @@ public sealed class BoardsView : UserControl
         if (Mouse.Captured == handle) Mouse.Capture(null);
         dragHandle = null;
         dragCardId = null;
-        var data = new DataObject(CardDragFormat, cardId.ToString("D"));
+        var data = new DataObject(CARD_DRAG_FORMAT, cardId.ToString("D"));
         isCardDragging = true;
         try { DragDrop.DoDragDrop(handle, data, DragDropEffects.Move); }
         finally
@@ -637,7 +641,6 @@ public sealed class BoardsView : UserControl
             isCardDragging = false;
             ClearDragState();
         }
-        await Task.CompletedTask;
     }
 
     private void OnDragOver(object sender, DragEventArgs e)
@@ -647,7 +650,7 @@ public sealed class BoardsView : UserControl
 
     private async void OnColumnDrop(object sender, DragEventArgs e)
     {
-        if (!e.Data.GetDataPresent(CardDragFormat) || sender is not FrameworkElement target || target.Tag is not Guid targetColumn ||
+        if (!e.Data.GetDataPresent(CARD_DRAG_FORMAT) || sender is not FrameworkElement target || target.Tag is not Guid targetColumn ||
             !TryGetDragSnapshot(e, out var snapshot, out var source)) return;
         if (dragBoardSnapshot is not { } capturedBoard) return;
         int order = RootCards(capturedBoard, targetColumn).Count(c => c.Id != source.Id);
@@ -657,7 +660,7 @@ public sealed class BoardsView : UserControl
 
     private async void OnCardDrop(object sender, DragEventArgs e)
     {
-        if (!e.Data.GetDataPresent(CardDragFormat) || sender is not Border target || target.Tag is not ProjectBoardCard targetCard ||
+        if (!e.Data.GetDataPresent(CARD_DRAG_FORMAT) || sender is not Border target || target.Tag is not ProjectBoardCard targetCard ||
             !TryGetDragSnapshot(e, out var snapshot, out var source) || source.Id == targetCard.Id) return;
         if (dragBoardSnapshot is not { } capturedBoard || capturedBoard.Cards.FirstOrDefault(c => c.Id == targetCard.Id && c.DeletedAt == null && c.ParentId == null) is not { } capturedTarget) return;
         var targetCards = RootCards(capturedBoard, capturedTarget.ColumnId).Where(c => c.Id != source.Id).ToList();
@@ -672,20 +675,21 @@ public sealed class BoardsView : UserControl
     {
         snapshot = default;
         source = null!;
-        if (!Guid.TryParse(e.Data.GetData(CardDragFormat) as string, out Guid cardId) || dragSnapshot is not { } captured ||
+        if (!Guid.TryParse(e.Data.GetData(CARD_DRAG_FORMAT) as string, out Guid cardId) || dragSnapshot is not { } captured ||
             dragCardSnapshot is not { } capturedCard || dragBoardSnapshot == null || capturedCard.Id != cardId || capturedCard.DeletedAt != null) return false;
         snapshot = captured;
         source = capturedCard;
         return true;
     }
 
-    private void ClearDragState()
+    private BoardsView ClearDragState()
     {
         dragHandle = null;
         dragCardId = null;
         dragSnapshot = null;
         dragCardSnapshot = null;
         dragBoardSnapshot = null;
+        return this;
     }
 
     internal async Task CreateCardAsync(Guid columnId)
@@ -784,13 +788,13 @@ public sealed class BoardsView : UserControl
         if (snapshot == null || showRecycleBin || capturedBoard == null || sourceCard == null) return;
         if (!string.Equals(snapshot.Value.Project, capturedBoard.BoardId.ToString("D"), StringComparison.OrdinalIgnoreCase) || snapshot.Value.Revision != capturedBoard.Revision)
         {
-            ShowOperationError(new BoardCallException("CONFLICT", Text("Lang_Board_SnapshotConflict", "The board changed. Close and reopen the details before retrying."), "revision"));
+            ShowOperationError(Text("Lang_Board_SnapshotConflict", "The board changed. Close and reopen the details before retrying."));
             return;
         }
         ProjectBoardColumn? targetColumn = capturedBoard.Columns.FirstOrDefault(c => c.Id == targetColumnId);
         if (targetColumn == null)
         {
-            ShowOperationError(new BoardCallException("CONFLICT", Text("Lang_Board_SnapshotConflict", "The board changed. Close and reopen the details before retrying."), "columnId"));
+            ShowOperationError(Text("Lang_Board_SnapshotConflict", "The board changed. Close and reopen the details before retrying."));
             return;
         }
         string? transition = targetColumn.Status is { Length: > 0 } targetStatus && targetStatus != sourceCard.Status
@@ -798,12 +802,12 @@ public sealed class BoardsView : UserControl
             : null;
         if (targetColumn.Status is { Length: > 0 } mappedStatus && mappedStatus != sourceCard.Status && transition == null)
         {
-            ShowOperationError(new InvalidOperationException(Text("Lang_Board_InvalidStatusMove", "This move cannot make that status transition.")));
+            ShowOperationError(Text("Lang_Board_InvalidStatusMove", "This move cannot make that status transition."));
             return;
         }
         if ((transition == "claim" && !CanClaim(sourceCard.Claim)) || ((transition is "release" or "submit") && !IsOwnedActiveClaim(sourceCard.Claim)))
         {
-            ShowOperationError(new InvalidOperationException(Text("Lang_Board_ClaimHeld", "This card has another active claim.")));
+            ShowOperationError(Text("Lang_Board_ClaimHeld", "This card has another active claim."));
             return;
         }
         var payload = new Dictionary<string, object?>
@@ -902,15 +906,22 @@ public sealed class BoardsView : UserControl
         _ => null
     };
 
-    private void ShowOperationError(Exception exception)
+    private BoardsView ShowOperationError(Exception exception)
     {
-        SetStatus(exception.Message);
+        SetStatus(exception is BoardCallException { Code: "CONFLICT" }
+            ? Text("Lang_Board_SnapshotConflict", "The board changed. Close and reopen the details before retrying.")
+            : Text("Lang_Board_OperationFailed", "The board operation failed."));
+        Debug.WriteLine($"[ToolBox] Board operation error: {exception}");
+        return this;
     }
 
-    private void SetStatus(string text)
+    private BoardsView ShowOperationError(string message) => SetStatus(message);
+
+    private BoardsView SetStatus(string text)
     {
         statusText.Text = text;
         statusText.Visibility = string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
+        return this;
     }
 
     private string Text(string key, string fallback) => ProjectBoardDialogs.GetText(this, key, fallback);
@@ -954,28 +965,30 @@ public sealed class BoardsView : UserControl
         return label;
     }
 
-    private void SetDragEffect(DragEventArgs e)
+    private BoardsView SetDragEffect(DragEventArgs e)
     {
-        e.Effects = e.Data.GetDataPresent(CardDragFormat) ? DragDropEffects.Move : DragDropEffects.None;
+        e.Effects = e.Data.GetDataPresent(CARD_DRAG_FORMAT) ? DragDropEffects.Move : DragDropEffects.None;
         e.Handled = true;
+        return this;
     }
 
-    private int CountDescendants(Guid parentId)
+    private (int Total, int Closed) CountDescendants(Guid parentId)
     {
-        if (board == null) return 0;
+        if (board == null) return (0, 0);
         var children = board.Cards.Where(c => c.DeletedAt == null && c.ParentId.HasValue)
-            .GroupBy(c => c.ParentId!.Value).ToDictionary(g => g.Key, g => g.Select(c => c.Id).ToArray());
-        var pending = new Stack<Guid>(children.TryGetValue(parentId, out var roots) ? roots : []);
+            .GroupBy(c => c.ParentId!.Value).ToDictionary(g => g.Key, g => g.ToArray());
+        var pending = new Stack<ProjectBoardCard>(children.TryGetValue(parentId, out var roots) ? roots : []);
         var seen = new HashSet<Guid>();
-        int count = 0;
+        int total = 0, closed = 0;
         while (pending.Count > 0)
         {
-            Guid id = pending.Pop();
-            if (!seen.Add(id)) continue;
-            count++;
-            if (children.TryGetValue(id, out var next)) foreach (Guid child in next) pending.Push(child);
+            ProjectBoardCard card = pending.Pop();
+            if (!seen.Add(card.Id)) continue;
+            total++;
+            if (card.Status == "closed") closed++;
+            if (children.TryGetValue(card.Id, out var next)) foreach (ProjectBoardCard child in next) pending.Push(child);
         }
-        return count;
+        return (total, closed);
     }
 
     private static List<ProjectBoardCard> RootCards(ProjectBoard sourceBoard, Guid columnId) => sourceBoard.Cards
@@ -988,25 +1001,6 @@ public sealed class BoardsView : UserControl
     private static bool IsOwnedActiveClaim(ProjectBoardClaim? claim) => claim != null && claim.ExpiresAt > DateTime.UtcNow &&
         claim.ActorId == "local-user" && claim.HostId == "toolbox-ui" && claim.SessionId == null;
 
-    private int CountClosedDescendants(Guid parentId)
-    {
-        if (board == null) return 0;
-        var byId = board.Cards.Where(c => c.DeletedAt == null).ToDictionary(c => c.Id);
-        var children = board.Cards.Where(c => c.DeletedAt == null && c.ParentId.HasValue)
-            .GroupBy(c => c.ParentId!.Value).ToDictionary(g => g.Key, g => g.Select(c => c.Id).ToArray());
-        var pending = new Stack<Guid>(children.TryGetValue(parentId, out var roots) ? roots : []);
-        var seen = new HashSet<Guid>();
-        int closed = 0;
-        while (pending.Count > 0)
-        {
-            Guid id = pending.Pop();
-            if (!seen.Add(id)) continue;
-            if (byId.TryGetValue(id, out var card) && card.Status == "closed") closed++;
-            if (children.TryGetValue(id, out var next)) foreach (Guid child in next) pending.Push(child);
-        }
-        return closed;
-    }
-
     private string ClaimOwner(ProjectBoardClaim claim) => claim.ActorId == "local-user" && claim.HostId == "toolbox-ui" && claim.SessionId == null
         ? Text("Lang_Board_ClaimedByYou", "Claimed by you")
         : $"{claim.ActorId} · {claim.HostId}{(claim.SessionId == null ? "" : " · " + claim.SessionId)}";
@@ -1014,10 +1008,11 @@ public sealed class BoardsView : UserControl
     private string ClaimSummary(ProjectBoardClaim claim) => string.Format(
         Text("Lang_Board_ClaimSummary", "{0} · {1}"), ClaimOwner(claim), RemainingLease(claim.ExpiresAt));
 
-    private void RefreshLeaseDisplays()
+    private BoardsView RefreshLeaseDisplays()
     {
-        if (!isLoaded || Dispatcher.HasShutdownStarted) return;
+        if (!isLoaded || Dispatcher.HasShutdownStarted) return this;
         foreach (var (label, claim) in leaseLabels) label.Text = ClaimSummary(claim);
+        return this;
     }
 
     private string RemainingLease(DateTime expiresAt)
@@ -1033,7 +1028,7 @@ public sealed class BoardsView : UserControl
         {
             "inProgress" => ("Lang_Board_StatusInProgress", "In progress", "AccentSoftBrush"),
             "pendingReview" => ("Lang_Board_StatusPendingReview", "Pending review", "WarningSoftBrush"),
-            "closed" => ("Lang_Board_StatusClosed", "Closed", "BgTertiaryBrush"),
+            "closed" => ("Lang_Board_StatusClosed", "Closed", "SuccessSoftBrush"),
             _ => ("Lang_Board_StatusNotStarted", "Not started", "BgTertiaryBrush")
         };
         var label = Label(Text(key, fallback), tertiary: true);
@@ -1045,18 +1040,18 @@ public sealed class BoardsView : UserControl
         return badge;
     }
 
-    private async Task OpenCardDetailsAsync(ProjectBoardCard card)
+    private BoardsView OpenCardDetails(ProjectBoardCard card)
     {
-        if (board is not { } current || showRecycleBin || selectedBoardId == null || isBoardLoading) return;
+        if (board is not { } current || showRecycleBin || selectedBoardId == null || isBoardLoading) return this;
         var registration = projects.FirstOrDefault(p => p.BoardId == current.BoardId);
-        if (registration == null) return;
+        if (registration == null) return this;
         var currentCard = current.Cards.FirstOrDefault(c => c.Id == card.Id && c.DeletedAt == null && c.ParentId == null);
-        if (currentCard == null) return;
+        if (currentCard == null) return this;
         var snapshot = new BoardDetailsSnapshot(current.BoardId.ToString("D"), current.Revision, current.CommentRevision);
         var dialog = new BoardCardDetailsWindow(Window.GetWindow(this), current, registration, currentCard, snapshot);
         dialog.ShowDialog();
-        await Task.CompletedTask;
         QueueRefresh();
+        return this;
     }
 
     private sealed record TodoLinkResult(string TodoId);

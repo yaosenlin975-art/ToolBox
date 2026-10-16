@@ -1,10 +1,11 @@
+// CLI 看板 v2 命令（comment / attachment 以及 card 状态流转）：在 v1 命令集之上追加子命令与选项。
 using System.CommandLine;
 
 namespace ToolBox.Cli;
 
 internal static partial class Program
 {
-    private static void AddBoardV2Commands(Command board)
+    private static Command AddBoardV2Commands(Command board)
     {
         var cards = board.Subcommands.OfType<Command>().First(command => command.Name == "card");
         AddCardStateCommand(cards, "claim", "Claim a card or renew its lease.", "board.card.claim", ttl: true);
@@ -119,9 +120,10 @@ internal static partial class Program
                 AddActorField, AddHostField, AddSessionField, AddRevisionField
             ]);
         board.Subcommands.Add(attachments);
+        return board;
     }
 
-    private static void AddCardStateCommand(Command cards, string name, string description, string operation, bool ttl = false)
+    private static Command AddCardStateCommand(Command cards, string name, string description, string operation, bool ttl = false)
     {
         var fields = new List<Func<Command, BoardField>>
         {
@@ -133,7 +135,7 @@ internal static partial class Program
             (command => AddIntegerField(command, "order", "--order", "Target position within the column."))
         };
         if (ttl) fields.Add(command => AddIntegerField(command, "ttlMinutes", "--ttl-minutes", "Claim lease duration from 5 to 480 minutes."));
-        AddBoardCommand(cards, name, description, operation, required: ["id", "actor", "host"], fields: [.. fields]);
+        return AddBoardCommand(cards, name, description, operation, required: ["id", "actor", "host"], fields: [.. fields]);
     }
 
     private static BoardField AddProjectField(Command command) =>

@@ -1,3 +1,10 @@
+// BoardCardDetailsWindow.cs - 卡片详情窗口（详情编辑、子任务树、附件图片、评论与投递状态、认领与状态流转）
+using ToolBox.Core.BoardAgents;
+using ToolBox.Core.Boards;
+using ToolBox.Core.Todo;
+
+using Microsoft.Win32;
+
 using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
@@ -9,10 +16,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using Microsoft.Win32;
-using ToolBox.Core.BoardAgents;
-using ToolBox.Core.Boards;
-using ToolBox.Core.Todo;
 
 namespace ToolBox.Views.Boards;
 
@@ -20,8 +23,8 @@ internal readonly record struct BoardDetailsSnapshot(string BoardId, long Revisi
 
 internal sealed class BoardCardDetailsWindow : Window
 {
-    private const string LocalActor = "local-user";
-    private const string LocalHost = "toolbox-ui";
+    private const string LOCAL_ACTOR = "local-user";
+    private const string LOCAL_HOST = "toolbox-ui";
     private readonly IBoardDialogService dialogService;
     private readonly BoardCommandService commands = BoardCommandService.Instance;
     private readonly BoardAgentService agents = BoardAgentService.Instance;
@@ -42,6 +45,7 @@ internal sealed class BoardCardDetailsWindow : Window
     private IReadOnlyList<ProjectBoardComment> comments = [];
     private IReadOnlyList<BoardAttachmentView> attachments = [];
     private readonly Dictionary<Guid, BoardAgentDelivery?> deliveries = [];
+    private readonly Dictionary<(string RelativePath, string Sha256), BitmapImage> thumbnailCache = [];
     private BoardDetailsSnapshot snapshot;
     private Guid activeCardId;
     private bool loading;
@@ -50,6 +54,9 @@ internal sealed class BoardCardDetailsWindow : Window
     private bool selectionLoading = true;
     private TextBlock? claimSummaryText;
     private WrapPanel? statusActionRow;
+    private CheckBox? policyToggle;
+    private StackPanel? candidatePathRow;
+    private bool policyLoading;
 
     public BoardCardDetailsWindow(Window? owner, ProjectBoard board, ProjectBoardRegistration registration, ProjectBoardCard card, BoardDetailsSnapshot snapshot, IBoardDialogService? dialogService = null)
     {
@@ -76,10 +83,10 @@ internal sealed class BoardCardDetailsWindow : Window
         BuildContent(card);
         leaseTimer.Tick += (_, _) => RefreshLeaseUi();
         Loaded += OnLoaded;
-        Closed += (_, _) => { leaseTimer.Stop(); store.Changed -= StoreChanged; agents.Changed -= AgentChanged; App.LanguageChanged -= LanguageChanged; };
+        Closed += (_, _) => { leaseTimer.Stop(); store.Changed -= StoreChanged; agents.Changed -= AgentChanged; App.LanguageChanged -= LanguageChanged; thumbnailCache.Clear(); };
     }
 
-    private void BuildContent(ProjectBoardCard selected)
+    private BoardCardDetailsWindow BuildContent(ProjectBoardCard selected)
     {
         var shell = new Border { CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1) };
         shell.SetResourceReference(Border.BackgroundProperty, "BgElevatedBrush");
@@ -119,7 +126,10 @@ internal sealed class BoardCardDetailsWindow : Window
         errorText.TextWrapping = TextWrapping.Wrap;
         errorText.SetResourceReference(TextBlock.ForegroundProperty, "ErrorBrush");
         footer.Children.Add(errorText);
+        candidatePathRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Visibility = Visibility.Collapsed };
+        footer.Children.Add(candidatePathRow);
         var footerButtons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        footerButtons.Children.Add(CreateDeliveryPolicyToggle());
         var config = Button("Lang_Board_AgentConfig", "Agent configuration", async (_, _) => await OpenAgentConfigAsync());
         footerButtons.Children.Add(config);
         var close = Button("Lang_Board_Close", "Close", (_, _) => Close(), "BtnPrimary");
@@ -132,6 +142,7 @@ internal sealed class BoardCardDetailsWindow : Window
         Content = shell;
         RenderTree();
         RenderSelection(selected);
+        return this;
     }
 
     private UIElement CreateHeader()
@@ -162,6 +173,8 @@ internal sealed class BoardCardDetailsWindow : Window
         agents.Changed += AgentChanged;
         App.LanguageChanged += LanguageChanged;
         _ = LoadDetailsAsync();
+        _ = RefreshDeliveryPolicyToggleAsync();
+        _ = RefreshCandidatePathsAsync();
     }
 
     private void StoreChanged()
@@ -171,7 +184,14 @@ internal sealed class BoardCardDetailsWindow : Window
     }
 
     private void AgentChanged() => Dispatcher.BeginInvoke(new Action(() => _ = RefreshDeliveryStatusesAsync()));
-    private void LanguageChanged() => Dispatcher.BeginInvoke(new Action(() => { RenderTree(); RenderSelection(FindCard(activeCardId) ?? FindCard(rootCardId)!); RenderAttachments(); RenderComments(); }));
+    private void LanguageChanged() => Dispatcher.BeginInvoke(new Action(() =>
+    {
+        RenderTree();
+        if ((FindCard(activeCardId) ?? FindCard(rootCardId)) is { } card) RenderSelection(card);
+        RenderAttachments();
+        RenderComments();
+        _ = RefreshCandidatePathsAsync();
+    }));
 
     private async Task LoadDetailsAsync()
     {
@@ -191,7 +211,7 @@ internal sealed class BoardCardDetailsWindow : Window
             attachments = loadedAttachments;
             ReplaceDeliveries(loadedDeliveries);
             RenderTree();
-            RenderSelection(FindCard(selectedId) ?? FindCard(rootCardId)!);
+            RenderSelection(selected);
             RenderAttachments();
             RenderComments();
         }
@@ -209,7 +229,7 @@ internal sealed class BoardCardDetailsWindow : Window
         }
     }
 
-    private void RenderTree()
+    private BoardCardDetailsWindow RenderTree()
     {
         treePanel.Children.Clear();
         var byParent = cards.Where(c => c.DeletedAt == null).GroupBy(c => c.ParentId ?? Guid.Empty).ToDictionary(g => g.Key, g => g.OrderBy(c => c.Order).ThenBy(c => c.Id).ToArray());
@@ -252,9 +272,10 @@ internal sealed class BoardCardDetailsWindow : Window
         addChild.IsEnabled = !selectionLoading && FindCard(activeCardId)?.Status != "closed";
         if (FindCard(activeCardId)?.Status == "closed") addChild.ToolTip = Text("Lang_Board_ClosedParentHint", "Closed cards cannot contain open subtasks.");
         treePanel.Children.Add(addChild);
+        return this;
     }
 
-    private void RenderSelection(ProjectBoardCard card)
+    private BoardCardDetailsWindow RenderSelection(ProjectBoardCard card)
     {
         activeCardId = card.Id;
         Title = card.Title;
@@ -299,6 +320,7 @@ internal sealed class BoardCardDetailsWindow : Window
         selectionPanel.Children.Clear();
         selectionPanel.Children.Add(details);
         RenderTree();
+        return this;
     }
 
     private async Task LoadSelectedCardAsync(Guid id)
@@ -329,7 +351,7 @@ internal sealed class BoardCardDetailsWindow : Window
         }
     }
 
-    private void SelectCard(ProjectBoardCard card)
+    private BoardCardDetailsWindow SelectCard(ProjectBoardCard card)
     {
         activeCardId = card.Id;
         selectionLoading = true;
@@ -340,9 +362,10 @@ internal sealed class BoardCardDetailsWindow : Window
         RenderAttachments();
         RenderComments();
         _ = LoadSelectedCardAsync(card.Id);
+        return this;
     }
 
-    private void AddStatusActions(Panel panel, ProjectBoardCard card)
+    private BoardCardDetailsWindow AddStatusActions(Panel panel, ProjectBoardCard card)
     {
         string action = card.Status switch
         {
@@ -359,15 +382,17 @@ internal sealed class BoardCardDetailsWindow : Window
         if (!string.IsNullOrEmpty(action)) panel.Children.Add(Button(StatusKey(action), StatusFallback(action), (_, _) => _ = ApplyStatusAsync(card, action), "BtnDefault"));
         if (card.Status == "pendingReview") panel.Children.Add(Button("Lang_Board_Reopen", "Reopen", (_, _) => _ = ApplyStatusAsync(card, "reopen")));
         if (card.Status == "inProgress" && IsClaimExpired(card.Claim)) panel.Children.Add(Button("Lang_Board_Claim", "Claim", (_, _) => _ = ApplyStatusAsync(card, "claim"), "BtnPrimary"));
+        return this;
     }
 
-    private void RefreshLeaseUi()
+    private BoardCardDetailsWindow RefreshLeaseUi()
     {
-        if (!loaded || Dispatcher.HasShutdownStarted || FindCard(activeCardId) is not { } card) return;
+        if (!loaded || Dispatcher.HasShutdownStarted || FindCard(activeCardId) is not { } card) return this;
         if (card.Claim is { } claim && claimSummaryText != null) claimSummaryText.Text = ClaimSummary(claim);
-        if (statusActionRow == null) return;
+        if (statusActionRow == null) return this;
         statusActionRow.Children.Clear();
         AddStatusActions(statusActionRow, card);
+        return this;
     }
 
     private async Task EditSelectedCardAsync(ProjectBoardCard card)
@@ -388,8 +413,8 @@ internal sealed class BoardCardDetailsWindow : Window
                 ["priority"] = draft.Priority,
                 ["tags"] = draft.Tags,
                 ["dueDate"] = draft.DueDate,
-                ["actor"] = LocalActor,
-                ["host"] = LocalHost,
+                ["actor"] = LOCAL_ACTOR,
+                ["host"] = LOCAL_HOST,
                 ["session"] = null
             };
             JsonElement data = await ExecuteDataAsync("board.card.update", payload);
@@ -414,14 +439,14 @@ internal sealed class BoardCardDetailsWindow : Window
     {
         if (action == "claim" && !CanClaim(card.Claim))
         {
-            ShowError(new InvalidOperationException(Text("Lang_Board_ClaimHeld", "This card has another active claim.")));
+            ShowError(Text("Lang_Board_ClaimHeld", "This card has another active claim."));
             return;
         }
         try
         {
             var payload = BasePayload(card);
-            payload["actor"] = LocalActor;
-            payload["host"] = LocalHost;
+            payload["actor"] = LOCAL_ACTOR;
+            payload["host"] = LOCAL_HOST;
             payload["session"] = null;
             if (action == "claim") payload["ttlMinutes"] = 30;
             AddMappedColumn(payload, card, action switch { "claim" => "inProgress", "release" or "reopen" => "notStarted", "submit" => "pendingReview", "close" => "closed", _ => card.Status });
@@ -447,7 +472,7 @@ internal sealed class BoardCardDetailsWindow : Window
                 ["project"] = captured.BoardId, ["revision"] = captured.Revision, ["columnId"] = parent.ColumnId,
                 ["parentId"] = parent.Id, ["title"] = draft.Title, ["description"] = draft.Description,
                 ["priority"] = draft.Priority, ["tags"] = draft.Tags, ["dueDate"] = draft.DueDate,
-                ["actor"] = LocalActor, ["host"] = LocalHost, ["session"] = null
+                ["actor"] = LOCAL_ACTOR, ["host"] = LOCAL_HOST, ["session"] = null
             };
             JsonElement data = await ExecuteDataAsync("board.card.create", payload);
             AcceptMutation(data, isComment: false);
@@ -466,8 +491,8 @@ internal sealed class BoardCardDetailsWindow : Window
             var payload = BasePayload(card);
             payload["id"] = card.Id;
             payload["parentId"] = parentId;
-            payload["actor"] = LocalActor;
-            payload["host"] = LocalHost;
+            payload["actor"] = LOCAL_ACTOR;
+            payload["host"] = LOCAL_HOST;
             payload["session"] = null;
             JsonElement data = await ExecuteDataAsync("board.card.update", payload);
             AcceptMutation(data, isComment: false);
@@ -489,7 +514,7 @@ internal sealed class BoardCardDetailsWindow : Window
             JsonElement data = await ExecuteDataAsync("board.card.delete", new
             {
                 project = captured.BoardId, revision = captured.Revision, id = card.Id,
-                actor = LocalActor, host = LocalHost, session = (string?)null
+                actor = LOCAL_ACTOR, host = LOCAL_HOST, session = (string?)null
             });
             AcceptMutation(data, isComment: false);
             Close();
@@ -527,7 +552,7 @@ internal sealed class BoardCardDetailsWindow : Window
         return GetArray(data, "attachments").Select(element => element.Deserialize<BoardAttachmentView>(TaskProtocol.Options)!).Where(item => item != null).ToArray();
     }
 
-    private void RenderAttachments()
+    private BoardCardDetailsWindow RenderAttachments()
     {
         attachmentPanel.Children.Clear();
         foreach (var item in attachments)
@@ -539,7 +564,7 @@ internal sealed class BoardCardDetailsWindow : Window
             catch (InvalidDataException) { invalidPath = true; }
             bool exists = !invalidPath && (item.Exists ?? File.Exists(path));
             bool hashMatch = !invalidPath && (item.HashMatch ?? MatchesHash(path, item.Sha256));
-            if (exists && hashMatch && TryLoadImage(path, out var image))
+            if (exists && hashMatch && TryGetThumbnail(item, path, out BitmapImage image))
             {
                 var preview = ProjectBoardDialogs.CreateButton("");
                 preview.Content = new Image { Source = image, Width = 92, Height = 66, Stretch = Stretch.Uniform };
@@ -559,6 +584,16 @@ internal sealed class BoardCardDetailsWindow : Window
         var add = Button("Lang_Board_AddImage", "Add image", async (_, _) => await AddAttachmentAsync(), "BtnDefault");
         add.IsEnabled = !selectionLoading;
         attachmentPanel.Children.Add(add);
+        return this;
+    }
+
+    private bool TryGetThumbnail(BoardAttachmentView item, string path, out BitmapImage image)
+    {
+        (string RelativePath, string Sha256) key = (item.RelativePath, item.Sha256);
+        if (thumbnailCache.TryGetValue(key, out image!)) return true;
+        if (!TryLoadImage(path, out image)) return false;
+        thumbnailCache[key] = image;
+        return true;
     }
 
     private async Task AddAttachmentAsync()
@@ -572,7 +607,7 @@ internal sealed class BoardCardDetailsWindow : Window
             JsonElement data = await ExecuteDataAsync("board.attachment.add", new
             {
                 project = captured.BoardId, revision = captured.Revision, id = cardId, file = dialog.FileName,
-                actor = LocalActor, host = LocalHost, session = (string?)null
+                actor = LOCAL_ACTOR, host = LOCAL_HOST, session = (string?)null
             });
             AcceptMutation(data, isComment: false);
             attachments = await LoadAttachmentsAsync(FindCard(cardId)!, snapshot);
@@ -592,7 +627,7 @@ internal sealed class BoardCardDetailsWindow : Window
             JsonElement data = await ExecuteDataAsync("board.attachment.remove", new
             {
                 project = captured.BoardId, revision = captured.Revision, attachmentId = item.Id,
-                actor = LocalActor, host = LocalHost, session = (string?)null
+                actor = LOCAL_ACTOR, host = LOCAL_HOST, session = (string?)null
             });
             AcceptMutation(data, isComment: false);
             attachments = await LoadAttachmentsAsync(FindCard(activeCardId)!, snapshot);
@@ -629,7 +664,9 @@ internal sealed class BoardCardDetailsWindow : Window
     private async Task<Dictionary<Guid, BoardAgentDelivery?>> LoadDeliveriesAsync(IEnumerable<ProjectBoardComment> source, BoardDetailsSnapshot captured)
     {
         var loaded = new Dictionary<Guid, BoardAgentDelivery?>();
-        foreach (var comment in source.Where(c => c.Author.Kind == "user"))
+        IEnumerable<ProjectBoardComment> userComments = source.Where(c => c.Author.Kind == "user");
+        if (!userComments.Any()) return loaded;
+        foreach (var comment in userComments)
         {
             try
             {
@@ -659,13 +696,14 @@ internal sealed class BoardCardDetailsWindow : Window
         catch (Exception ex) { ShowError(ex); }
     }
 
-    private void ReplaceDeliveries(IReadOnlyDictionary<Guid, BoardAgentDelivery?> loaded)
+    private BoardCardDetailsWindow ReplaceDeliveries(IReadOnlyDictionary<Guid, BoardAgentDelivery?> loaded)
     {
         deliveries.Clear();
         foreach (var item in loaded) deliveries[item.Key] = item.Value;
+        return this;
     }
 
-    private void RenderComments()
+    private BoardCardDetailsWindow RenderComments()
     {
         commentPanel.Children.Clear();
         foreach (var row in FlattenComments(comments))
@@ -709,7 +747,7 @@ internal sealed class BoardCardDetailsWindow : Window
             if (!comment.DeletedAt.HasValue)
             {
                 actions.Children.Add(Button("Lang_Board_Copy", "Copy", (_, _) => { Clipboard.SetText(comment.Body); statusText.Text = Text("Lang_Board_Copied", "Comment copied to clipboard."); }));
-                if (comment.Author.Kind == "user" && comment.Author.Id == LocalActor)
+                if (comment.Author.Kind == "user" && comment.Author.Id == LOCAL_ACTOR)
                     actions.Children.Add(Button("Lang_Board_DeleteComment", "Delete comment", async (_, _) => await DeleteCommentAsync(comment)));
             }
             stack.Children.Add(actions);
@@ -720,6 +758,7 @@ internal sealed class BoardCardDetailsWindow : Window
         var add = Button("Lang_Board_AddComment", "Add comment", async (_, _) => await AddCommentAsync(null), "BtnDefault");
         add.IsEnabled = !selectionLoading;
         commentPanel.Children.Add(add);
+        return this;
     }
 
     private static IReadOnlyList<CommentRow> FlattenComments(IReadOnlyList<ProjectBoardComment> items)
@@ -753,7 +792,7 @@ internal sealed class BoardCardDetailsWindow : Window
             var payload = new Dictionary<string, object?>
             {
                 ["project"] = captured.BoardId, ["revision"] = captured.Revision, ["commentRevision"] = captured.CommentRevision,
-                ["id"] = cardId, ["body"] = body, ["actor"] = LocalActor, ["host"] = LocalHost, ["session"] = null
+                ["id"] = cardId, ["body"] = body, ["actor"] = LOCAL_ACTOR, ["host"] = LOCAL_HOST, ["session"] = null
             };
             if (parent != null) payload["parentId"] = parent.Id;
             JsonElement data = await ExecuteDataAsync("board.comment.add", payload);
@@ -791,7 +830,7 @@ internal sealed class BoardCardDetailsWindow : Window
             JsonElement data = await ExecuteDataAsync("board.comment.delete", new
             {
                 project = captured.BoardId, commentId = comment.Id, revision = captured.Revision, commentRevision = captured.CommentRevision,
-                actor = LocalActor, host = LocalHost, session = (string?)null
+                actor = LOCAL_ACTOR, host = LOCAL_HOST, session = (string?)null
             });
             AcceptMutation(data, isComment: true);
             comments = await LoadCommentsAsync(activeCardId);
@@ -917,12 +956,12 @@ internal sealed class BoardCardDetailsWindow : Window
                     JsonElement data = await ExecuteDataAsync("board.comment.bind", new
                     {
                         project = captured.BoardId, commentId = comment.Id, targetHost = host, targetSession = string.IsNullOrWhiteSpace(session.Text) ? null : session.Text.Trim(),
-                        actor = LocalActor, host = LocalHost, session = (string?)null, revision = captured.Revision, commentRevision = captured.CommentRevision
+                        actor = LOCAL_ACTOR, host = LOCAL_HOST, session = (string?)null, revision = captured.Revision, commentRevision = captured.CommentRevision
                     });
                     AcceptMutation(data, isComment: true);
                     window.DialogResult = true;
                 }
-                catch (Exception ex) { error.Text = ex.Message; }
+                catch (Exception ex) { error.Text = Text("Lang_Board_OperationFailed", "The board operation failed."); Debug.WriteLine($"[ToolBox] Board details error: {ex}"); }
             };
             footer.Children.Add(save); panel.Children.Add(footer);
             var shell = new Border { CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), Child = panel };
@@ -933,7 +972,7 @@ internal sealed class BoardCardDetailsWindow : Window
                 {
                     JsonElement data = await ExecuteDataAsync("board.comment.bind", new
                     {
-                        project = captured.BoardId, commentId = comment.Id, clear = true, actor = LocalActor, host = LocalHost, session = (string?)null,
+                        project = captured.BoardId, commentId = comment.Id, clear = true, actor = LOCAL_ACTOR, host = LOCAL_HOST, session = (string?)null,
                         revision = captured.Revision, commentRevision = captured.CommentRevision
                     });
                     AcceptMutation(data, isComment: true);
@@ -956,22 +995,88 @@ internal sealed class BoardCardDetailsWindow : Window
         catch (Exception ex) { ShowError(ex); }
     }
 
-    private void OpenHost(string host)
+    private CheckBox CreateDeliveryPolicyToggle()
+    {
+        var check = new CheckBox { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+        check.SetResourceReference(FrameworkElement.StyleProperty, "ModernCheckBox");
+        check.SetResourceReference(ContentControl.ContentProperty, "Lang_Board_DeliveryAlways");
+        check.SetResourceReference(FrameworkElement.ToolTipProperty, "Lang_Board_DeliveryAlwaysHint");
+        check.Checked += async (_, _) => await CommitDeliveryPolicyAsync(always: true);
+        check.Unchecked += async (_, _) => await CommitDeliveryPolicyAsync(always: false);
+        policyToggle = check;
+        return check;
+    }
+
+    private async Task RefreshDeliveryPolicyToggleAsync()
+    {
+        if (policyToggle == null) return;
+        policyLoading = true;
+        try
+        {
+            string policy = await agents.GetDeliveryPolicyAsync();
+            policyToggle.IsChecked = string.Equals(policy, "always", StringComparison.Ordinal);
+        }
+        catch (Exception ex) { ShowError(ex); }
+        finally { policyLoading = false; }
+    }
+
+    private async Task CommitDeliveryPolicyAsync(bool always)
+    {
+        if (policyLoading || policyToggle == null) return;
+        try { await agents.SetDeliveryPolicyAsync(always ? "always" : "confirm"); }
+        catch (Exception ex) { ShowError(ex); await RefreshDeliveryPolicyToggleAsync(); }
+    }
+
+    private async Task RefreshCandidatePathsAsync(bool refresh = false)
+    {
+        if (candidatePathRow == null) return;
+        try
+        {
+            var hosts = await agents.DiscoverAsync(refresh);
+            candidatePathRow.Children.Clear();
+            foreach (var hostInfo in hosts)
+            {
+                if (!hostInfo.RequiresPathConfirmation || string.IsNullOrWhiteSpace(hostInfo.CandidatePath)) continue;
+                var target = hostInfo;
+                var button = Button(null, CandidatePathLabel(target), async (_, _) => await ConfirmCandidatePathAsync(target));
+                button.Margin = new Thickness(0, 0, 8, 0);
+                candidatePathRow.Children.Add(button);
+            }
+            candidatePathRow.Visibility = candidatePathRow.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+        catch (Exception ex) { ShowError(ex); }
+    }
+
+    private string CandidatePathLabel(BoardAgentHostInfo hostInfo) =>
+        string.Format(Text("Lang_Board_ConfirmCandidatePath", "Use the candidate path for {0}: {1}"), hostInfo.DisplayName, hostInfo.CandidatePath);
+
+    private async Task ConfirmCandidatePathAsync(BoardAgentHostInfo hostInfo)
+    {
+        try
+        {
+            await agents.ConfirmHostPathAsync(hostInfo.Host, hostInfo.CandidatePath!);
+            await RefreshCandidatePathsAsync(refresh: true);
+        }
+        catch (Exception ex) { ShowError(ex); }
+    }
+
+    private BoardCardDetailsWindow OpenHost(string host)
     {
         try
         {
             var target = agents.ResolveLaunch(host, registration.Path);
-            if (target == null) { statusText.Text = Text("Lang_Board_HostUnavailable", "Host is unavailable."); return; }
+            if (target == null) { statusText.Text = Text("Lang_Board_HostUnavailable", "Host is unavailable."); return this; }
             string? path = target.Path;
             string? uri = target.Uri;
             Process.Start(new ProcessStartInfo(uri ?? path ?? "") { UseShellExecute = true, WorkingDirectory = target.ProjectRoot });
         }
         catch (Exception ex) { ShowError(ex); }
+        return this;
     }
 
-    private void ShowImagePreview(string title, string path)
+    private BoardCardDetailsWindow ShowImagePreview(string title, string path)
     {
-        if (!TryLoadImage(path, out var image, decodePixelWidth: null)) { ShowError(new IOException(Text("Lang_Board_ImageMissing", "Image file is missing"))); return; }
+        if (!TryLoadImage(path, out var image, decodePixelWidth: null)) { ShowError(Text("Lang_Board_ImageMissing", "Image file is missing")); return this; }
         var window = new Window
         {
             Owner = this, Title = title, Width = 900, Height = 700, WindowStyle = WindowStyle.None, AllowsTransparency = true,
@@ -986,6 +1091,7 @@ internal sealed class BoardCardDetailsWindow : Window
         header.Children.Add(Label(title, true)); grid.Children.Add(header);
         var preview = new Image { Source = image, Stretch = Stretch.Uniform, Margin = new Thickness(0, 8, 0, 0) }; Grid.SetRow(preview, 1); grid.Children.Add(preview);
         shell.Child = grid; window.Content = shell; window.ShowDialog();
+        return this;
     }
 
     private string AttachmentPath(string relativePath)
@@ -1028,20 +1134,21 @@ internal sealed class BoardCardDetailsWindow : Window
         ["project"] = snapshot.BoardId, ["revision"] = snapshot.Revision, ["id"] = card.Id
     };
 
-    private void AddMappedColumn(Dictionary<string, object?> payload, ProjectBoardCard card, string targetStatus)
+    private BoardCardDetailsWindow AddMappedColumn(Dictionary<string, object?> payload, ProjectBoardCard card, string targetStatus)
     {
         ProjectBoardColumn? column = initialBoard.Columns.FirstOrDefault(c => c.Status == targetStatus);
-        if (column == null) return;
+        if (column == null) return this;
         int order = cards.Count(c => c.ColumnId == column.Id && c.ParentId == card.ParentId && c.DeletedAt == null && c.Id != card.Id);
         payload["columnId"] = column.Id;
         payload["order"] = order;
+        return this;
     }
 
-    private bool IsOwnedActiveClaim(ProjectBoardClaim? claim) => claim is { } value && value.HostId == LocalHost && value.ActorId == LocalActor && value.SessionId == null && value.ExpiresAt > DateTime.UtcNow;
+    private bool IsOwnedActiveClaim(ProjectBoardClaim? claim) => claim is { } value && value.HostId == LOCAL_HOST && value.ActorId == LOCAL_ACTOR && value.SessionId == null && value.ExpiresAt > DateTime.UtcNow;
     private static bool IsClaimExpired(ProjectBoardClaim? claim) => claim == null || claim.ExpiresAt <= DateTime.UtcNow;
     private bool CanClaim(ProjectBoardClaim? claim) => IsClaimExpired(claim) || IsOwnedActiveClaim(claim);
 
-    private void AcceptMutation(JsonElement data, bool isComment)
+    private BoardCardDetailsWindow AcceptMutation(JsonElement data, bool isComment)
     {
         long? revision = ReadLong(data, "boardRevision") ?? ReadLong(data, "revision");
         long? commentRevision = ReadLong(data, "commentRevision");
@@ -1051,13 +1158,15 @@ internal sealed class BoardCardDetailsWindow : Window
             CommentRevision = commentRevision ?? (isComment ? snapshot.CommentRevision + 1 : snapshot.CommentRevision)
         };
         errorText.Text = "";
+        return this;
     }
 
-    private void UpdateCardFromMutation(JsonElement data)
+    private BoardCardDetailsWindow UpdateCardFromMutation(JsonElement data)
     {
         ProjectBoardCard? updated = ReadCard(data);
-        if (updated == null) return;
+        if (updated == null) return this;
         cards = cards.Select(c => c.Id == updated.Id ? updated : c).ToArray();
+        return this;
     }
 
     private ProjectBoardCard? ReadCard(JsonElement data)
@@ -1080,7 +1189,7 @@ internal sealed class BoardCardDetailsWindow : Window
         try { return delivery.Deserialize<BoardAgentDelivery>(TaskProtocol.Options); } catch { return null; }
     }
 
-    private void CheckReadSnapshot(JsonElement data, BoardDetailsSnapshot captured, bool isComment)
+    private BoardCardDetailsWindow CheckReadSnapshot(JsonElement data, BoardDetailsSnapshot captured, bool isComment)
     {
         long? boardRevision = ReadLong(data, "boardRevision") ?? ReadLong(data, "revision");
         long? commentRevision = ReadLong(data, "commentRevision");
@@ -1089,6 +1198,7 @@ internal sealed class BoardCardDetailsWindow : Window
             throw new BoardCallException("CONFLICT", Text(isComment ? "Lang_Board_CommentsChanged" : "Lang_Board_SnapshotConflict", isComment
                 ? "Comments changed while they were loading. Close and reopen the details."
                 : "The board changed. Close and reopen the details before retrying."), isComment ? "commentRevision" : "revision");
+        return this;
     }
 
     private async Task<JsonElement> ExecuteDataAsync(string operation, object payload)
@@ -1113,15 +1223,24 @@ internal sealed class BoardCardDetailsWindow : Window
         finally { if (mutation) mutationInFlight = false; }
     }
 
-    private void ShowError(Exception ex)
+    private BoardCardDetailsWindow ShowError(string message)
     {
-        errorText.Text = ex.Message;
+        errorText.Text = message;
+        statusText.Text = "";
+        return this;
+    }
+
+    private BoardCardDetailsWindow ShowError(Exception ex)
+    {
+        errorText.Text = Text("Lang_Board_OperationFailed", "The board operation failed.");
         statusText.Text = ex is BoardCallException { Code: "CONFLICT" } ? Text("Lang_Board_SnapshotConflict", "The board changed. Close and reopen the details before retrying.") : "";
+        Debug.WriteLine($"[ToolBox] Board details error: {ex}");
+        return this;
     }
 
     private ProjectBoardCard? FindCard(Guid id) => cards.FirstOrDefault(c => c.Id == id);
 
-    private string ClaimOwner(ProjectBoardClaim claim) => claim.ActorId == LocalActor && claim.HostId == LocalHost && claim.SessionId == null
+    private string ClaimOwner(ProjectBoardClaim claim) => claim.ActorId == LOCAL_ACTOR && claim.HostId == LOCAL_HOST && claim.SessionId == null
         ? Text("Lang_Board_ClaimedByYou", "Claimed by you") : $"{claim.ActorId} · {claim.HostId}{(claim.SessionId == null ? "" : " · " + claim.SessionId)}";
 
     private string ClaimSummary(ProjectBoardClaim claim) => string.Format(
@@ -1137,11 +1256,15 @@ internal sealed class BoardCardDetailsWindow : Window
     private static string StatusKey(string action) => action switch
     {
         "claim" => "Lang_Board_Claim", "release" => "Lang_Board_Release", "submit" => "Lang_Board_Submit",
-        "close" => "Lang_Board_CloseCard", "reopen" => "Lang_Board_Reopen", _ => "Lang_Board_StatusNotStarted"
+        "close" => "Lang_Board_CloseCard", "reopen" => "Lang_Board_Reopen",
+        "notStarted" => "Lang_Board_StatusNotStarted", "inProgress" => "Lang_Board_StatusInProgress",
+        "pendingReview" => "Lang_Board_StatusPendingReview", "closed" => "Lang_Board_StatusClosed",
+        _ => "Lang_Board_StatusNotStarted"
     };
     private static string StatusFallback(string action) => action switch
     {
-        "claim" => "Claim", "release" => "Release", "submit" => "Submit for review", "close" => "Close card", "reopen" => "Reopen", _ => "Not started"
+        "claim" => "Claim", "release" => "Release", "submit" => "Submit for review", "close" => "Close card", "reopen" => "Reopen",
+        "inProgress" => "In progress", "pendingReview" => "Pending review", "closed" => "Closed", _ => "Not started"
     };
     private string DeliveryText(string status) => Text($"Lang_Board_Delivery_{status}", status);
 
@@ -1149,7 +1272,7 @@ internal sealed class BoardCardDetailsWindow : Window
     {
         var label = Label(StatusText(status), tertiary: true); label.Margin = new Thickness(0); label.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
         var badge = new Border { Child = label, Padding = new Thickness(5, 2, 5, 2), CornerRadius = new CornerRadius(4), Margin = new Thickness(4, 0, 0, 0) };
-        badge.SetResourceReference(Border.BackgroundProperty, status switch { "inProgress" => "AccentSoftBrush", "pendingReview" => "WarningSoftBrush", _ => "BgTertiaryBrush" });
+        badge.SetResourceReference(Border.BackgroundProperty, status switch { "inProgress" => "AccentSoftBrush", "pendingReview" => "WarningSoftBrush", "closed" => "SuccessSoftBrush", _ => "BgTertiaryBrush" });
         return badge;
     }
 

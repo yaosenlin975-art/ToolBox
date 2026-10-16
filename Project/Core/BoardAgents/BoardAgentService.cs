@@ -1,3 +1,5 @@
+// 项目看板 Agent 投递服务：宿主发现（PATH/npm、URL 协议、卸载注册表、版本目录、常见目录）与会话投递适配器配置，
+// 以及确认摘要、本地投递队列（含 worker）和状态持久化（board-agents.json / board-deliveries.json）。
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
@@ -11,38 +13,40 @@ namespace ToolBox.Core.BoardAgents;
 
 public sealed class BoardAgentService : IAsyncDisposable
 {
-    private const int MaxBodyBytes = 64 * 1024;
-    private const int MaximumHostTimeoutSeconds = 3600;
+    private const int MAX_BODY_BYTES = 64 * 1024;
+    private const int MAXIMUM_HOST_TIMEOUT_SECONDS = 3600;
+    private static readonly TimeSpan DiscoveryCacheTtl = TimeSpan.FromSeconds(30);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private static readonly string[] HostIds = ["codex", "claude", "codebuddy", "opencode", "zcode", "qoder", "trae", "workbuddy"];
     private static readonly Lazy<BoardAgentService> DefaultInstance = new(CreateDefault);
-    private readonly string _appDataDirectory;
-    private readonly string _statePath;
-    private readonly string _deliveryPath;
-    private readonly IBoardAgentDiscoveryPlatform _platform;
-    private readonly IBoardAgentProcessRunner _processRunner;
-    private readonly TimeSpan _defaultTimeout;
-    private readonly SemaphoreSlim _stateGate = new(1, 1);
-    private readonly Channel<string> _queue = Channel.CreateBounded<string>(new BoundedChannelOptions(128)
+    private readonly string appDataDirectory;
+    private readonly string statePath;
+    private readonly string deliveryPath;
+    private readonly IBoardAgentDiscoveryPlatform platform;
+    private readonly IBoardAgentProcessRunner processRunner;
+    private readonly TimeSpan defaultTimeout;
+    private readonly SemaphoreSlim stateGate = new(1, 1);
+    private readonly Channel<string> queue = Channel.CreateBounded<string>(new BoundedChannelOptions(128)
     {
         FullMode = BoundedChannelFullMode.Wait,
         SingleReader = true,
         SingleWriter = false
     });
-    private readonly ConcurrentDictionary<string, BoardAgentHostResolution> _resolutions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _queuedKeys = new(StringComparer.Ordinal);
-    private readonly CancellationTokenSource _shutdown = new();
-    private readonly Task _worker;
-    private PersistedState? _state;
-    private DateTime _stateLastWriteUtc;
-    private bool _stateFileObserved;
-    private List<PersistedDelivery>? _deliveries;
-    private DateTime _deliveryLastWriteUtc;
-    private bool _deliveryFileObserved;
-    private TaskCompletionSource _idle = CompletedSource();
-    private int _pendingJobs;
-    private int _deliveryChangePending;
-    private bool _disposed;
+    private readonly ConcurrentDictionary<string, BoardAgentHostResolution> resolutions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> queuedKeys = new(StringComparer.Ordinal);
+    private readonly CancellationTokenSource shutdown = new();
+    private readonly Task worker;
+    private PersistedState? state;
+    private DateTime stateLastWriteUtc;
+    private bool stateFileObserved;
+    private List<PersistedDelivery>? deliveries;
+    private DateTime deliveryLastWriteUtc;
+    private bool deliveryFileObserved;
+    private TaskCompletionSource idle = CompletedSource();
+    private int pendingJobs;
+    private int deliveryChangePending;
+    private bool disposed;
+    private DateTime discoveryStampUtc;
 
     public static BoardAgentService Instance => DefaultInstance.Value;
     public event Action? Changed;
@@ -51,18 +55,18 @@ public sealed class BoardAgentService : IAsyncDisposable
     {
         options ??= new BoardAgentServiceOptions();
         string? configuredDirectory = options.AppDataDirectory;
-        _appDataDirectory = Path.GetFullPath(string.IsNullOrWhiteSpace(configuredDirectory)
+        appDataDirectory = Path.GetFullPath(string.IsNullOrWhiteSpace(configuredDirectory)
             ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ToolBox")
             : configuredDirectory);
-        _statePath = Path.Combine(_appDataDirectory, "board-agents.json");
-        _deliveryPath = Path.Combine(_appDataDirectory, "board-deliveries.json");
-        _platform = options.DiscoveryPlatform ?? new WindowsBoardAgentDiscoveryPlatform();
-        _processRunner = options.ProcessRunner ?? new SystemBoardAgentProcessRunner();
-        _defaultTimeout = options.DefaultTimeout > TimeSpan.Zero ? options.DefaultTimeout : TimeSpan.FromSeconds(120);
-        _worker = Task.Run(WorkerAsync);
+        statePath = Path.Combine(appDataDirectory, "board-agents.json");
+        deliveryPath = Path.Combine(appDataDirectory, "board-deliveries.json");
+        platform = options.DiscoveryPlatform ?? new WindowsBoardAgentDiscoveryPlatform();
+        processRunner = options.ProcessRunner ?? new SystemBoardAgentProcessRunner();
+        defaultTimeout = options.DefaultTimeout > TimeSpan.Zero ? options.DefaultTimeout : TimeSpan.FromSeconds(120);
+        worker = Task.Run(WorkerAsync);
     }
 
-    public string GetConfigPath() => _statePath;
+    public string GetConfigPath() => statePath;
 
     public static string GetConfirmationHash(BoardAgentCommentContext context)
     {
@@ -77,26 +81,33 @@ public sealed class BoardAgentService : IAsyncDisposable
 
     public async Task<IReadOnlyList<BoardAgentHostInfo>> DiscoverAsync(bool refresh = false, CancellationToken cancellationToken = default)
     {
-        await _stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             PersistedState state = await LoadStateUnsafeAsync(cancellationToken).ConfigureAwait(false);
             await LoadDeliveriesUnsafeAsync(cancellationToken).ConfigureAwait(false);
+            if (!refresh && resolutions.Count == HostIds.Length && DateTime.UtcNow - discoveryStampUtc < DiscoveryCacheTtl)
+            {
+                var cached = new List<BoardAgentHostInfo>(HostIds.Length);
+                foreach (string host in HostIds) cached.Add(ToHostInfo(resolutions[host]));
+                return cached;
+            }
             var result = new List<BoardAgentHostInfo>(HostIds.Length);
             bool changed = false;
             foreach (string host in HostIds)
             {
                 BoardAgentHostResolution resolution = ResolveHost(host, state, refresh, out bool configChanged);
                 changed |= configChanged;
-                _resolutions[host] = resolution;
+                resolutions[host] = resolution;
                 result.Add(ToHostInfo(resolution));
             }
+            discoveryStampUtc = DateTime.UtcNow;
             if (changed) await SaveStateUnsafeAsync(state, cancellationToken).ConfigureAwait(false);
             return result;
         }
         finally
         {
-            _stateGate.Release();
+            stateGate.Release();
             RaisePendingChanged();
         }
     }
@@ -110,13 +121,13 @@ public sealed class BoardAgentService : IAsyncDisposable
         string key = GetConfirmationHash(context);
         await DiscoverAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        await _stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             PersistedState state = await LoadStateUnsafeAsync(cancellationToken).ConfigureAwait(false);
             List<PersistedDelivery> deliveries = await LoadDeliveriesUnsafeAsync(cancellationToken).ConfigureAwait(false);
             PersistedDelivery? existing = deliveries.SingleOrDefault(d => d.ConfirmationHash == key);
-            BoardAgentHostResolution resolution = _resolutions[context.Host];
+            BoardAgentHostResolution resolution = resolutions[context.Host];
             if (existing is not null)
             {
                 if (existing.Status == BoardAgentDeliveryStatuses.NeedsConfirmation && context.Session is not null &&
@@ -140,7 +151,6 @@ public sealed class BoardAgentService : IAsyncDisposable
             }
             string status;
             string? error = null;
-            bool needsConfirmation = false;
             if (context.Session is null)
             {
                 status = BoardAgentDeliveryStatuses.ManualPullRequired;
@@ -153,7 +163,6 @@ public sealed class BoardAgentService : IAsyncDisposable
             else if (!string.Equals(state.Policy, "always", StringComparison.Ordinal) && !FixedEquals(confirmedHash, key))
             {
                 status = BoardAgentDeliveryStatuses.NeedsConfirmation;
-                needsConfirmation = true;
             }
             else
             {
@@ -182,12 +191,11 @@ public sealed class BoardAgentService : IAsyncDisposable
                 delivery.UpdatedAt = DateTimeOffset.UtcNow;
                 await SaveDeliveriesUnsafeAsync(deliveries, cancellationToken).ConfigureAwait(false);
             }
-            var response = ToDelivery(delivery);
-            return needsConfirmation ? response with { ConfirmationHash = key } : response;
+            return ToDelivery(delivery);
         }
         finally
         {
-            _stateGate.Release();
+            stateGate.Release();
             RaisePendingChanged();
         }
     }
@@ -196,7 +204,7 @@ public sealed class BoardAgentService : IAsyncDisposable
     {
         context = ValidateContext(context);
         string key = GetConfirmationHash(context);
-        await _stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             PersistedState state = await LoadStateUnsafeAsync(cancellationToken).ConfigureAwait(false);
@@ -206,7 +214,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         }
         finally
         {
-            _stateGate.Release();
+            stateGate.Release();
             RaisePendingChanged();
         }
     }
@@ -215,7 +223,7 @@ public sealed class BoardAgentService : IAsyncDisposable
     {
         context = ValidateContext(context);
         string key = GetConfirmationHash(context);
-        await _stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             PersistedState state = await LoadStateUnsafeAsync(cancellationToken).ConfigureAwait(false);
@@ -248,7 +256,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         }
         finally
         {
-            _stateGate.Release();
+            stateGate.Release();
             RaisePendingChanged();
         }
     }
@@ -264,7 +272,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         if (!FixedEquals(confirmedHash, key)) throw new InvalidOperationException("A current confirmation hash is required to retry delivery.");
 
         await DiscoverAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-        await _stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             PersistedState state = await LoadStateUnsafeAsync(cancellationToken).ConfigureAwait(false);
@@ -273,7 +281,7 @@ public sealed class BoardAgentService : IAsyncDisposable
             if (delivery is null || delivery.Status is BoardAgentDeliveryStatuses.NeedsConfirmation or BoardAgentDeliveryStatuses.Submitted or BoardAgentDeliveryStatuses.Acknowledged or BoardAgentDeliveryStatuses.Queued or BoardAgentDeliveryStatuses.Sending)
                 return delivery is null ? null : ToDelivery(delivery);
             if (delivery.Status == BoardAgentDeliveryStatuses.Unknown && !userVerifiedUnknown) return ToDelivery(delivery);
-            BoardAgentHostResolution resolution = _resolutions[context.Host];
+            BoardAgentHostResolution resolution = resolutions[context.Host];
             if (context.Session is null || !resolution.SupportsSession || resolution.Mode != "cli")
             {
                 delivery.Status = BoardAgentDeliveryStatuses.ManualPullRequired;
@@ -301,7 +309,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         }
         finally
         {
-            _stateGate.Release();
+            stateGate.Release();
             RaisePendingChanged();
         }
     }
@@ -309,7 +317,7 @@ public sealed class BoardAgentService : IAsyncDisposable
     public async Task SetDeliveryPolicyAsync(string policy, CancellationToken cancellationToken = default)
     {
         if (policy is not ("confirm" or "always")) throw new ArgumentOutOfRangeException(nameof(policy));
-        await _stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             PersistedState state = await LoadStateUnsafeAsync(cancellationToken).ConfigureAwait(false);
@@ -318,13 +326,13 @@ public sealed class BoardAgentService : IAsyncDisposable
         }
         finally
         {
-            _stateGate.Release();
+            stateGate.Release();
         }
     }
 
     public async Task<string> GetDeliveryPolicyAsync(CancellationToken cancellationToken = default)
     {
-        await _stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             PersistedState state = await LoadStateUnsafeAsync(cancellationToken).ConfigureAwait(false);
@@ -332,7 +340,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         }
         finally
         {
-            _stateGate.Release();
+            stateGate.Release();
             RaisePendingChanged();
         }
     }
@@ -352,7 +360,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         if (IsShellShim(fullPath)) throw new ArgumentException("Select the native executable or the host's JavaScript entry, not a command shim.", nameof(path));
 
         BoardAgentHostResolution resolution = CreateManualResolution(host, fullPath, detectedVia);
-        await _stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             PersistedState state = await LoadStateUnsafeAsync(cancellationToken).ConfigureAwait(false);
@@ -361,12 +369,13 @@ public sealed class BoardAgentService : IAsyncDisposable
             SaveResolution(configuration, resolution);
             configuration.DetectedVia = detectedVia;
             state.Hosts[host] = configuration;
-            _resolutions[host] = ApplyHostSettings(resolution, configuration);
+            resolutions[host] = ApplyHostSettings(resolution, configuration);
+            discoveryStampUtc = DateTime.MinValue;
             await SaveStateUnsafeAsync(state, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            _stateGate.Release();
+            stateGate.Release();
         }
     }
 
@@ -374,7 +383,7 @@ public sealed class BoardAgentService : IAsyncDisposable
     {
         host = NormalizeHost(host);
         string fullRoot = NormalizeProjectRoot(projectRoot);
-        if (!_resolutions.TryGetValue(host, out BoardAgentHostResolution? resolution)) return null;
+        if (!resolutions.TryGetValue(host, out BoardAgentHostResolution? resolution)) return null;
         if (!resolution.Enabled) return null;
         if (!string.IsNullOrWhiteSpace(resolution.UriScheme))
             return new BoardAgentLaunchTarget("uri", null, $"{resolution.UriScheme}://", fullRoot);
@@ -387,28 +396,28 @@ public sealed class BoardAgentService : IAsyncDisposable
     {
         while (true)
         {
-            await _stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             Task waitTask;
             try
             {
-                if (_pendingJobs == 0) return;
-                waitTask = _idle.Task;
+                if (pendingJobs == 0) return;
+                waitTask = idle.Task;
             }
-            finally { _stateGate.Release(); }
+            finally { stateGate.Release(); }
             await waitTask.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
-        _disposed = true;
-        _queue.Writer.TryComplete();
-        _shutdown.Cancel();
-        try { await _worker.ConfigureAwait(false); }
+        if (disposed) return;
+        disposed = true;
+        queue.Writer.TryComplete();
+        shutdown.Cancel();
+        try { await worker.ConfigureAwait(false); }
         catch (OperationCanceledException) { }
-        _shutdown.Dispose();
-        _stateGate.Dispose();
+        shutdown.Dispose();
+        stateGate.Dispose();
     }
 
     private static BoardAgentService CreateDefault()
@@ -423,10 +432,10 @@ public sealed class BoardAgentService : IAsyncDisposable
 
     private async Task WorkerAsync()
     {
-        await foreach (string key in _queue.Reader.ReadAllAsync(_shutdown.Token).ConfigureAwait(false))
+        await foreach (string key in queue.Reader.ReadAllAsync(shutdown.Token).ConfigureAwait(false))
         {
-            try { await ProcessDeliveryAsync(key, _shutdown.Token).ConfigureAwait(false); }
-            catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { }
+            try { await ProcessDeliveryAsync(key, shutdown.Token).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (shutdown.IsCancellationRequested) { }
             catch (Exception exception)
             {
                 try { await SetDeliveryErrorAsync(key, BoardAgentDeliveryStatuses.Failed, LimitUtf8(exception.Message, 2048)).ConfigureAwait(false); }
@@ -440,7 +449,7 @@ public sealed class BoardAgentService : IAsyncDisposable
     {
         PersistedDelivery? delivery;
         BoardAgentHostResolution resolution;
-        await _stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await stateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             PersistedState state = await LoadStateUnsafeAsync(cancellationToken).ConfigureAwait(false);
@@ -448,10 +457,10 @@ public sealed class BoardAgentService : IAsyncDisposable
             delivery = deliveries.SingleOrDefault(d => d.ConfirmationHash == key);
             if (delivery is null || delivery.Status != BoardAgentDeliveryStatuses.Queued) return;
             resolution = ResolveHost(delivery.Host, state, false, out bool changed);
-            _resolutions[delivery.Host] = resolution;
+            resolutions[delivery.Host] = resolution;
             if (changed) await SaveStateUnsafeAsync(state, cancellationToken).ConfigureAwait(false);
         }
-        finally { _stateGate.Release(); RaisePendingChanged(); }
+        finally { stateGate.Release(); RaisePendingChanged(); }
 
         if (delivery.Session is null)
         {
@@ -468,7 +477,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         BoardAgentProcessSpec processSpec = BuildProcessSpec(delivery, resolution);
         if (!await TrySetSendingAsync(key).ConfigureAwait(false)) return;
         BoardAgentProcessResult result;
-        try { result = await _processRunner.ExecuteAsync(processSpec, TimeSpan.FromSeconds(resolution.TimeoutSeconds), cancellationToken).ConfigureAwait(false); }
+        try { result = await processRunner.ExecuteAsync(processSpec, TimeSpan.FromSeconds(resolution.TimeoutSeconds), cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception)
         {
@@ -497,7 +506,7 @@ public sealed class BoardAgentService : IAsyncDisposable
 
     private async Task SetDeliveryErrorAsync(string key, string status, string? error)
     {
-        await _stateGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        await stateGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
             PersistedState state = await LoadStateUnsafeAsync(CancellationToken.None).ConfigureAwait(false);
@@ -511,12 +520,12 @@ public sealed class BoardAgentService : IAsyncDisposable
             delivery.UpdatedAt = DateTimeOffset.UtcNow;
             await SaveDeliveriesUnsafeAsync(deliveries, CancellationToken.None).ConfigureAwait(false);
         }
-        finally { _stateGate.Release(); RaisePendingChanged(); }
+        finally { stateGate.Release(); RaisePendingChanged(); }
     }
 
     private async Task<bool> TrySetSendingAsync(string key)
     {
-        await _stateGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        await stateGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
             List<PersistedDelivery> deliveries = await LoadDeliveriesUnsafeAsync(CancellationToken.None).ConfigureAwait(false);
@@ -528,63 +537,63 @@ public sealed class BoardAgentService : IAsyncDisposable
             await SaveDeliveriesUnsafeAsync(deliveries, CancellationToken.None).ConfigureAwait(false);
             return true;
         }
-        finally { _stateGate.Release(); RaisePendingChanged(); }
+        finally { stateGate.Release(); RaisePendingChanged(); }
     }
 
     private bool QueueUnsafe(string key)
     {
-        if (!_queuedKeys.Add(key)) return true;
-        if (_pendingJobs++ == 0) _idle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (_queue.Writer.TryWrite(key)) return true;
-        _queuedKeys.Remove(key);
-        if (--_pendingJobs == 0) _idle.TrySetResult();
+        if (!queuedKeys.Add(key)) return true;
+        if (pendingJobs++ == 0) idle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (queue.Writer.TryWrite(key)) return true;
+        queuedKeys.Remove(key);
+        if (--pendingJobs == 0) idle.TrySetResult();
         return false;
     }
 
     private async Task FinishQueueItemAsync(string key)
     {
-        await _stateGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        await stateGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            _queuedKeys.Remove(key);
-            if (--_pendingJobs == 0) _idle.TrySetResult();
+            queuedKeys.Remove(key);
+            if (--pendingJobs == 0) idle.TrySetResult();
         }
-        finally { _stateGate.Release(); }
+        finally { stateGate.Release(); }
     }
 
     private async Task<PersistedState> LoadStateUnsafeAsync(CancellationToken cancellationToken)
     {
-        Directory.CreateDirectory(_appDataDirectory);
-        DateTime fileWriteUtc = File.Exists(_statePath) ? File.GetLastWriteTimeUtc(_statePath) : DateTime.MinValue;
-        if (_state is not null && _stateFileObserved && fileWriteUtc == _stateLastWriteUtc) return _state;
-        if (!File.Exists(_statePath)) _state = new PersistedState();
+        Directory.CreateDirectory(appDataDirectory);
+        DateTime fileWriteUtc = File.Exists(statePath) ? File.GetLastWriteTimeUtc(statePath) : DateTime.MinValue;
+        if (state is not null && stateFileObserved && fileWriteUtc == stateLastWriteUtc) return state;
+        if (!File.Exists(statePath)) state = new PersistedState();
         else
         {
-            string json = await File.ReadAllTextAsync(_statePath, cancellationToken).ConfigureAwait(false);
-            _state = JsonSerializer.Deserialize<PersistedState>(json, JsonOptions) ?? throw new InvalidDataException("Board agent configuration is empty.");
+            string json = await File.ReadAllTextAsync(statePath, cancellationToken).ConfigureAwait(false);
+            state = JsonSerializer.Deserialize<PersistedState>(json, JsonOptions) ?? throw new InvalidDataException("Board agent configuration is empty.");
         }
-        _stateFileObserved = true;
-        _stateLastWriteUtc = fileWriteUtc;
-        _resolutions.Clear();
+        stateFileObserved = true;
+        stateLastWriteUtc = fileWriteUtc;
+        resolutions.Clear();
 
-        return _state;
+        return state;
     }
 
     private async Task<List<PersistedDelivery>> LoadDeliveriesUnsafeAsync(CancellationToken cancellationToken)
     {
-        Directory.CreateDirectory(_appDataDirectory);
-        DateTime fileWriteUtc = File.Exists(_deliveryPath) ? File.GetLastWriteTimeUtc(_deliveryPath) : DateTime.MinValue;
-        if (_deliveries is not null && _deliveryFileObserved && fileWriteUtc == _deliveryLastWriteUtc) return _deliveries;
-        if (!File.Exists(_deliveryPath)) _deliveries = [];
+        Directory.CreateDirectory(appDataDirectory);
+        DateTime fileWriteUtc = File.Exists(deliveryPath) ? File.GetLastWriteTimeUtc(deliveryPath) : DateTime.MinValue;
+        if (deliveries is not null && deliveryFileObserved && fileWriteUtc == deliveryLastWriteUtc) return deliveries;
+        if (!File.Exists(deliveryPath)) deliveries = [];
         else
         {
-            string json = await File.ReadAllTextAsync(_deliveryPath, cancellationToken).ConfigureAwait(false);
-            _deliveries = JsonSerializer.Deserialize<List<PersistedDelivery>>(json, JsonOptions) ?? throw new InvalidDataException("Board agent delivery records are empty.");
+            string json = await File.ReadAllTextAsync(deliveryPath, cancellationToken).ConfigureAwait(false);
+            deliveries = JsonSerializer.Deserialize<List<PersistedDelivery>>(json, JsonOptions) ?? throw new InvalidDataException("Board agent delivery records are empty.");
         }
-        _deliveryFileObserved = true;
-        _deliveryLastWriteUtc = fileWriteUtc;
+        deliveryFileObserved = true;
+        deliveryLastWriteUtc = fileWriteUtc;
         bool changed = false;
-        foreach (PersistedDelivery delivery in _deliveries)
+        foreach (PersistedDelivery delivery in deliveries)
         {
             if (delivery.Status == BoardAgentDeliveryStatuses.Sending)
             {
@@ -602,43 +611,44 @@ public sealed class BoardAgentService : IAsyncDisposable
                 changed = true;
             }
         }
-        if (changed) await SaveDeliveriesUnsafeAsync(_deliveries, cancellationToken).ConfigureAwait(false);
-        return _deliveries;
+        if (changed) await SaveDeliveriesUnsafeAsync(deliveries, cancellationToken).ConfigureAwait(false);
+        return deliveries;
     }
 
     private async Task SaveStateUnsafeAsync(PersistedState state, CancellationToken cancellationToken)
     {
-        Directory.CreateDirectory(_appDataDirectory);
-        string temporaryPath = _statePath + ".tmp";
+        Directory.CreateDirectory(appDataDirectory);
+        string temporaryPath = statePath + ".tmp";
         string json = JsonSerializer.Serialize(state, JsonOptions);
         await File.WriteAllTextAsync(temporaryPath, json, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
-        File.Move(temporaryPath, _statePath, true);
-        _stateLastWriteUtc = File.GetLastWriteTimeUtc(_statePath);
-        _stateFileObserved = true;
+        File.Move(temporaryPath, statePath, true);
+        stateLastWriteUtc = File.GetLastWriteTimeUtc(statePath);
+        stateFileObserved = true;
     }
 
     private async Task SaveDeliveriesUnsafeAsync(List<PersistedDelivery> deliveries, CancellationToken cancellationToken)
     {
-        Directory.CreateDirectory(_appDataDirectory);
-        string temporaryPath = _deliveryPath + ".tmp";
+        Directory.CreateDirectory(appDataDirectory);
+        string temporaryPath = deliveryPath + ".tmp";
         string json = JsonSerializer.Serialize(deliveries, JsonOptions);
-        Interlocked.Exchange(ref _deliveryChangePending, 1);
+        Interlocked.Exchange(ref deliveryChangePending, 1);
         await File.WriteAllTextAsync(temporaryPath, json, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
-        File.Move(temporaryPath, _deliveryPath, true);
-        _deliveryLastWriteUtc = File.GetLastWriteTimeUtc(_deliveryPath);
-        _deliveryFileObserved = true;
+        File.Move(temporaryPath, deliveryPath, true);
+        deliveryLastWriteUtc = File.GetLastWriteTimeUtc(deliveryPath);
+        deliveryFileObserved = true;
     }
 
-    private void RaisePendingChanged()
+    private BoardAgentService RaisePendingChanged()
     {
-        if (Interlocked.Exchange(ref _deliveryChangePending, 0) == 0) return;
+        if (Interlocked.Exchange(ref deliveryChangePending, 0) == 0) return this;
         Action? handlers = Changed;
-        if (handlers is null) return;
+        if (handlers is null) return this;
         foreach (Action handler in handlers.GetInvocationList().Cast<Action>())
         {
             try { handler(); }
             catch (Exception exception) { Debug.WriteLine($"[ToolBox] Board agent change notification failed: {exception.Message}"); }
         }
+        return this;
     }
 
     private BoardAgentHostResolution ResolveHost(string host, PersistedState state, bool refresh, out bool configChanged)
@@ -688,7 +698,7 @@ public sealed class BoardAgentService : IAsyncDisposable
 
         foreach (string scheme in GetSchemes(host))
         {
-            string? registeredExe = _platform.GetUrlProtocolCommands(scheme).Select(ExtractExecutable).FirstOrDefault(p => p is not null && File.Exists(p));
+            string? registeredExe = platform.GetUrlProtocolCommands(scheme).Select(ExtractExecutable).FirstOrDefault(p => p is not null && File.Exists(p));
             if (registeredExe is not null)
             {
                 if (host == "qoder" && TryFindLatestQoderVersionNear(registeredExe, out string? newest)) registeredExe = newest;
@@ -700,7 +710,7 @@ public sealed class BoardAgentService : IAsyncDisposable
             }
         }
 
-        var installedCandidate = _platform.GetUninstallEntries()
+        var installedCandidate = platform.GetUninstallEntries()
             .Where(a => MatchesHost(host, a.DisplayName))
             .Select(a => (App: a, Exe: ExtractExecutable(a.DisplayIcon) ?? FindInstalledExecutable(host, a.InstallLocation)))
             .FirstOrDefault(x => x.Exe is not null && File.Exists(x.Exe));
@@ -722,7 +732,7 @@ public sealed class BoardAgentService : IAsyncDisposable
             return ApplyHostSettings(pending, configuration);
         }
 
-        string? availableScheme = GetSchemes(host).FirstOrDefault(s => _platform.GetUrlProtocolCommands(s).Any());
+        string? availableScheme = GetSchemes(host).FirstOrDefault(s => platform.GetUrlProtocolCommands(s).Any());
         BoardAgentHostResolution fallback = availableScheme is not null
             ? new BoardAgentHostResolution(host, "app", null, null, "uri-registry", availableScheme, false, true)
             : new BoardAgentHostResolution(host, "none", null, null, "none", null, false, true);
@@ -758,8 +768,8 @@ public sealed class BoardAgentService : IAsyncDisposable
 
     private IEnumerable<(string Path, string Via)> FindCommands(string command)
     {
-        var directories = _platform.GetPathDirectories()
-            .Concat(new[] { Path.Combine(_platform.GetFolderPath(Environment.SpecialFolder.ApplicationData) ?? string.Empty, "npm") })
+        var directories = platform.GetPathDirectories()
+            .Concat(new[] { Path.Combine(platform.GetFolderPath(Environment.SpecialFolder.ApplicationData) ?? string.Empty, "npm") })
             .Where(d => !string.IsNullOrWhiteSpace(d))
             .Distinct(StringComparer.OrdinalIgnoreCase);
         foreach (string directory in directories)
@@ -774,7 +784,7 @@ public sealed class BoardAgentService : IAsyncDisposable
 
     private string? FindNativeOnPath(string command)
     {
-        foreach (string directory in _platform.GetPathDirectories())
+        foreach (string directory in platform.GetPathDirectories())
         {
             string candidate = Path.Combine(directory.Trim('"'), command + ".exe");
             if (File.Exists(candidate)) return Path.GetFullPath(candidate);
@@ -966,7 +976,7 @@ public sealed class BoardAgentService : IAsyncDisposable
                 SupportsSession = false,
                 PendingPath = null,
                 Enabled = false,
-                TimeoutSeconds = configuration.TimeoutSeconds ?? (int)Math.Ceiling(_defaultTimeout.TotalSeconds),
+                TimeoutSeconds = configuration.TimeoutSeconds ?? (int)Math.Ceiling(defaultTimeout.TotalSeconds),
                 ArgumentTemplate = configuration.ArgumentTemplate,
                 MessageTransport = configuration.MessageTransport
             };
@@ -975,13 +985,13 @@ public sealed class BoardAgentService : IAsyncDisposable
         return resolution with
         {
             Enabled = true,
-            TimeoutSeconds = configuration.TimeoutSeconds ?? (int)Math.Ceiling(_defaultTimeout.TotalSeconds),
+            TimeoutSeconds = configuration.TimeoutSeconds ?? (int)Math.Ceiling(defaultTimeout.TotalSeconds),
             ArgumentTemplate = configuration.ArgumentTemplate,
             MessageTransport = configuration.MessageTransport
         };
     }
 
-    private static void SaveResolution(PersistedHost config, BoardAgentHostResolution resolution)
+    private static PersistedHost SaveResolution(PersistedHost config, BoardAgentHostResolution resolution)
     {
         config.ResolvedPath = resolution.ExecutablePath;
         config.EntryPath = resolution.EntryPath;
@@ -989,6 +999,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         config.SupportsSession = resolution.SupportsSession;
         config.DetectedVia = resolution.DetectedVia;
         config.UriScheme = resolution.UriScheme;
+        return config;
     }
 
     private static bool IsValidResolution(string? executable, string? entry) =>
@@ -1020,7 +1031,7 @@ public sealed class BoardAgentService : IAsyncDisposable
 
     private string? FindCommonRootCandidate(string host)
     {
-        foreach (string root in _platform.GetCommonRoots())
+        foreach (string root in platform.GetCommonRoots())
         {
             string? candidate = host switch
             {
@@ -1128,8 +1139,8 @@ public sealed class BoardAgentService : IAsyncDisposable
     {
         if (delivery.Session is null || delivery.Session.StartsWith("-", StringComparison.Ordinal))
             throw new InvalidOperationException("An exact session id is required for host delivery.");
-        if (resolution.TimeoutSeconds is < 1 or > MaximumHostTimeoutSeconds)
-            throw new InvalidOperationException($"Host timeout must be between 1 and {MaximumHostTimeoutSeconds} seconds.");
+        if (resolution.TimeoutSeconds is < 1 or > MAXIMUM_HOST_TIMEOUT_SECONDS)
+            throw new InvalidOperationException($"Host timeout must be between 1 and {MAXIMUM_HOST_TIMEOUT_SECONDS} seconds.");
 
         string[] builtInTemplate = delivery.Host switch
         {
@@ -1162,7 +1173,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         return new BoardAgentProcessSpec(resolution.ExecutablePath!, arguments, delivery.ProjectRoot, standardInput);
     }
 
-    private static void ValidateArgumentTemplate(string[] template, string transport)
+    private static string[] ValidateArgumentTemplate(string[] template, string transport)
     {
         if (transport is not ("stdin" or "argument"))
             throw new InvalidOperationException("MessageTransport must be 'stdin' or 'argument'.");
@@ -1205,6 +1216,7 @@ public sealed class BoardAgentService : IAsyncDisposable
             throw new InvalidOperationException("Argument transport requires exactly one safely bound {message} token.");
         if (transport == "stdin" && messageCount != 0)
             throw new InvalidOperationException("Stdin transport must not include a {message} token.");
+        return template;
     }
 
     private static BoardAgentCommentContext ValidateContext(BoardAgentCommentContext context)
@@ -1216,7 +1228,7 @@ public sealed class BoardAgentService : IAsyncDisposable
         if (!HostIds.Contains(host, StringComparer.Ordinal)) throw new ArgumentException("Unknown agent host.", nameof(context.Host));
         string projectRoot = NormalizeProjectRoot(context.ProjectRoot);
         if (!Directory.Exists(projectRoot)) throw new DirectoryNotFoundException(projectRoot);
-        if (Encoding.UTF8.GetByteCount(context.Body ?? string.Empty) > MaxBodyBytes) throw new ArgumentException("Comment body exceeds 64 KiB.", nameof(context.Body));
+        if (Encoding.UTF8.GetByteCount(context.Body ?? string.Empty) > MAX_BODY_BYTES) throw new ArgumentException("Comment body exceeds 64 KiB.", nameof(context.Body));
         if (context.Session is not null && (string.IsNullOrWhiteSpace(context.Session) || context.Session.Length > 256 ||
             context.Session.Any(char.IsControl) || context.Session.StartsWith("-", StringComparison.Ordinal)))
             throw new ArgumentException("Session id is invalid.", nameof(context.Session));
@@ -1305,7 +1317,7 @@ public sealed class BoardAgentService : IAsyncDisposable
 
 public sealed class SystemBoardAgentProcessRunner : IBoardAgentProcessRunner
 {
-    private const int ErrorSummaryByteLimit = 2048;
+    private const int ERROR_SUMMARY_BYTE_LIMIT = 2048;
 
     public async Task<BoardAgentProcessResult> ExecuteAsync(BoardAgentProcessSpec spec, TimeSpan timeout, CancellationToken cancellationToken)
     {
@@ -1325,10 +1337,10 @@ public sealed class SystemBoardAgentProcessRunner : IBoardAgentProcessRunner
 
         using var process = new Process { StartInfo = startInfo };
         process.Start();
-        Task outputDrain = process.StandardOutput.BaseStream.CopyToAsync(Stream.Null, 4096, CancellationToken.None);
-        Task<string> errorDrain = DrainErrorAsync(process.StandardError.BaseStream);
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutSource.CancelAfter(timeout);
+        Task outputDrain = process.StandardOutput.BaseStream.CopyToAsync(Stream.Null, 4096, CancellationToken.None);
+        Task<string> errorDrain = DrainErrorAsync(process.StandardError.BaseStream, timeoutSource.Token);
 
         try
         {
@@ -1354,14 +1366,17 @@ public sealed class SystemBoardAgentProcessRunner : IBoardAgentProcessRunner
         return new BoardAgentProcessResult(process.ExitCode, false, await errorDrain.ConfigureAwait(false));
     }
 
-    private static async Task<string> DrainErrorAsync(Stream stream)
+    private static async Task<string> DrainErrorAsync(Stream stream, CancellationToken cancellationToken)
     {
         byte[] buffer = new byte[4096];
-        byte[] summary = new byte[ErrorSummaryByteLimit];
+        byte[] summary = new byte[ERROR_SUMMARY_BYTE_LIMIT];
         int retained = 0;
-        int count;
-        while ((count = await stream.ReadAsync(buffer, CancellationToken.None).ConfigureAwait(false)) > 0)
+        while (true)
         {
+            int count;
+            try { count = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false); }
+            catch (OperationCanceledException) { break; }
+            if (count <= 0) break;
             int copy = Math.Min(count, summary.Length - retained);
             if (copy > 0)
             {

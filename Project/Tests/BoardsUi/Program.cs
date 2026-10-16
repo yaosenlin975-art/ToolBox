@@ -63,6 +63,7 @@ internal static class Program
         VerifyConfirmationDefaults(registration, column, card);
         VerifyAttachmentPath(registration, column, card);
         VerifyConfirmCancelDoesNotSend(store, registration, column);
+        VerifyAgentActions(registration, column, card);
         VerifyThemeAndLanguageResources();
 
         view.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent, view));
@@ -215,8 +216,8 @@ internal static class Program
                 index == 0 ? "notStarted" : "closed", index == 0 ? null : cards[index - 1].Id);
         var deepBoard = new ProjectBoard(2, boardId, "Deep board", 1, [new ProjectBoardColumn(columnId, "Todo", 0, "notStarted")], cards);
         typeof(BoardsView).GetField("board", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(view, deepBoard);
-        int descendants = (int)typeof(BoardsView).GetMethod("CountDescendants", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(view, [cards[0].Id])!;
-        Assert(descendants == depth - 1, "The card progress walk did not handle a 3,000-level tree.");
+        var descendants = ((int Total, int Closed))typeof(BoardsView).GetMethod("CountDescendants", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(view, [cards[0].Id])!;
+        Assert(descendants.Total == depth - 1, "The card progress walk did not handle a 3,000-level tree.");
         var roots = (List<ProjectBoardCard>)typeof(BoardsView).GetMethod("BoardCards", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(view, [columnId])!;
         Assert(roots.Count == 1 && roots[0].Id == cards[0].Id, "The board column rendered child cards as root cards.");
 
@@ -334,6 +335,43 @@ internal static class Program
         store.RequestHandler = priorHandler;
     }
 
+    private static void VerifyAgentActions(ProjectBoardRegistration registration, ProjectBoardColumn column, ProjectBoardCard card)
+    {
+        var agents = BoardAgentService.Instance;
+        var details = new BoardCardDetailsWindow(null, CreateBoard(registration.BoardId, column, card, 1), registration, card,
+            new(registration.BoardId.ToString("D"), 1, 0));
+        var candidateRow = (Panel)typeof(BoardCardDetailsWindow).GetField("candidatePathRow", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(details)!;
+        var toggle = (CheckBox)typeof(BoardCardDetailsWindow).GetField("policyToggle", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(details)!;
+
+        agents.Hosts =
+        [
+            new BoardAgentHostInfo("codex", "Codex", "app", "C:\\Program Files\\Codex", null, "common-root", false, true, "C:\\Program Files\\Codex", false, true, null),
+            new BoardAgentHostInfo("trae", "Trae", "app", "C:\\trae.exe", null, "uninstall-registry", true, false, null, false, true, "trae-cn")
+        ];
+        InvokeAsync(details, "RefreshCandidatePathsAsync", false).GetAwaiter().GetResult();
+        Assert(candidateRow.Children.Count == 1, "Only hosts awaiting path confirmation should expose a confirm button.");
+        var confirmButton = (Button)candidateRow.Children[0];
+        string content = confirmButton.Content?.ToString() ?? "";
+        Assert(content.Contains("Codex", StringComparison.Ordinal) && content.Contains("Program Files", StringComparison.Ordinal), "The confirm button did not name the host and candidate path.");
+        Assert(candidateRow.Visibility == Visibility.Visible, "The candidate row stayed hidden while a confirmation was pending.");
+
+        agents.Hosts = [];
+        InvokeAsync(details, "RefreshCandidatePathsAsync", false).GetAwaiter().GetResult();
+        Assert(candidateRow.Children.Count == 0 && candidateRow.Visibility == Visibility.Collapsed, "The candidate row did not hide without pending confirmations.");
+
+        agents.DeliveryPolicy = "always";
+        InvokeAsync(details, "RefreshDeliveryPolicyToggleAsync").GetAwaiter().GetResult();
+        Assert(toggle.IsChecked == true, "The delivery policy toggle did not reflect the stored always policy.");
+        toggle.IsChecked = false;
+        PumpDispatcher(TimeSpan.FromMilliseconds(20));
+        Assert(agents.DeliveryPolicy == "confirm" && agents.DeliveryPolicySets.Contains("confirm"), "Unchecking the toggle did not persist the confirm policy.");
+        agents.DeliveryPolicy = "confirm";
+        agents.Hosts = [];
+    }
+
+    private static Task InvokeAsync(object target, string method, params object?[] args) =>
+        (Task)target.GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(target, args)!;
+
     private static IEnumerable<T> FindVisualChildren<T>(DependencyObject root) where T : DependencyObject
     {
         for (int index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
@@ -364,7 +402,7 @@ internal static class Program
         foreach (string file in new[] { "Light.xaml", "Dark.xaml" })
         {
             var keys = ThemeKeys(Path.Combine(theme, file));
-            foreach (string key in new[] { "BgSecondaryBrush", "BgTertiaryBrush", "BgElevatedBrush", "TextPrimaryBrush", "TextTertiaryBrush", "AccentBrush", "SuccessBrush", "WarningSoftBrush", "ErrorBrush", "BorderBrush", "BorderDefaultBrush" })
+            foreach (string key in new[] { "BgSecondaryBrush", "BgTertiaryBrush", "BgElevatedBrush", "TextPrimaryBrush", "TextTertiaryBrush", "AccentBrush", "SuccessBrush", "WarningSoftBrush", "ErrorBrush", "SuccessSoftBrush", "BorderBrush", "BorderDefaultBrush" })
                 Assert(keys.Contains(key), $"{file} is missing the {key} resource used by the board UI.");
             VerifyStatusBadgeContrast(Path.Combine(theme, file));
         }
@@ -383,6 +421,7 @@ internal static class Program
         Assert(Contrast(foreground, Composite(colors["AccentSoftBrush"], surface)) >= 4.5, $"Status badge text contrast is too low in {Path.GetFileName(themePath)} over AccentSoftBrush.");
         Assert(Contrast(foreground, Composite(colors["WarningSoftBrush"], surface)) >= 4.5, $"Status badge text contrast is too low in {Path.GetFileName(themePath)} over WarningSoftBrush.");
         Assert(Contrast(foreground, colors["BgTertiaryBrush"]) >= 4.5, $"Status badge text contrast is too low in {Path.GetFileName(themePath)} over BgTertiaryBrush.");
+        Assert(Contrast(foreground, Composite(colors["SuccessSoftBrush"], surface)) >= 4.5, $"Status badge text contrast is too low in {Path.GetFileName(themePath)} over SuccessSoftBrush.");
     }
 
     private static Color Composite(Color foreground, Color background)

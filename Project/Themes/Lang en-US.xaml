@@ -281,6 +281,9 @@
     <sys:String x:Key="Lang_Board_DetailsSnapshotHint">The board changed while this window is open. Actions still use its opening revision; close and reopen after a conflict.</sys:String>
     <sys:String x:Key="Lang_Board_SnapshotConflict">The board changed. Close and reopen the details before retrying.</sys:String>
     <sys:String x:Key="Lang_Board_OperationFailed">The board operation failed.</sys:String>
+    <sys:String x:Key="Lang_Board_DeliveryAlways">Always auto-send (this machine)</sys:String>
+    <sys:String x:Key="Lang_Board_DeliveryAlwaysHint">Applies to this machine only (stored in the local configuration); it does not affect remote hosts or project data. Off keeps the default "confirm before sending".</sys:String>
+    <sys:String x:Key="Lang_Board_ConfirmCandidatePath">Use the candidate path for {0}: {1}</sys:String>
     <sys:String x:Key="Lang_Board_CommentsChanged">Comments changed while they were loading. Close and reopen the details.</sys:String>
     <sys:String x:Key="Lang_Board_CommentCursorLoop">The comment list returned a repeated page cursor.</sys:String>
     <sys:String x:Key="Lang_Board_NoComments">No comments yet.</sys:String>
@@ -308,7 +311,6 @@
     <sys:String x:Key="Lang_Board_DeleteCommentPrompt">Delete this comment? Replies will remain.</sys:String>
     <sys:String x:Key="Lang_Board_CommentPrompt">Write a comment:</sys:String>
     <sys:String x:Key="Lang_Board_ConfirmDelivery">Confirm reply delivery</sys:String>
-    <sys:String x:Key="Lang_Board_DeliveryConfirmation">Send this reply to {0} / {1}?&#10;&#10;{2}</sys:String>
     <sys:String x:Key="Lang_Board_DeliveryConfirmationExact">Send to {0} session {1}. This will continue that exact session and may execute in project directory {2}.&#10;&#10;Reply body:&#10;{3}</sys:String>
     <sys:String x:Key="Lang_Board_DeliveryConfirmationPull">Send to {0}'s project inbox for {1}. No exact session will be continued; the host can pull this reply.&#10;&#10;Reply body:&#10;{2}</sys:String>
     <sys:String x:Key="Lang_Board_UnknownRetryPrompt">The previous attempt has an unknown result. Verify in the target session that this reply did not arrive before retrying.</sys:String>

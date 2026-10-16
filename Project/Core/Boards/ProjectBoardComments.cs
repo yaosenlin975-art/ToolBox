@@ -1,21 +1,23 @@
+// 看板评论：评论写入、软删除、Ack、bind，以及大 board 的评论外置 sidecar 与迁移恢复。
+using ToolBox.Core.Todo;
+
 using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ToolBox.Core.Todo;
 
 namespace ToolBox.Core.Boards;
 
 public sealed partial class ProjectBoardStore
 {
-    private const int CommentBodyMaxBytes = 16 * 1024;
-    private const int CommentSidecarThresholdBytes = 2 * 1024 * 1024;
-    private const int CommentSidecarSchemaVersion = 1;
-    private const string CommentSidecarFileName = "comments.json";
-    private const string CommentMigrationJournalFileName = "comments.migration.json";
-    private const string CommentMigrationBackupFileName = "board.comments.old";
-    private const string CommentMigrationBoardTempFileName = "board.comments.next";
-    private const string CommentMigrationSidecarTempFileName = "comments.next";
+    private const int COMMENT_BODY_MAX_BYTES = 16 * 1024;
+    private const int COMMENT_SIDECAR_THRESHOLD_BYTES = 2 * 1024 * 1024;
+    private const int COMMENT_SIDECAR_SCHEMA_VERSION = 1;
+    private const string COMMENT_SIDECAR_FILE_NAME = "comments.json";
+    private const string COMMENT_MIGRATION_JOURNAL_FILE_NAME = "comments.migration.json";
+    private const string COMMENT_MIGRATION_BACKUP_FILE_NAME = "board.comments.old";
+    private const string COMMENT_MIGRATION_BOARD_TEMP_FILE_NAME = "board.comments.next";
+    private const string COMMENT_MIGRATION_SIDECAR_TEMP_FILE_NAME = "comments.next";
 
     private static readonly JsonSerializerOptions CommentCursorJsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -64,7 +66,7 @@ public sealed partial class ProjectBoardStore
         CheckCommentRevisions(payload, snapshot.Board);
         Guid commentId = RequiredGuid(payload, "commentId");
         ProjectBoardComment comment = FindComment(snapshot.Board, commentId, out Guid cardId);
-        return TaskResponse.Success(_currentRequest!, new ProjectBoardCommentContext(
+        return TaskResponse.Success(currentRequest!, new ProjectBoardCommentContext(
             registration, cardId, comment, snapshot.Board.Revision, snapshot.Board.CommentRevision));
     }
 
@@ -76,7 +78,7 @@ public sealed partial class ProjectBoardStore
         ProjectBoardCard card = FindCard(snapshot.Board, cardId);
         bool includeDeleted = OptionalBoolean(payload, "includeDeleted") ?? false;
         int requestedLimit = OptionalInt(payload, "limit") ?? 100;
-        CommentCursor? cursor = ReadCommentCursor(payload, snapshot.Board, cardId, includeDeleted, null, snapshot.Board.CommentRevision);
+        CommentCursor? cursor = ReadCommentCursor(payload, snapshot.Board, cardId, includeDeleted, null);
         ProjectBoardComment[] candidates = card.Comments!
             .Where(comment => includeDeleted || comment.DeletedAt == null)
             .OrderBy(comment => comment.CreatedAt).ThenBy(comment => comment.Id)
@@ -89,7 +91,7 @@ public sealed partial class ProjectBoardStore
             string? nextCursor = candidates.Length > page.Length && page.Length > 0
                 ? WriteCommentCursor(snapshot.Board.BoardId, cardId, includeDeleted, null, snapshot.Board.CommentRevision, page[^1])
                 : null;
-            TaskResponse response = TaskResponse.Success(_currentRequest!, new
+            TaskResponse response = TaskResponse.Success(currentRequest!, new
             {
                 comments = page,
                 cursor = nextCursor,
@@ -168,8 +170,7 @@ public sealed partial class ProjectBoardStore
         int ttlMinutes = OptionalInt(payload, "ttlMinutes") ?? 30;
         if (ttlMinutes is < 5 or > 480) throw Invalid("ttlMinutes must be between 5 and 480.", "ttlMinutes");
         int requestedLimit = OptionalInt(payload, "limit") ?? 100;
-        CommentCursor? cursor = ReadCommentCursor(payload, snapshot.Board, null, null, (targetHost, targetSession),
-            snapshot.Board.CommentRevision);
+        CommentCursor? cursor = ReadCommentCursor(payload, snapshot.Board, null, null, (targetHost, targetSession));
         DateTime now = DateTime.UtcNow;
         int limit = requestedLimit;
         while (limit > 0)
@@ -181,7 +182,7 @@ public sealed partial class ProjectBoardStore
             string? nextCursor = prepared.HasMore && prepared.LastScanned is { } last
                 ? WriteCommentCursor(snapshot.Board.BoardId, null, null, (targetHost, targetSession), finalBoard.CommentRevision, last)
                 : null;
-            TaskResponse response = TaskResponse.Success(_currentRequest!, new
+            TaskResponse response = TaskResponse.Success(currentRequest!, new
             {
                 comments = prepared.Comments,
                 cursor = nextCursor,
@@ -257,7 +258,7 @@ public sealed partial class ProjectBoardStore
     }
 
     private TaskResponse CommentMutationResponse(ProjectBoardComment comment, Guid cardId, ProjectBoard board) =>
-        TaskResponse.Success(_currentRequest!, new
+        TaskResponse.Success(currentRequest!, new
         {
             comment,
             cardId,
@@ -332,7 +333,7 @@ public sealed partial class ProjectBoardStore
     {
         string body = RequiredString(payload, "body");
         if (string.IsNullOrWhiteSpace(body)) throw Invalid("body must not be empty.", "body");
-        if (Encoding.UTF8.GetByteCount(body) > CommentBodyMaxBytes) throw Invalid("body must be at most 16 KiB in UTF-8.", "body");
+        if (Encoding.UTF8.GetByteCount(body) > COMMENT_BODY_MAX_BYTES) throw Invalid("body must be at most 16 KiB in UTF-8.", "body");
         return body;
     }
 
@@ -366,8 +367,7 @@ public sealed partial class ProjectBoardStore
         ProjectBoard board,
         Guid? cardId,
         bool? includeDeleted,
-        (string Host, string? Session)? inboxTarget,
-        long? expectedCommentRevision)
+        (string Host, string? Session)? inboxTarget)
     {
         if (!payload.TryGetProperty("cursor", out JsonElement cursorElement)) return null;
         string encoded = cursorElement.GetString()!;
@@ -379,7 +379,6 @@ public sealed partial class ProjectBoardStore
             if (cursor.BoardId != board.BoardId || cursor.CardId != cardId || cursor.IncludeDeleted != includeDeleted ||
                 cursor.TargetHost != inboxTarget?.Host || cursor.TargetSession != inboxTarget?.Session ||
                 cursor.CommentRevision != board.CommentRevision ||
-                (expectedCommentRevision.HasValue && cursor.CommentRevision != expectedCommentRevision.Value) ||
                 cursor.LastId == Guid.Empty || cursor.LastCreatedAt.Kind != DateTimeKind.Utc)
                 throw new TaskCommandException("CONFLICT", "The comment cursor is stale or belongs to another query.", "cursor");
             return cursor;
@@ -472,7 +471,7 @@ public sealed partial class ProjectBoardStore
         return new InboxPage(updatedBoard, selected, lastScanned, hasMore, changed);
     }
 
-    private void SaveComments(string root, BoardSnapshot before, ProjectBoard updated, TaskResponse response)
+    private ProjectBoardStore SaveComments(string root, BoardSnapshot before, ProjectBoard updated, TaskResponse response)
     {
         EnsureResponseFits(response);
         ValidateBoard(updated);
@@ -491,23 +490,24 @@ public sealed partial class ProjectBoardStore
             byte[] sidecar = SerializeCommentSidecar(updated);
             WriteAtomic(sidecarPath, sidecar, before.CommentsHash, "commentRevision");
             knownCommentHashes[updated.BoardId] = Hash(sidecar);
-            return;
+            return this;
         }
 
         if (File.Exists(GetCommentsPath(root))) throw Corrupt("A comment sidecar exists while commentsExternal is false.");
-        if (ShouldExternalizeComments(updated))
+        byte[] bytes = SerializeBoardStorage(updated);
+        if (ShouldExternalizeComments(updated, bytes.Length))
         {
             ExternalizeComments(root, before, updated);
-            return;
+            return this;
         }
-        byte[] bytes = SerializeBoardStorage(updated);
         WriteAtomic(boardPath, bytes, before.Hash, "revision");
         knownBoardHashes[updated.BoardId] = Hash(bytes);
+        return this;
     }
 
-    private static bool ShouldExternalizeComments(ProjectBoard board) =>
+    private static bool ShouldExternalizeComments(ProjectBoard board, int serializedLength) =>
         board.Cards.Any(card => card.Comments!.Count > 500) ||
-        JsonSerializer.SerializeToUtf8Bytes(board, JsonOptions).Length > CommentSidecarThresholdBytes;
+        serializedLength > COMMENT_SIDECAR_THRESHOLD_BYTES;
 
     private static byte[] SerializeBoardStorage(ProjectBoard board)
     {
@@ -525,7 +525,7 @@ public sealed partial class ProjectBoardStore
         return JsonSerializer.SerializeToUtf8Bytes(storage, JsonOptions);
     }
 
-    private void ExternalizeComments(string root, BoardSnapshot before, ProjectBoard inlineBoard)
+    private ProjectBoardStore ExternalizeComments(string root, BoardSnapshot before, ProjectBoard inlineBoard)
     {
         if (before.Board.CommentsExternal) throw Corrupt("External comments cannot be migrated a second time.");
         EnsureBoardDirectory(root, create: false);
@@ -536,10 +536,10 @@ public sealed partial class ProjectBoardStore
         if (File.Exists(commentsPath)) throw new TaskCommandException("CONFLICT", "A comment sidecar already exists.", "commentRevision");
 
         string directory = Path.GetDirectoryName(boardPath)!;
-        string journalPath = Path.Combine(directory, CommentMigrationJournalFileName);
-        string backupPath = Path.Combine(directory, CommentMigrationBackupFileName);
-        string boardTempPath = Path.Combine(directory, CommentMigrationBoardTempFileName);
-        string sidecarTempPath = Path.Combine(directory, CommentMigrationSidecarTempFileName);
+        string journalPath = Path.Combine(directory, COMMENT_MIGRATION_JOURNAL_FILE_NAME);
+        string backupPath = Path.Combine(directory, COMMENT_MIGRATION_BACKUP_FILE_NAME);
+        string boardTempPath = Path.Combine(directory, COMMENT_MIGRATION_BOARD_TEMP_FILE_NAME);
+        string sidecarTempPath = Path.Combine(directory, COMMENT_MIGRATION_SIDECAR_TEMP_FILE_NAME);
         if (MigrationArtifactsExist(directory)) throw Corrupt("Unjournaled comment migration artifacts were found.");
 
         ProjectBoard externalBoard = inlineBoard with
@@ -553,7 +553,7 @@ public sealed partial class ProjectBoardStore
         string oldHash = Hash(oldBoard);
         string newBoardHash = Hash(newBoard);
         string newCommentsHash = Hash(newComments);
-        var journal = new CommentMigrationJournal(CommentSidecarSchemaVersion, inlineBoard.BoardId, oldHash, newBoardHash, newCommentsHash);
+        var journal = new CommentMigrationJournal(COMMENT_SIDECAR_SCHEMA_VERSION, inlineBoard.BoardId, oldHash, newBoardHash, newCommentsHash);
         bool journalCreated = false;
         try
         {
@@ -578,18 +578,19 @@ public sealed partial class ProjectBoardStore
             }
             throw;
         }
+        return this;
     }
 
-    private void RecoverCommentsMigration(string root)
+    private ProjectBoardStore RecoverCommentsMigration(string root)
     {
         string directory = Path.Combine(root, ".toolbox");
-        if (!Directory.Exists(directory)) return;
+        if (!Directory.Exists(directory)) return this;
         RejectReparsePoint(directory);
-        string journalPath = Path.Combine(directory, CommentMigrationJournalFileName);
+        string journalPath = Path.Combine(directory, COMMENT_MIGRATION_JOURNAL_FILE_NAME);
         if (!File.Exists(journalPath))
         {
             if (MigrationArtifactsExist(directory)) throw Corrupt("Unjournaled comment migration artifacts were found.");
-            return;
+            return this;
         }
         RejectReparsePoint(journalPath);
         CommentMigrationJournal journal;
@@ -600,7 +601,7 @@ public sealed partial class ProjectBoardStore
             RequireProperties(document.RootElement, "schemaVersion", "boardId", "oldBoardHash", "newBoardHash", "newCommentsHash");
             journal = JsonSerializer.Deserialize<CommentMigrationJournal>(journalBytes, JsonOptions)
                 ?? throw Corrupt("Comment migration journal is empty.");
-            if (journal.SchemaVersion != CommentSidecarSchemaVersion || journal.BoardId == Guid.Empty ||
+            if (journal.SchemaVersion != COMMENT_SIDECAR_SCHEMA_VERSION || journal.BoardId == Guid.Empty ||
                 !IsSha256(journal.OldBoardHash) || !IsSha256(journal.NewBoardHash) || !IsSha256(journal.NewCommentsHash))
                 throw Corrupt("Comment migration journal is invalid.");
         }
@@ -608,10 +609,10 @@ public sealed partial class ProjectBoardStore
         catch (JsonException) { throw Corrupt("Comment migration journal is not valid JSON or contains unknown fields."); }
 
         string boardPath = Path.Combine(directory, "board.json");
-        string commentsPath = Path.Combine(directory, CommentSidecarFileName);
-        string backupPath = Path.Combine(directory, CommentMigrationBackupFileName);
-        string boardTempPath = Path.Combine(directory, CommentMigrationBoardTempFileName);
-        string sidecarTempPath = Path.Combine(directory, CommentMigrationSidecarTempFileName);
+        string commentsPath = Path.Combine(directory, COMMENT_SIDECAR_FILE_NAME);
+        string backupPath = Path.Combine(directory, COMMENT_MIGRATION_BACKUP_FILE_NAME);
+        string boardTempPath = Path.Combine(directory, COMMENT_MIGRATION_BOARD_TEMP_FILE_NAME);
+        string sidecarTempPath = Path.Combine(directory, COMMENT_MIGRATION_SIDECAR_TEMP_FILE_NAME);
         foreach (string path in new[] { boardPath, commentsPath, backupPath, boardTempPath, sidecarTempPath }) RejectReparsePoint(path);
         ValidateMigrationArtifact(backupPath, journal.OldBoardHash);
         ValidateMigrationArtifact(boardTempPath, journal.NewBoardHash);
@@ -624,7 +625,7 @@ public sealed partial class ProjectBoardStore
             CleanupMigrationArtifacts(journalPath, backupPath, boardTempPath, sidecarTempPath, journal);
             knownBoardHashes[journal.BoardId] = journal.NewBoardHash;
             knownCommentHashes[journal.BoardId] = journal.NewCommentsHash;
-            return;
+            return this;
         }
 
         if (currentBoardHash is not (null) && currentBoardHash != journal.OldBoardHash && currentBoardHash != journal.NewBoardHash)
@@ -644,6 +645,7 @@ public sealed partial class ProjectBoardStore
         CleanupMigrationArtifacts(journalPath, backupPath, boardTempPath, sidecarTempPath, journal);
         knownBoardHashes[journal.BoardId] = journal.OldBoardHash;
         knownCommentHashes.Remove(journal.BoardId);
+        return this;
     }
 
     private static void CleanupMigrationArtifacts(
@@ -675,7 +677,7 @@ public sealed partial class ProjectBoardStore
     }
 
     private static bool MigrationArtifactsExist(string directory) =>
-        new[] { CommentMigrationBackupFileName, CommentMigrationBoardTempFileName, CommentMigrationSidecarTempFileName }
+        new[] { COMMENT_MIGRATION_BACKUP_FILE_NAME, COMMENT_MIGRATION_BOARD_TEMP_FILE_NAME, COMMENT_MIGRATION_SIDECAR_TEMP_FILE_NAME }
             .Any(name => File.Exists(Path.Combine(directory, name)));
 
     private static void WriteDurableNewFile(string path, byte[] bytes)
@@ -687,11 +689,11 @@ public sealed partial class ProjectBoardStore
 
     private static bool IsSha256(string value) => value.Length == 64 && value.All(char.IsAsciiHexDigit);
 
-    private static string GetCommentsPath(string root) => Path.Combine(root, ".toolbox", CommentSidecarFileName);
+    private static string GetCommentsPath(string root) => Path.Combine(root, ".toolbox", COMMENT_SIDECAR_FILE_NAME);
 
     private static byte[] SerializeCommentSidecar(ProjectBoard board)
     {
-        var data = new CommentSidecar(CommentSidecarSchemaVersion, board.BoardId, board.CommentRevision,
+        var data = new CommentSidecar(COMMENT_SIDECAR_SCHEMA_VERSION, board.BoardId, board.CommentRevision,
             board.Cards.SelectMany(card => card.Comments!.Select(comment => new ProjectBoardCommentEntry(card.Id, comment))).ToArray());
         return JsonSerializer.SerializeToUtf8Bytes(data, JsonOptions);
     }
@@ -715,7 +717,7 @@ public sealed partial class ProjectBoardStore
             }
             CommentSidecar data = JsonSerializer.Deserialize<CommentSidecar>(bytes, JsonOptions)
                 ?? throw Corrupt("External comments sidecar is empty.");
-            if (data.SchemaVersion != CommentSidecarSchemaVersion || data.BoardId != boardId || data.Revision < 0 || data.Comments == null)
+            if (data.SchemaVersion != COMMENT_SIDECAR_SCHEMA_VERSION || data.BoardId != boardId || data.Revision < 0 || data.Comments == null)
                 throw Corrupt("External comments sidecar header is invalid.");
             return new CommentSidecarSnapshot(data, data.Revision, Hash(bytes));
         }
@@ -758,7 +760,7 @@ public sealed partial class ProjectBoardStore
             foreach (ProjectBoardComment comment in card.Comments ?? [])
             {
                 if (comment == null || comment.Id == Guid.Empty || !globalIds.Add(comment.Id) || string.IsNullOrWhiteSpace(comment.Body) ||
-                    Encoding.UTF8.GetByteCount(comment.Body) > CommentBodyMaxBytes || comment.Author == null ||
+                    Encoding.UTF8.GetByteCount(comment.Body) > COMMENT_BODY_MAX_BYTES || comment.Author == null ||
                     comment.Author.Kind is not ("user" or "agent") || string.IsNullOrWhiteSpace(comment.Author.Id) ||
                     string.IsNullOrWhiteSpace(comment.Author.Name) || string.IsNullOrWhiteSpace(comment.Author.HostId) ||
                     comment.CreatedAt.Kind != DateTimeKind.Utc || comment.UpdatedAt.Kind != DateTimeKind.Utc ||

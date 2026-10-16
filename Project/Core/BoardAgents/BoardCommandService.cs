@@ -1,10 +1,13 @@
+// 共享看板命令服务：UI 与 IPC 共用的分发入口，先由 Store 执行命令，再接入本机投递
+// （确认摘要、处理 ack 与 requestId 幂等缓存）。
+using ToolBox.Core.Boards;
+using ToolBox.Core.Todo;
+
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using ToolBox.Core.Boards;
-using ToolBox.Core.Todo;
 
 namespace ToolBox.Core.BoardAgents;
 
@@ -16,7 +19,7 @@ public sealed record BoardCommentDeliveryResult(
 
 public sealed class BoardCommandService
 {
-    private const int RequestCacheLimit = 256;
+    private const int REQUEST_CACHE_LIMIT = 256;
     private static readonly Lazy<BoardCommandService> DefaultInstance = new(() => new BoardCommandService(
         (request, cancellationToken) =>
         {
@@ -35,11 +38,11 @@ public sealed class BoardCommandService
         "confirm", "confirmationToken", "verifiedUnknown"
     };
 
-    private readonly Func<TaskRequest, CancellationToken, Task<TaskResponse>> _executeStoreAsync;
-    private readonly BoardAgentService _agents;
-    private readonly object _cacheGate = new();
-    private readonly Dictionary<Guid, RequestCacheEntry> _requestCache = [];
-    private readonly Queue<Guid> _requestOrder = [];
+    private readonly Func<TaskRequest, CancellationToken, Task<TaskResponse>> executeStoreAsync;
+    private readonly BoardAgentService agents;
+    private readonly object cacheGate = new();
+    private readonly Dictionary<Guid, RequestCacheEntry> requestCache = [];
+    private readonly Queue<Guid> requestOrder = [];
 
     public static BoardCommandService Instance => DefaultInstance.Value;
 
@@ -47,12 +50,12 @@ public sealed class BoardCommandService
         Func<TaskRequest, CancellationToken, Task<TaskResponse>>? storeExecutor = null,
         BoardAgentService? agents = null)
     {
-        _executeStoreAsync = storeExecutor ?? ((request, cancellationToken) =>
+        executeStoreAsync = storeExecutor ?? ((request, cancellationToken) =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             return ProjectBoardStore.Instance.ExecuteAsync(request);
         });
-        _agents = agents ?? BoardAgentService.Instance;
+        this.agents = agents ?? BoardAgentService.Instance;
     }
 
     public async Task<TaskResponse> ExecuteAsync(TaskRequest request, CancellationToken cancellationToken = default)
@@ -92,9 +95,9 @@ public sealed class BoardCommandService
         RequestCacheEntry entry;
         bool ownsExecution = false;
 
-        lock (_cacheGate)
+        lock (cacheGate)
         {
-            if (_requestCache.TryGetValue(requestId, out entry!))
+            if (requestCache.TryGetValue(requestId, out entry!))
             {
                 if (!string.Equals(entry.Fingerprint, fingerprint, StringComparison.Ordinal))
                     return TaskResponse.Failure(request, "CONFLICT", "requestId was already used with different content.", "requestId");
@@ -102,8 +105,8 @@ public sealed class BoardCommandService
             else
             {
                 entry = new RequestCacheEntry(fingerprint);
-                _requestCache.Add(requestId, entry);
-                _requestOrder.Enqueue(requestId);
+                requestCache.Add(requestId, entry);
+                requestOrder.Enqueue(requestId);
                 ownsExecution = true;
             }
         }
@@ -182,7 +185,7 @@ public sealed class BoardCommandService
         }
 
         BoardAgentDelivery? current;
-        try { current = await _agents.GetDeliveryAsync(agentContext, cancellationToken).ConfigureAwait(false); }
+        try { current = await agents.GetDeliveryAsync(agentContext, cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception)
         {
@@ -212,7 +215,7 @@ public sealed class BoardCommandService
             return TaskResponse.Failure(request, "CONFLICT", "The confirmation token is stale; read the current delivery hash before confirming.", "confirmationToken");
 
         string policy;
-        try { policy = await _agents.GetDeliveryPolicyAsync(cancellationToken).ConfigureAwait(false); }
+        try { policy = await agents.GetDeliveryPolicyAsync(cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception) { return TaskResponse.Failure(request, "IO_ERROR", "The local delivery policy could not be read."); }
 
@@ -226,7 +229,7 @@ public sealed class BoardCommandService
                 return TaskResponse.Success(request, Result(current, projectContext));
             try
             {
-                BoardAgentDelivery? retried = await _agents.RetryAsync(agentContext, expectedHash, userVerifiedUnknown: true, cancellationToken).ConfigureAwait(false);
+                BoardAgentDelivery? retried = await agents.RetryAsync(agentContext, expectedHash, userVerifiedUnknown: true, cancellationToken).ConfigureAwait(false);
                 return TaskResponse.Success(request, Result(retried ?? current, projectContext));
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -238,7 +241,7 @@ public sealed class BoardCommandService
             if (!confirm && policy != "always") return TaskResponse.Success(request, Result(current, projectContext));
             try
             {
-                BoardAgentDelivery? retried = await _agents.RetryAsync(agentContext, expectedHash, userVerifiedUnknown: false, cancellationToken).ConfigureAwait(false);
+                BoardAgentDelivery? retried = await agents.RetryAsync(agentContext, expectedHash, userVerifiedUnknown: false, cancellationToken).ConfigureAwait(false);
                 return TaskResponse.Success(request, Result(retried ?? current, projectContext));
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -250,7 +253,7 @@ public sealed class BoardCommandService
 
         try
         {
-            BoardAgentDelivery delivery = await _agents.EnqueueAsync(agentContext, confirm ? token : null, cancellationToken).ConfigureAwait(false);
+            BoardAgentDelivery delivery = await agents.EnqueueAsync(agentContext, confirm ? token : null, cancellationToken).ConfigureAwait(false);
             TaskResponse queued = TaskResponse.Success(request, Result(delivery, projectContext));
             if (warnings.Count > 0) queued.Warnings = warnings;
             return queued;
@@ -284,7 +287,7 @@ public sealed class BoardCommandService
             var postWarnings = new List<string>();
             BoardAgentCommentContext? context = TryCreateAgentContext(projectContext, postWarnings);
             if (context is null) return AddWarning(response, postWarnings);
-            BoardAgentDelivery delivery = await _agents.EnqueueAsync(context, null, cancellationToken).ConfigureAwait(false);
+            BoardAgentDelivery delivery = await agents.EnqueueAsync(context, null, cancellationToken).ConfigureAwait(false);
             response.Data = AddDeliveryField(response.Data, delivery);
             return response;
         }
@@ -306,7 +309,7 @@ public sealed class BoardCommandService
             var warnings = new List<string>();
             BoardAgentCommentContext? context = TryCreateAgentContext(projectContext, warnings);
             if (context is null) return warnings.Count == 0 ? response : AddWarning(response, warnings);
-            await _agents.MarkAcknowledgedAsync(context, cancellationToken).ConfigureAwait(false);
+            await agents.MarkAcknowledgedAsync(context, cancellationToken).ConfigureAwait(false);
             return response;
         }
         catch (Exception exception)
@@ -333,7 +336,7 @@ public sealed class BoardCommandService
 
     private async Task<TaskResponse> ExecuteStoreAsync(TaskRequest request, CancellationToken cancellationToken)
     {
-        try { return await _executeStoreAsync(request, cancellationToken).ConfigureAwait(false); }
+        try { return await executeStoreAsync(request, cancellationToken).ConfigureAwait(false); }
         catch (TaskCommandException exception) { return TaskResponse.Failure(request, exception.Code, exception.Message, exception.Field); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception) { return FailureFromException(request, exception); }
@@ -602,31 +605,33 @@ public sealed class BoardCommandService
         return left.Length == right.Length && CryptographicOperations.FixedTimeEquals(left, right);
     }
 
-    private void TrimRequestCache()
+    private BoardCommandService TrimRequestCache()
     {
-        lock (_cacheGate)
+        lock (cacheGate)
         {
-            int attempts = _requestOrder.Count;
-            while (_requestCache.Count > RequestCacheLimit && attempts-- > 0 && _requestOrder.TryDequeue(out Guid oldest))
+            int attempts = requestOrder.Count;
+            while (requestCache.Count > REQUEST_CACHE_LIMIT && attempts-- > 0 && requestOrder.TryDequeue(out Guid oldest))
             {
-                if (!_requestCache.TryGetValue(oldest, out RequestCacheEntry? entry)) continue;
+                if (!requestCache.TryGetValue(oldest, out RequestCacheEntry? entry)) continue;
                 if (!entry.Completion.Task.IsCompleted)
                 {
-                    _requestOrder.Enqueue(oldest);
+                    requestOrder.Enqueue(oldest);
                     continue;
                 }
-                _requestCache.Remove(oldest);
+                requestCache.Remove(oldest);
             }
         }
+        return this;
     }
 
-    private void RemoveCacheEntry(Guid requestId, RequestCacheEntry entry)
+    private BoardCommandService RemoveCacheEntry(Guid requestId, RequestCacheEntry entry)
     {
-        lock (_cacheGate)
+        lock (cacheGate)
         {
-            if (_requestCache.TryGetValue(requestId, out RequestCacheEntry? current) && ReferenceEquals(current, entry))
-                _requestCache.Remove(requestId);
+            if (requestCache.TryGetValue(requestId, out RequestCacheEntry? current) && ReferenceEquals(current, entry))
+                requestCache.Remove(requestId);
         }
+        return this;
     }
 
     private sealed class RequestCacheEntry(string fingerprint)

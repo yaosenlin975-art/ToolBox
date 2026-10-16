@@ -281,6 +281,9 @@
     <sys:String x:Key="Lang_Board_DetailsSnapshotHint">窗口打开期间看板有更新；保存仍使用打开时的版本，冲突后请关闭并重新打开。</sys:String>
     <sys:String x:Key="Lang_Board_SnapshotConflict">看板已变化。请关闭并重新打开详情后重试。</sys:String>
     <sys:String x:Key="Lang_Board_OperationFailed">看板操作失败。</sys:String>
+    <sys:String x:Key="Lang_Board_DeliveryAlways">总是自动发送（本机）</sys:String>
+    <sys:String x:Key="Lang_Board_DeliveryAlwaysHint">仅在本机生效（写入本机配置），不会影响远端宿主或项目数据；关闭时使用默认的「发送前确认」。</sys:String>
+    <sys:String x:Key="Lang_Board_ConfirmCandidatePath">使用 {0} 的候选路径：{1}</sys:String>
     <sys:String x:Key="Lang_Board_CommentsChanged">加载评论期间发生变化，请关闭并重新打开详情。</sys:String>
     <sys:String x:Key="Lang_Board_CommentCursorLoop">评论列表返回了重复分页游标。</sys:String>
     <sys:String x:Key="Lang_Board_NoComments">暂无评论。</sys:String>
@@ -308,7 +311,6 @@
     <sys:String x:Key="Lang_Board_DeleteCommentPrompt">删除这条评论？回复会保留。</sys:String>
     <sys:String x:Key="Lang_Board_CommentPrompt">请输入评论：</sys:String>
     <sys:String x:Key="Lang_Board_ConfirmDelivery">确认发送回复</sys:String>
-    <sys:String x:Key="Lang_Board_DeliveryConfirmation">将此回复发送到 {0} / {1}？&#10;&#10;{2}</sys:String>
     <sys:String x:Key="Lang_Board_DeliveryConfirmationExact">将回复发送至 {0} 会话 {1}。这会续接该精确会话，并可能在项目目录 {2} 中执行。&#10;&#10;回复正文：&#10;{3}</sys:String>
     <sys:String x:Key="Lang_Board_DeliveryConfirmationPull">将回复发送到 {0} 的项目收件箱（{1}）。不会续接精确会话；宿主可拉取此回复。&#10;&#10;回复正文：&#10;{2}</sys:String>
     <sys:String x:Key="Lang_Board_UnknownRetryPrompt">上次投递结果未知。请先在目标会话核实该回复未送达，再重试。</sys:String>

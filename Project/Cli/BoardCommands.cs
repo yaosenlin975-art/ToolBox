@@ -1,7 +1,11 @@
+// CLI 看板命令（project / board / column / card）：装配子命令与选项、校验入参，
+// 并把命令行输入归一化后交给 BoardCommandService（v1 命令集）。
+using ToolBox.Core.Todo;
+
 using System.CommandLine;
+
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using ToolBox.Core.Todo;
 
 namespace ToolBox.Cli;
 
@@ -14,7 +18,7 @@ internal static partial class Program
         bool IncludeNull = false,
         Func<ParseResult, bool>? IsActive = null);
 
-    private static void AddBoardCommands(RootCommand root)
+    private static RootCommand AddBoardCommands(RootCommand root)
     {
         var project = new Command("project", "Manage registered project boards.");
         project.SetAction(_ => WriteFailure(new TaskRequest { Operation = "project" }, "INVALID_ARGUMENT", "A project command is required."));
@@ -186,6 +190,7 @@ internal static partial class Program
         board.Subcommands.Add(cards);
         AddBoardV2Commands(board);
         root.Subcommands.Add(board);
+        return root;
     }
 
     private static Command AddBoardCommand(
@@ -235,8 +240,8 @@ internal static partial class Program
 
     private static BoardField AddRevisionField(Command command)
     {
-        const string description = "Expected board revision.";
-        var option = new Option<long?>("--revision") { Description = description };
+        const string DESCRIPTION = "Expected board revision.";
+        var option = new Option<long?>("--revision") { Description = DESCRIPTION };
         command.Options.Add(option);
         return new BoardField("revision", option, parseResult => parseResult.GetValue(option));
     }
@@ -407,14 +412,14 @@ internal static partial class Program
         return JsonSerializer.SerializeToElement(node, TaskProtocol.Options);
     }
 
-    private static void NormalizeBoardPaths(JsonObject payload, string operation, string fallbackCwd)
+    private static JsonObject NormalizeBoardPaths(JsonObject payload, string operation, string fallbackCwd)
     {
-        if (operation == "project.list") return;
+        if (operation == "project.list") return payload;
         if (operation == "project.register")
         {
             if (payload["path"] is JsonValue pathValue && pathValue.TryGetValue<string>(out var path) && !string.IsNullOrWhiteSpace(path))
                 payload["path"] = GetAbsolutePath(path, fallbackCwd, "path");
-            return;
+            return payload;
         }
 
         if (!payload.TryGetPropertyValue("cwd", out JsonNode? cwdNode))
@@ -422,7 +427,7 @@ internal static partial class Program
             payload["cwd"] = GetAbsolutePath(fallbackCwd, Directory.GetCurrentDirectory(), "cwd");
             cwdNode = payload["cwd"];
         }
-        if (cwdNode is not JsonValue cwdValue || !cwdValue.TryGetValue<string>(out var cwd) || string.IsNullOrWhiteSpace(cwd)) return;
+        if (cwdNode is not JsonValue cwdValue || !cwdValue.TryGetValue<string>(out var cwd) || string.IsNullOrWhiteSpace(cwd)) return payload;
 
         string absoluteCwd = GetAbsolutePath(cwd, Directory.GetCurrentDirectory(), "cwd");
         payload["cwd"] = absoluteCwd;
@@ -434,6 +439,7 @@ internal static partial class Program
         if (operation == "board.attachment.add" && payload["file"] is JsonValue fileValue &&
             fileValue.TryGetValue<string>(out var file) && !string.IsNullOrWhiteSpace(file))
             payload["file"] = GetAbsolutePath(file, Directory.GetCurrentDirectory(), "file");
+        return payload;
     }
 
     private static string GetAbsolutePath(string path, string basePath, string field)
@@ -468,7 +474,7 @@ internal static partial class Program
     private static bool PayloadHasOneOf(JsonElement payload, string[] fields) => fields.Any(field =>
         payload.TryGetProperty(field, out var value) && value.ValueKind != JsonValueKind.False);
 
-    private static void ValidateBoardCliPayload(string operation, JsonElement payload)
+    private static JsonElement ValidateBoardCliPayload(string operation, JsonElement payload)
     {
         if (operation == "board.card.list" && payload.TryGetProperty("mine", out var mine) && mine.ValueKind == JsonValueKind.True &&
             (!payload.TryGetProperty("actor", out _) || !payload.TryGetProperty("host", out _)))
@@ -503,5 +509,6 @@ internal static partial class Program
         if (operation == "board.comment.bind" && payload.TryGetProperty("clear", out var clear) && clear.ValueKind == JsonValueKind.True &&
             (payload.TryGetProperty("targetHost", out _) || payload.TryGetProperty("targetSession", out _)))
             throw new TaskCommandException("INVALID_ARGUMENT", "Use clear or target host/session fields.", "clear");
+        return payload;
     }
 }

@@ -1,3 +1,5 @@
+// 项目看板 Agent 投递的公共模型：投递状态常量、评论上下文/宿主信息/投递记录/启动目标/进程规格等记录，
+// 以及宿主发现平台与进程执行平台接口、服务配置选项。
 using System.Diagnostics;
 
 namespace ToolBox.Core.BoardAgents;
