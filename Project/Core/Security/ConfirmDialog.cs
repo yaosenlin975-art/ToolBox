@@ -10,11 +10,16 @@ public static class ConfirmDialog
         if (!string.IsNullOrEmpty(contentSummary))
             message += $"\n\n内容预览:\n{contentSummary}";
 
-        var result = MessageBox.Show(
+        MessageBoxResult ShowDialog() => MessageBox.Show(
             message,
             "文件操作确认",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
+
+        var dispatcher = Application.Current?.Dispatcher;
+        var result = dispatcher == null || dispatcher.CheckAccess()
+            ? ShowDialog()
+            : dispatcher.Invoke(ShowDialog);
 
         return result == MessageBoxResult.Yes;
     }

@@ -43,6 +43,8 @@ public static class FileTools
     public static string FileExists(
         [ToolParam("文件或目录路径")] string path)
     {
+        if (!FileAccessWhitelist.Instance.IsAllowed(path))
+            return "安全限制: 路径不在白名单内: " + path;
         return File.Exists(path) || Directory.Exists(path) ? "true" : "false";
     }
 
@@ -50,6 +52,8 @@ public static class FileTools
     public static string ListDirectory(
         [ToolParam("目录路径")] string path)
     {
+        if (!FileAccessWhitelist.Instance.IsAllowed(path))
+            return "安全限制: 路径不在白名单内: " + path;
         if (!Directory.Exists(path)) return "目录不存在: " + path;
         var entries = Directory.GetFileSystemEntries(path);
         return string.Join("\n", entries.Select(e => Path.GetFileName(e)));

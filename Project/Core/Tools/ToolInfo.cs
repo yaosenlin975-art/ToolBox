@@ -32,7 +32,8 @@ public class ToolInfo
         {
             type = "object",
             properties,
-            required
+            required,
+            additionalProperties = false
         }, new JsonSerializerOptions { WriteIndented = true });
     }
 }
