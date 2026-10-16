@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
@@ -147,7 +148,7 @@ public sealed class ChatView : UserControl
         if (!loaded) return;
         if (!e.IsSuccess)
         {
-            ShowFallback(GetUnavailableText($"页面加载失败：{e.WebErrorStatus}"), true);
+            ShowFallback(IsEnglish() ? $"Page failed to load: {e.WebErrorStatus}" : $"页面加载失败：{e.WebErrorStatus}", true);
             return;
         }
 
@@ -257,12 +258,12 @@ public sealed class ChatView : UserControl
         }
     }
 
-    private static void OpenExternalLink(string value)
+    private void OpenExternalLink(string value)
     {
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
             !string.IsNullOrEmpty(uri.UserInfo))
-            throw new ArgumentException("链接必须是有效的 HTTP 或 HTTPS 地址。");
+            throw new ArgumentException(IsEnglish() ? "The link must be a valid HTTP or HTTPS address." : "链接必须是有效的 HTTP 或 HTTPS 地址。");
 
         Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
     }

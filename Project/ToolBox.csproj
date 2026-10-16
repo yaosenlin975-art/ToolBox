@@ -17,6 +17,7 @@
   <ItemGroup>
     <PackageReference Include="Cronos" Version="0.13.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.9" />
     <PackageReference Include="TesseractOCR" Version="5.5.1" />
@@ -65,6 +66,11 @@
   <!-- 应用自带 VC++ 运行时：防止用户机器 System32 中老版运行时劫持原生 OCR 库依赖导致崩溃 -->
   <ItemGroup>
     <None Include="Natives\VCRuntime\*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
+  <!-- 助手前端静态资源：按相对路径复制到输出目录，发布入口为 <AppBase>\AssistantWeb\dist\index.html -->
+  <ItemGroup Condition="Exists('AssistantWeb\dist')">
+    <None Update="AssistantWeb\dist\**\*" Link="%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

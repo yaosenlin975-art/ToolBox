@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
@@ -23,12 +23,12 @@ public class OpenAiProvider : IProvider, ILlmProvider
     public IReadOnlyList<ModelInfo> Models => [model];
     public IReadOnlyList<ModelInfo> ExtraModels => [];
 
-    public OpenAiProvider(string apiKey, string baseUrl, ModelInfo model)
+    public OpenAiProvider(string apiKey, string baseUrl, ModelInfo model, HttpMessageHandler? httpMessageHandler = null)
     {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl.TrimEnd('/');
         this.model = model;
-        httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        httpClient = new HttpClient(httpMessageHandler ?? new HttpClientHandler()) { Timeout = TimeSpan.FromSeconds(60) };
     }
 
     public async Task<bool> CheckConnectionAsync(CancellationToken ct = default)
@@ -95,8 +95,7 @@ public class OpenAiProvider : IProvider, ILlmProvider
         using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
 
-        string pendingToolId = "", pendingToolName = "", pendingToolArgs = "";
-        bool pendingToolCall = false;
+        var pendingToolCalls = new SortedDictionary<int, ToolCallInfo>();
 
         while (!reader.EndOfStream)
         {
@@ -106,18 +105,7 @@ public class OpenAiProvider : IProvider, ILlmProvider
             var data = line[6..];
             if (data == "[DONE]")
             {
-                if (pendingToolCall)
-                {
-                    yield return new ChatChunk
-                    {
-                        ToolCall = new ToolCallInfo
-                        {
-                            Id = pendingToolId,
-                            Name = pendingToolName,
-                            Arguments = pendingToolArgs
-                        }
-                    };
-                }
+                if (pendingToolCalls.Count > 0) yield return new ChatChunk { ToolCalls = pendingToolCalls.Values.ToArray() };
                 yield return new ChatChunk { IsDone = true };
                 yield break;
             }
@@ -129,22 +117,6 @@ public class OpenAiProvider : IProvider, ILlmProvider
             var choice = choices[0];
             if (!choice.TryGetProperty("delta", out var delta)) continue;
 
-            // Yield pending tool call if content starts (tool call phase ended)
-            if (pendingToolCall && delta.TryGetProperty("content", out _))
-            {
-                yield return new ChatChunk
-                {
-                    ToolCall = new ToolCallInfo
-                    {
-                        Id = pendingToolId,
-                        Name = pendingToolName,
-                        Arguments = pendingToolArgs
-                    }
-                };
-                pendingToolCall = false;
-                pendingToolId = pendingToolName = pendingToolArgs = "";
-            }
-
             if (delta.TryGetProperty("content", out var contentProp) &&
                 contentProp.ValueKind == JsonValueKind.String)
             {
@@ -153,20 +125,19 @@ public class OpenAiProvider : IProvider, ILlmProvider
 
             if (delta.TryGetProperty("tool_calls", out var toolCalls) && toolCalls.GetArrayLength() > 0)
             {
-                var tc = toolCalls[0];
-                var function = tc.GetProperty("function");
-
-                // Accumulate arguments across streaming chunks
-                if (function.TryGetProperty("arguments", out var argsProp) && argsProp.ValueKind == JsonValueKind.String)
-                    pendingToolArgs += argsProp.GetString() ?? "";
-
-                if (tc.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.String)
-                    pendingToolId = idProp.GetString() ?? "";
-
-                if (function.TryGetProperty("name", out var nameProp) && nameProp.ValueKind == JsonValueKind.String)
-                    pendingToolName = nameProp.GetString() ?? "";
-
-                pendingToolCall = true;
+                foreach (JsonElement tc in toolCalls.EnumerateArray())
+                {
+                    int index = tc.TryGetProperty("index", out JsonElement indexProp) && indexProp.TryGetInt32(out int parsed) ? parsed : 0;
+                    if (!pendingToolCalls.TryGetValue(index, out ToolCallInfo? pending))
+                        pendingToolCalls[index] = pending = new ToolCallInfo();
+                    if (tc.TryGetProperty("id", out JsonElement idProp) && idProp.ValueKind == JsonValueKind.String)
+                        pending.Id = idProp.GetString() ?? pending.Id;
+                    if (!tc.TryGetProperty("function", out JsonElement function) || function.ValueKind != JsonValueKind.Object) continue;
+                    if (function.TryGetProperty("name", out JsonElement nameProp) && nameProp.ValueKind == JsonValueKind.String)
+                        pending.Name += nameProp.GetString();
+                    if (function.TryGetProperty("arguments", out JsonElement argsProp) && argsProp.ValueKind == JsonValueKind.String)
+                        pending.Arguments += argsProp.GetString();
+                }
             }
         }
     }
@@ -218,16 +189,19 @@ public class OpenAiProvider : IProvider, ILlmProvider
                 }).ToList()
             };
 
-        if (!string.IsNullOrEmpty(msg.ImagePath) && File.Exists(msg.ImagePath))
+        if (!string.IsNullOrEmpty(msg.ImagePath))
         {
-            var base64 = Convert.ToBase64String(File.ReadAllBytes(msg.ImagePath));
+            if (!model.SupportsMultimodal)
+                throw new NotSupportedException($"当前模型「{model.ModelId}」未声明支持图片输入。");
+            byte[] image = ImageTools.ReadImageBytes(msg.ImagePath);
+            var base64 = Convert.ToBase64String(image);
             return new
             {
                 role = msg.Role,
                 content = new object[]
                 {
                     new { type = "text", text = msg.Content ?? "" },
-                    new { type = "image_url", image_url = new { url = $"data:image/png;base64,{base64}" } }
+                    new { type = "image_url", image_url = new { url = $"data:{ImageTools.GetMimeType(image)};base64,{base64}" } }
                 }
             };
         }

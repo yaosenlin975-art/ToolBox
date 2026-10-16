@@ -25,6 +25,8 @@ When a genuine host session ID is available, also supply `--session <id>` consis
 
 The CLI's identity fields coordinate cooperating agents; they do not authenticate a process or grant filesystem permission.
 
+ToolBox's own assistant can act as a delivery host with `host=internal` and an identity persisted in its session; it follows the same claim, serialization and ack rules as any other host, so never treat it as your own actor or claim on its behalf.
+
 ## Work loop
 
 1. Read the user-specified item. When resuming, query `board card list --mine --actor <self> --host <host>` with your session when known and recover your assigned work before selecting more. When asked to select new work, list `board card list --available`; exclude pending review, closed, deleted and other agents' valid claims. Do not substitute unrelated work for a blocked user-specified item.

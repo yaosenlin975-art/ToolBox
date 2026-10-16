@@ -120,6 +120,21 @@
 
     <sys:String x:Key="Lang_LlmTitle">LLM Assistant</sys:String>
     <sys:String x:Key="Lang_LlmHint">Configure the large language model provider</sys:String>
+    <sys:String x:Key="Lang_AssistantSettings">Assistant runtime and privacy</sys:String>
+    <sys:String x:Key="Lang_AssistantEnabled">Enable AI Assistant</sys:String>
+    <sys:String x:Key="Lang_AssistantEnabledHint">Takes effect when saved. Disabling cancels active Assistant requests.</sys:String>
+    <sys:String x:Key="Lang_AssistantSessionPath">Session and memory storage</sys:String>
+    <sys:String x:Key="Lang_AssistantSessionFilesHint">Session files are stored here; the memory database is in the parent folder at Data\memory.db.</sys:String>
+    <sys:String x:Key="Lang_AssistantWhitelist">File access allowlist</sys:String>
+    <sys:String x:Key="Lang_AssistantWhitelistHint">Assistant file tools can access only directories added here.</sys:String>
+    <sys:String x:Key="Lang_AssistantAddFolder">Add folder</sys:String>
+    <sys:String x:Key="Lang_AssistantRemoveFolder">Remove selected</sys:String>
+    <sys:String x:Key="Lang_AssistantChooseFolder">Choose a folder the Assistant may access</sys:String>
+    <sys:String x:Key="Lang_AssistantClear">Clear all sessions and memory</sys:String>
+    <sys:String x:Key="Lang_AssistantClearConfirm">This permanently deletes all Assistant sessions and memory. Continue?</sys:String>
+    <sys:String x:Key="Lang_AssistantClearComplete">Assistant sessions and memory have been cleared.</sys:String>
+    <sys:String x:Key="Lang_AssistantApplyFailed">The Assistant setting could not be applied. The previous state was restored.</sys:String>
+    <sys:String x:Key="Lang_AssistantPrivacy">Messages, relevant session content, and tool results are sent to the configured model provider to generate replies. Web searches send the query to the search service; image understanding sends the selected image to the configured provider. Sessions and memory are stored locally under %AppData%\ToolBox.</sys:String>
     <sys:String x:Key="Lang_ProviderConfig">Provider configuration</sys:String>
     <sys:String x:Key="Lang_Provider">Provider</sys:String>
     <sys:String x:Key="Lang_Model">Model</sys:String>

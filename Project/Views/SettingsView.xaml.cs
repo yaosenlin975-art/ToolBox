@@ -6,11 +6,18 @@ using System.Windows.Input;
 
 using System.Windows.Shapes;
 
+using System.Text.Json;
+using Microsoft.Win32;
+
+using ToolBox.Core.Assistant;
+
 using ToolBox.Core.ActionChain;
 
 using ToolBox.Core.Providers;
 
 using ToolBox.Core.Reminder;
+
+using ToolBox.Core.Security;
 
 using ToolBox.Core.Scheduling;
 
@@ -72,6 +79,10 @@ public partial class SettingsView : UserControl
         result = ToolBoxOption.Load();
 
         var data = result.Data;
+
+        chkAssistantEnabled.IsChecked = data.AssistantEnabled;
+        txtAssistantSessionsPath.Text = AssistantHost.SessionsDirectory;
+        RefreshAssistantWhitelist();
 
 
 
@@ -440,6 +451,8 @@ public partial class SettingsView : UserControl
         result.Scrap.MouseOverAlphaValue = (int)sldMouseOverAlpha.Value;
 
         result.Data.AutoHideEnabled = chkAutoHide.IsChecked == true;
+
+        result.Data.AssistantEnabled = chkAssistantEnabled.IsChecked == true;
 
 
 
@@ -849,13 +862,23 @@ public partial class SettingsView : UserControl
 
 
 
-    private void BtnSave_Click(object sender, RoutedEventArgs e)
+    private async void BtnSave_Click(object sender, RoutedEventArgs e)
 
     {
 
         CollectSettings();
 
         result.Save();
+
+        string? assistantError = null;
+        try { await AssistantHost.SetEnabledAsync(result.Data.AssistantEnabled); }
+        catch (Exception ex)
+        {
+            result.Data.AssistantEnabled = AssistantHost.IsEnabled;
+            chkAssistantEnabled.IsChecked = AssistantHost.IsEnabled;
+            result.Save();
+            assistantError = ex.Message;
+        }
 
         App.CompactToolbox?.ApplyAutoHide(result.Data.AutoHideEnabled);
         App.ApplyLanguage(result.Language);
@@ -870,15 +893,74 @@ public partial class SettingsView : UserControl
 
         MessageWindow.Show(
 
-            (FindResource("Lang_Save") as string) ?? "保存",
+            (FindResource(assistantError == null ? "Lang_Save" : "Lang_Error") as string) ?? (assistantError == null ? "保存" : "错误"),
 
-            (FindResource("Lang_Saved") as string) ?? "设置已保存",
+            assistantError == null
+                ? (FindResource("Lang_Saved") as string) ?? "设置已保存"
+                : (FindResource("Lang_AssistantApplyFailed") as string) ?? ("助手设置未能生效。\n" + assistantError),
 
             GetOwner());
 
     }
 
 
+
+    private void RefreshAssistantWhitelist() => AssistantWhitelistList.ItemsSource = FileAccessWhitelist.Instance.AllowedPaths;
+
+    private void AddAssistantFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = FindResource("Lang_AssistantChooseFolder") as string ?? "选择目录",
+            Multiselect = false
+        };
+        if (dialog.ShowDialog(GetOwner()) != true) return;
+
+        try
+        {
+            FileAccessWhitelist.Instance.Add(dialog.FolderName);
+            RefreshAssistantWhitelist();
+        }
+        catch (Exception ex)
+        {
+            MessageWindow.Show(FindResource("Lang_Error") as string ?? "错误", ex.Message, GetOwner());
+        }
+    }
+
+    private void RemoveAssistantFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (AssistantWhitelistList.SelectedItem is not string path) return;
+        try
+        {
+            FileAccessWhitelist.Instance.Remove(path);
+            RefreshAssistantWhitelist();
+        }
+        catch (Exception ex)
+        {
+            MessageWindow.Show(FindResource("Lang_Error") as string ?? "错误", ex.Message, GetOwner());
+        }
+    }
+
+    private async void ClearAssistantData_Click(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show(GetOwner(),
+                FindResource("Lang_AssistantClearConfirm") as string ?? "清空所有助手会话与记忆？",
+                FindResource("Lang_AssistantSettings") as string ?? "助手设置",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            return;
+
+        try
+        {
+            using var payload = JsonDocument.Parse("{}");
+            await AssistantHost.Runtime.HandleAsync("sessions.clear", null, payload.RootElement);
+            MessageWindow.Show(FindResource("Lang_AssistantSettings") as string ?? "助手设置",
+                FindResource("Lang_AssistantClearComplete") as string ?? "已清空助手会话与记忆。", GetOwner());
+        }
+        catch (Exception ex)
+        {
+            MessageWindow.Show(FindResource("Lang_Error") as string ?? "错误", ex.Message, GetOwner());
+        }
+    }
 
     private void LoadCategories()
     {

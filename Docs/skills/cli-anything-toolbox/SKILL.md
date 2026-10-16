@@ -143,6 +143,10 @@ $verified = Invoke-ToolBoxCli -Exe $toolboxCli -CliArgs @('task', 'get', $id)
 
 Use the dedicated `toolbox-board` skill for project board CRUD, four-state progress, atomic claims, comments, replies and image attachments. Discover the installed board capabilities before invoking commands. Personal todos continue to use the `task` commands in this skill.
 
+## Assistant tool jobs
+
+When the ToolBox assistant is enabled, the CLI also exposes `tools.list` / `tools.get <name>` / `tools.call <name> --input <json>` / `tools.result <callId>` / `tools.cancel <callId>`. `list`/`get` return static metadata; `call` returns `{callId, status:"queued"}` and runs on the host. Query a job with `tools.result` and stop it with `tools.cancel`; both still work for an existing job after the assistant is disabled, but no new tool call starts. Requests are limited to 4 MiB; a repeated `requestId` with the same payload is idempotent, and jobs left unfinished at restart are reported `unknown` and are never replayed. The assistant is off by default and only the user turns it on in ToolBox settings; when it is off, `tools.list/get/call` return `ASSISTANT_DISABLED` — report that state instead of enabling it yourself.
+
 ## Errors, retries, and boundaries
 
 Business commands return one JSON object on stdout: success has `ok: true` and `data`; failure has `ok: false` and `error.code/message` (sometimes `field`). Diagnostics go to stderr. Exit codes: `0` success, `2` invalid command/input, `3` missing task/capability/file, `4` conflict/oversized result/OCR engine unavailable, `5` host unavailable/timeout/access denied, `6` I/O/data corruption/persistence failure, `7` protocol/internal error.

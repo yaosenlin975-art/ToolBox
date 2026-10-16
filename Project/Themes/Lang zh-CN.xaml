@@ -120,6 +120,21 @@
 
     <sys:String x:Key="Lang_LlmTitle">LLM 助手</sys:String>
     <sys:String x:Key="Lang_LlmHint">配置大语言模型供应商</sys:String>
+    <sys:String x:Key="Lang_AssistantSettings">助手运行与隐私</sys:String>
+    <sys:String x:Key="Lang_AssistantEnabled">启用 AI 助手</sys:String>
+    <sys:String x:Key="Lang_AssistantEnabledHint">保存后立即生效；关闭会取消助手正在执行的请求。</sys:String>
+    <sys:String x:Key="Lang_AssistantSessionPath">会话与记忆存储位置</sys:String>
+    <sys:String x:Key="Lang_AssistantSessionFilesHint">会话文件保存在此目录；记忆数据库位于上级目录的 Data\memory.db。</sys:String>
+    <sys:String x:Key="Lang_AssistantWhitelist">文件访问白名单</sys:String>
+    <sys:String x:Key="Lang_AssistantWhitelistHint">助手文件工具只能访问已添加的目录。</sys:String>
+    <sys:String x:Key="Lang_AssistantAddFolder">添加目录</sys:String>
+    <sys:String x:Key="Lang_AssistantRemoveFolder">移除所选</sys:String>
+    <sys:String x:Key="Lang_AssistantChooseFolder">选择允许助手访问的目录</sys:String>
+    <sys:String x:Key="Lang_AssistantClear">清空全部会话与记忆</sys:String>
+    <sys:String x:Key="Lang_AssistantClearConfirm">此操作将删除全部助手会话和记忆，不能撤销。是否继续？</sys:String>
+    <sys:String x:Key="Lang_AssistantClearComplete">已清空助手会话与记忆。</sys:String>
+    <sys:String x:Key="Lang_AssistantApplyFailed">助手开关未能生效。已恢复之前的开关状态。</sys:String>
+    <sys:String x:Key="Lang_AssistantPrivacy">消息、相关会话内容和工具结果会发送至当前配置的模型供应商以生成回复。网络搜索会向搜索服务发送查询词；图片理解会向当前供应商发送你指定的图片。会话与记忆保存在本机的 %AppData%\ToolBox 目录。</sys:String>
     <sys:String x:Key="Lang_ProviderConfig">供应商配置</sys:String>
     <sys:String x:Key="Lang_Provider">供应商</sys:String>
     <sys:String x:Key="Lang_Model">模型</sys:String>

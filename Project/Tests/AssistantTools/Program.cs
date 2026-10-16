@@ -3,10 +3,19 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using ToolBox.Core.Llm;
+using ToolBox.Core.Providers;
 using ToolBox.Core.Security;
 using ToolBox.Core.Tools;
 
@@ -25,6 +34,9 @@ internal static class Program
         {
             CheckWhitelist(temp, root, outside);
             CheckFileTools(temp, root, outside);
+            await CheckImageTools(temp, root, outside);
+            await CheckProviderImages(temp, root);
+            await CheckOpenAiToolCalls();
             await CheckRegistry();
             Console.WriteLine($"AssistantTools checks passed ({assertions} assertions).");
         }
@@ -138,6 +150,186 @@ internal static class Program
         Check(FileTools.MoveFile(denied, allowedFile).StartsWith("安全限制:", StringComparison.Ordinal), "move_file validates source before confirmation");
     }
 
+    private static async Task CheckImageTools(string temp, string root, string outside)
+    {
+        var whitelist = new FileAccessWhitelist(Path.Combine(temp, "image-whitelist.json"));
+        whitelist.Add(root);
+        SetWhitelist(whitelist);
+
+        var pngPath = Path.Combine(root, "real.png");
+        WriteEncodedImage(pngPath, new PngBitmapEncoder());
+        Check(ImageTools.GetMimeType(ImageTools.ReadImageBytes(pngPath)) == "image/png", "image: decoded PNG reports image/png");
+
+        var mislabeledPath = Path.Combine(root, "mislabeled.png");
+        WriteEncodedImage(mislabeledPath, new JpegBitmapEncoder());
+        Check(ImageTools.GetMimeType(ImageTools.ReadImageBytes(mislabeledPath)) == "image/jpeg", "image: MIME follows real content, not extension");
+
+        var gifPath = Path.Combine(root, "real.gif");
+        WriteEncodedImage(gifPath, new GifBitmapEncoder());
+        Check(ImageTools.GetMimeType(ImageTools.ReadImageBytes(gifPath)) == "image/gif", "image: decoded GIF reports image/gif");
+
+        var bmpPath = Path.Combine(root, "real.bmp");
+        WriteEncodedImage(bmpPath, new BmpBitmapEncoder());
+        Check(ImageTools.GetMimeType(ImageTools.ReadImageBytes(bmpPath)) == "image/bmp", "image: decoded BMP reports image/bmp");
+
+        Check(ImageTools.GetMimeType([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) == "image/png", "image: PNG magic detected");
+        Check(ImageTools.GetMimeType([0xFF, 0xD8, 0xFF, 0xE0]) == "image/jpeg", "image: JPEG magic detected");
+        Check(ImageTools.GetMimeType("GIF87a"u8) == "image/gif", "image: GIF87a magic detected");
+        Check(ImageTools.GetMimeType("GIF89a"u8) == "image/gif", "image: GIF89a magic detected");
+        Check(ImageTools.GetMimeType([0x42, 0x4D, 0x00, 0x00]) == "image/bmp", "image: BMP magic detected");
+        Check(ImageTools.GetMimeType([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]) == "image/webp", "image: WebP magic detected");
+        Throws<InvalidDataException>(() => ImageTools.GetMimeType("NOTIMAGE"u8));
+
+        var deniedPath = Path.Combine(outside, "denied.png");
+        File.Copy(pngPath, deniedPath);
+        Throws<UnauthorizedAccessException>(() => ImageTools.ReadImageBytes(deniedPath));
+        Throws<UnauthorizedAccessException>(() => ImageTools.ReadImageBytes("https://example.test/a.png"));
+
+        SetWhitelist(new FileAccessWhitelist(Path.Combine(temp, "image-empty-whitelist.json")));
+        Throws<UnauthorizedAccessException>(() => ImageTools.ReadImageBytes(pngPath));
+        SetWhitelist(whitelist);
+
+        Throws<FileNotFoundException>(() => ImageTools.ReadImageBytes(Path.Combine(root, "missing.png")));
+
+        var emptyFile = Path.Combine(root, "empty.png");
+        File.WriteAllBytes(emptyFile, []);
+        Throws<InvalidDataException>(() => ImageTools.ReadImageBytes(emptyFile));
+
+        var oversized = Path.Combine(root, "oversized.png");
+        using (var stream = File.Create(oversized)) { stream.SetLength(10L * 1024 * 1024 + 1); }
+        Throws<InvalidDataException>(() => ImageTools.ReadImageBytes(oversized));
+
+        var junk = Path.Combine(root, "junk.png");
+        File.WriteAllBytes(junk, "NOTIMAGE"u8.ToArray());
+        Throws<InvalidDataException>(() => ImageTools.ReadImageBytes(junk));
+
+        var truncatedPng = Path.Combine(root, "truncated.png");
+        File.WriteAllBytes(truncatedPng, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0]);
+        Throws<InvalidDataException>(() => ImageTools.ReadImageBytes(truncatedPng));
+
+        var webp = Path.Combine(root, "fake.webp");
+        File.WriteAllBytes(webp, [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 0, 0, 0, 0]);
+        Throws<NotSupportedException>(() => ImageTools.ReadImageBytes(webp));
+
+        var hugeBmp = Path.Combine(root, "huge.bmp");
+        WriteOversizedBmp(hugeBmp, 9000, 5000);
+        Throws<InvalidDataException>(() => ImageTools.ReadImageBytes(hugeBmp));
+
+        var provider = new FakeImageProvider();
+        var multimodal = new ModelInfo { ModelId = "gpt-4o", SupportsMultimodal = true };
+        Check(await ImageTools.DescribeImageAsync(pngPath, "描述", () => (provider, multimodal)) == "fake-ok", "image: describe_image returns provider answer");
+        Check(provider.LastImagePath == pngPath, "image: image path forwarded to provider");
+        await ThrowsAsync<NotSupportedException>(async () => await ImageTools.DescribeImageAsync(pngPath, "描述", () => (provider, new ModelInfo { ModelId = "text-only", SupportsMultimodal = false })));
+        await ThrowsAsync<UnauthorizedAccessException>(async () => await ImageTools.DescribeImageAsync(deniedPath, "描述", () => (provider, multimodal)));
+        await ThrowsAsync<ArgumentException>(async () => await ImageTools.DescribeImageAsync(pngPath, "  ", () => (provider, multimodal)));
+
+        provider.ReturnError = true;
+        await ThrowsAsync<InvalidOperationException>(async () => await ImageTools.DescribeImageAsync(pngPath, "描述", () => (provider, multimodal)));
+
+        using (var canceled = new CancellationTokenSource())
+        {
+            canceled.Cancel();
+            await ThrowsAsync<OperationCanceledException>(async () => await ImageTools.DescribeImageAsync(pngPath, "描述", () => (provider, multimodal), canceled.Token));
+        }
+    }
+
+    private static void SetWhitelist(FileAccessWhitelist whitelist)
+    {
+        typeof(FileAccessWhitelist).GetField("instance", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, whitelist);
+    }
+
+    private static void WriteEncodedImage(string path, BitmapEncoder encoder)
+    {
+        var bitmap = BitmapSource.Create(2, 2, 96, 96, PixelFormats.Bgra32, null, new byte[2 * 2 * 4], 2 * 4);
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(path);
+        encoder.Save(stream);
+    }
+
+    private static void WriteOversizedBmp(string path, int width, int height)
+    {
+        int rowBytes = (width + 31) / 32 * 4;
+        int dataSize = rowBytes * height;
+        int offset = 14 + 40 + 2 * 4;
+        var bytes = new byte[offset + dataSize];
+        bytes[0] = 0x42;
+        bytes[1] = 0x4D;
+        BitConverter.TryWriteBytes(bytes.AsSpan(2, 4), offset + dataSize);
+        BitConverter.TryWriteBytes(bytes.AsSpan(10, 4), offset);
+        BitConverter.TryWriteBytes(bytes.AsSpan(14, 4), 40);
+        BitConverter.TryWriteBytes(bytes.AsSpan(18, 4), width);
+        BitConverter.TryWriteBytes(bytes.AsSpan(22, 4), height);
+        BitConverter.TryWriteBytes(bytes.AsSpan(26, 2), (short)1);
+        BitConverter.TryWriteBytes(bytes.AsSpan(28, 2), (short)1);
+        BitConverter.TryWriteBytes(bytes.AsSpan(34, 4), dataSize);
+        using var stream = File.Create(path);
+        stream.Write(bytes);
+    }
+
+    private static async Task CheckProviderImages(string temp, string root)
+    {
+        var whitelist = new FileAccessWhitelist(Path.Combine(temp, "provider-whitelist.json"));
+        whitelist.Add(root);
+        SetWhitelist(whitelist);
+
+        var pngPath = Path.Combine(root, "real.png");
+        var base64 = Convert.ToBase64String(ImageTools.ReadImageBytes(pngPath));
+        var model = new ModelInfo { ModelId = "gpt-4o", ProviderName = "OpenAI Compatible", SupportsMultimodal = true };
+        var messages = new ChatMessage[] { new() { Role = "user", Content = "看图", ImagePath = pngPath } };
+
+        var openAi = new CapturingHandler("data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n\ndata: [DONE]\n");
+        await Drain(new OpenAiProvider("k", "https://example.test/v1", model, openAi).ChatAsync(messages, null));
+        Check(openAi.LastBody?.Contains($"data:image/png;base64,{base64}", StringComparison.Ordinal) == true, "provider: OpenAI sends image as data URI with real MIME");
+
+        var anthropic = new CapturingHandler("data: {\"type\":\"message_stop\"}\n\n");
+        await Drain(new AnthropicProvider("k", "https://example.test", model, anthropic).ChatAsync(messages, null));
+        Check(anthropic.LastBody?.Contains("\"media_type\":\"image/png\"", StringComparison.Ordinal) == true &&
+            anthropic.LastBody.Contains(base64, StringComparison.Ordinal), "provider: Anthropic sends base64 with media_type");
+
+        var ollama = new CapturingHandler("{\"message\":{\"content\":\"ok\"},\"done\":true}\n");
+        await Drain(new OllamaProvider("http://localhost:11434", model, ollama).ChatAsync(messages, null));
+        Check(ollama.LastBody?.Contains($"\"images\":[\"{base64}\"]", StringComparison.Ordinal) == true, "provider: Ollama sends images array with base64");
+    }
+
+    private static async Task CheckOpenAiToolCalls()
+    {
+        var model = new ModelInfo { ModelId = "gpt-4o", SupportsMultimodal = true };
+        const string multiSse = """
+data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_a","function":{"name":"read_file","arguments":"{\"pa"}}]}}]}
+
+data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"th\":\"a\"}"}}]}}]}
+
+data: {"choices":[{"delta":{"tool_calls":[{"index":1,"id":"call_b","function":{"name":"list_directory","arguments":"{}"}}]}}]}
+
+data: [DONE]
+
+""";
+        var multi = new OpenAiProvider("k", "https://example.test/v1", model, new CapturingHandler(multiSse));
+        var calls = new List<ToolCallInfo>();
+        await foreach (var chunk in multi.ChatAsync(Array.Empty<ChatMessage>(), null))
+            if (chunk.ToolCalls != null) calls.AddRange(chunk.ToolCalls);
+        Check(calls.Count == 2, "openai: two streamed tool calls parsed");
+        Check(calls[0].Id == "call_a" && calls[0].Name == "read_file" && calls[0].Arguments == "{\"path\":\"a\"}", "openai: index 0 accumulates id/name/arguments");
+        Check(calls[1].Id == "call_b" && calls[1].Name == "list_directory" && calls[1].Arguments == "{}", "openai: index 1 accumulates id/name/arguments");
+
+        const string singleSse = """
+data: {"choices":[{"delta":{"tool_calls":[{"function":{"name":"read_file","arguments":"{}"},"id":"call_x"}]}}]}
+
+data: [DONE]
+
+""";
+        var single = new OpenAiProvider("k", "https://example.test/v1", model, new CapturingHandler(singleSse));
+        var singleCalls = new List<ToolCallInfo>();
+        await foreach (var chunk in single.ChatAsync(Array.Empty<ChatMessage>(), null))
+            if (chunk.ToolCalls != null) singleCalls.AddRange(chunk.ToolCalls);
+        Check(singleCalls.Count == 1 && singleCalls[0].Id == "call_x" && singleCalls[0].Name == "read_file" && singleCalls[0].Arguments == "{}", "openai: single index-less tool call still parsed");
+    }
+
+    private static async Task Drain(IAsyncEnumerable<ChatChunk> stream)
+    {
+        await foreach (var _ in stream) { }
+    }
+
     private static async Task CheckRegistry()
     {
         var fixture = new RegistryFixture();
@@ -226,5 +418,50 @@ internal static class Program
 
         [Tool("fail", "")]
         public string Fail() => throw new InvalidOperationException("business failure");
+    }
+
+    private sealed class FakeImageProvider : ILlmProvider
+    {
+        public string Name => "fake";
+
+        public string? LastImagePath { get; private set; }
+
+        public bool ReturnError { get; set; }
+
+        public async IAsyncEnumerable<ChatChunk> ChatAsync(
+            IReadOnlyList<ChatMessage> messages,
+            IReadOnlyList<ToolInfo>? tools = null,
+            [EnumeratorCancellation] CancellationToken ct = default)
+        {
+            foreach (var message in messages)
+                if (!string.IsNullOrEmpty(message.ImagePath)) LastImagePath = message.ImagePath;
+            await Task.Yield();
+            if (ReturnError)
+            {
+                yield return new ChatChunk { Error = "fake-boom" };
+                yield break;
+            }
+            yield return new ChatChunk { Text = "fake-ok" };
+            yield return new ChatChunk { IsDone = true };
+        }
+    }
+
+    private sealed class CapturingHandler : HttpMessageHandler
+    {
+        private readonly string response;
+
+        public CapturingHandler(string response) => this.response = response;
+
+        public string? LastBody { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.Content != null)
+                LastBody = await request.Content.ReadAsStringAsync(cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(response, Encoding.UTF8, "text/event-stream")
+            };
+        }
     }
 }

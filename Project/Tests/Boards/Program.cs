@@ -302,6 +302,110 @@ internal static class Program
         await CheckCommentExternalizationThresholdsAsync(Path.Combine(root, "comment-thresholds"));
         await CheckCommentMigrationRecoveryAsync(Path.Combine(root, "comment-recovery"));
         await CheckCommentResponseLimitAsync(Path.Combine(root, "comment-response-limit"));
+        await CheckInternalCommentClaimAsync(Path.Combine(root, "internal-claim"));
+    }
+
+    private static async Task CheckInternalCommentClaimAsync(string root)
+    {
+        string registryRoot = Path.Combine(root, "registry");
+        string projectPath = Path.Combine(root, "project");
+        Directory.CreateDirectory(projectPath);
+        Func<TaskRequest, Task<TaskResponse>> todo = request =>
+            Task.FromResult(TaskResponse.Failure(request, "NOT_FOUND", "Todo is unavailable in internal claim checks."));
+        var store = new ProjectBoardStore(registryRoot, todo);
+        var registration = Read<ProjectBoardRegistration>(await CallAsync(store, "project.register", new { path = projectPath, init = true }));
+        string project = registration.BoardId.ToString();
+        string boardPath = Path.Combine(projectPath, ".toolbox", "board.json");
+        Guid internalActor = Guid.NewGuid();
+        const string internalSession = "internal-session";
+
+        ProjectBoardCard bareCard = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.create", new { project, title = "no claim" }), "card");
+        byte[] beforeReject = File.ReadAllBytes(boardPath);
+        TaskResponse rejected = await CallAsync(store, "board.comment.add", new
+        {
+            project, id = bareCard.Id, body = "rejected", actor = internalActor, host = "internal", session = internalSession
+        });
+        CheckCode(rejected, "CONFLICT", "an internal identity without any claim is rejected");
+        Check(File.ReadAllBytes(boardPath).SequenceEqual(beforeReject), "a rejected internal comment writes nothing");
+        Check(Array(Read(await CallAsync(store, "board.comment.list", new { project, id = bareCard.Id })), "comments").Length == 0,
+            "a rejected internal comment never reaches the card comment list");
+
+        ProjectBoardCard inboxCard = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.create", new { project, title = "inbox claim" }), "card");
+        Guid seedActor = Guid.NewGuid();
+        ProjectBoardComment seedRoot = ReadWrapped<ProjectBoardComment>(await CallAsync(store, "board.comment.add", new
+        {
+            project, id = inboxCard.Id, body = "root", actor = seedActor, host = "seed-host", session = "seed-session"
+        }), "comment");
+        _ = await CallAsync(store, "board.comment.bind", new
+        {
+            project, commentId = seedRoot.Id, targetHost = "internal", targetSession = internalSession,
+            actor = seedActor, host = "seed-host", session = "seed-session"
+        });
+        ProjectBoardComment held = ReadWrapped<ProjectBoardComment>(await CallAsync(store, "board.comment.add", new
+        {
+            project, id = inboxCard.Id, parentId = seedRoot.Id, body = "held reply", actor = seedActor, host = "seed-host", session = "seed-session"
+        }), "comment");
+        Check(held.Routing is { Host: "internal", SessionId: internalSession }, "the reservable reply routes to the internal host");
+        JsonElement inbox = Read(await CallAsync(store, "board.comment.inbox", new
+        {
+            project, host = "internal", actor = internalActor, session = internalSession, limit = 1
+        }));
+        Check(Array(inbox, "comments")[0].GetProperty("id").GetGuid() == held.Id, "the internal inbox reserves the routed reply");
+        TaskResponse inboxReply = await CallAsync(store, "board.comment.add", new
+        {
+            project, id = inboxCard.Id, parentId = held.Id, body = "internal inbox reply", actor = internalActor, host = "internal", session = internalSession
+        });
+        Check(inboxReply.Ok, $"an internal reply is allowed while its parent holds a matching inbox claim: {inboxReply.Error?.Code}");
+
+        ProjectBoardCard claimedCard = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.create", new { project, title = "card claim" }), "card");
+        _ = await CallAsync(store, "board.card.claim", new { project, id = claimedCard.Id, actor = internalActor, host = "internal", session = internalSession });
+        TaskResponse claimedComment = await CallAsync(store, "board.comment.add", new
+        {
+            project, id = claimedCard.Id, body = "owner comment", actor = internalActor, host = "internal", session = internalSession
+        });
+        Check(claimedComment.Ok, $"an internal comment is allowed while holding the card claim: {claimedComment.Error?.Code}");
+
+        ProjectBoardCard humanCard = ReadWrapped<ProjectBoardCard>(await CallAsync(store, "board.card.create", new { project, title = "human host" }), "card");
+        ProjectBoardComment humanComment = ReadWrapped<ProjectBoardComment>(await CallAsync(store, "board.comment.add", new
+        {
+            project, id = humanCard.Id, body = "human comment", actor = Guid.NewGuid(), host = "human", session = "human-session"
+        }), "comment");
+        Check(humanComment.Body == "human comment" && humanComment.Author.HostId == "human",
+            "a non-internal host without any claim keeps full comment semantics");
+
+        JsonObject inboxBoard = JsonNode.Parse(File.ReadAllBytes(boardPath))!.AsObject();
+        JsonObject inboxCardNode = inboxBoard["cards"]!.AsArray()
+            .Select(node => node!.AsObject())
+            .First(card => card["id"]!.GetValue<Guid>() == inboxCard.Id);
+        JsonObject heldNode = inboxCardNode["comments"]!.AsArray()
+            .Select(node => node!.AsObject())
+            .First(comment => comment["id"]!.GetValue<Guid>() == held.Id);
+        heldNode["inboxClaim"]!["expiresAt"] = "2020-01-01T00:00:30Z";
+        File.WriteAllText(boardPath, inboxBoard.ToJsonString());
+        var expiredInboxStore = new ProjectBoardStore(registryRoot, todo);
+        TaskResponse expiredInboxReply = await CallAsync(expiredInboxStore, "board.comment.add", new
+        {
+            project, id = inboxCard.Id, parentId = held.Id, body = "expired inbox reply", actor = internalActor, host = "internal", session = internalSession
+        });
+        CheckCode(expiredInboxReply, "CONFLICT", "an expired inbox claim no longer authorizes an internal reply");
+
+        ProjectBoardCard expiredCard = ReadWrapped<ProjectBoardCard>(await CallAsync(expiredInboxStore, "board.card.create", new { project, title = "expired claim" }), "card");
+        _ = await CallAsync(expiredInboxStore, "board.card.claim", new { project, id = expiredCard.Id, actor = internalActor, host = "internal", session = internalSession });
+        JsonObject expiredBoard = JsonNode.Parse(File.ReadAllBytes(boardPath))!.AsObject();
+        JsonObject expiredCardNode = expiredBoard["cards"]!.AsArray()
+            .Select(node => node!.AsObject())
+            .First(card => card["id"]!.GetValue<Guid>() == expiredCard.Id);
+        JsonObject expiredClaimNode = expiredCardNode["claim"]!.AsObject();
+        expiredClaimNode["claimedAt"] = "2020-01-01T00:00:00Z";
+        expiredClaimNode["heartbeatAt"] = "2020-01-01T00:00:00Z";
+        expiredClaimNode["expiresAt"] = "2020-01-01T00:05:00Z";
+        File.WriteAllText(boardPath, expiredBoard.ToJsonString());
+        var expiredCardStore = new ProjectBoardStore(registryRoot, todo);
+        TaskResponse expiredCardComment = await CallAsync(expiredCardStore, "board.comment.add", new
+        {
+            project, id = expiredCard.Id, body = "expired card claim", actor = internalActor, host = "internal", session = internalSession
+        });
+        CheckCode(expiredCardComment, "CONFLICT", "an expired card claim no longer authorizes an internal comment");
     }
 
     private static async Task CheckCommentInlineWriteStressAsync(string root)

@@ -63,7 +63,15 @@ var tests = new (string Name, Func<Task> Run)[]
     ("host JSON disables launch and applies safe argv and timeout", HostJsonConfigurationAsync),
     ("invalid host argv templates fail before process start", InvalidHostTemplatesAreRejectedAsync),
     ("stale confirmation and invalid delivery payload are rejected", StaleConfirmationAndPayloadValidationAsync),
-    ("unknown retry requires verification and request id is idempotent", CommandUnknownRetryIsVerifiedAndIdempotentAsync)
+    ("unknown retry requires verification and request id is idempotent", CommandUnknownRetryIsVerifiedAndIdempotentAsync),
+    ("internal delivery requires confirmation then submits via the internal executor", InternalDeliveryRequiresConfirmationThenSubmitsAsync),
+    ("internal delivery stays failed and hidden while the assistant is off", InternalDeliveryUnavailableWithoutAssistantAsync),
+    ("internal agent refuses an unrouted, foreign or expired claim without a turn", InternalAgentRejectsInvalidClaimAsync),
+    ("internal agent refuses an expired card lease without a turn", InternalAgentRejectsExpiredCardLeaseAsync),
+    ("internal agent replies then recovers ack without a second turn", InternalAgentRecoversAckWithoutSecondTurnAsync),
+    ("internal agent verifies a reply that survived a turn crash", InternalAgentVerifiesReplyAfterTurnCrashAsync),
+    ("internal agent treats an unknown turn without reply as manual and never reruns", InternalAgentUnknownTurnStaysManualAsync),
+    ("original hosts and their routing semantics are unchanged", OriginalHostsRemainUnchangedAsync)
 };
 
 int failed = 0;
@@ -812,6 +820,141 @@ static async Task ChangedEventIsolatedAsync()
     Assert(called > 0, "change event did not fire after status persistence");
 }
 
+static async Task InternalDeliveryRequiresConfirmationThenSubmitsAsync()
+{
+    using var fixture = new Fixture();
+    var runner = new FakeRunner(new BoardAgentProcessResult(0, false, string.Empty));
+    int internalCalls = 0;
+    await using var service = fixture.CreateInternalService(new FakePlatform(fixture.Root, fixture.Root, []), runner,
+        () => true, (_, _, _) => { internalCalls++; return Task.FromResult(new BoardAgentProcessResult(0, false, string.Empty)); });
+    BoardAgentCommentContext context = Context(fixture.ProjectRoot, host: "internal", session: "session-internal");
+
+    BoardAgentDelivery pending = await service.EnqueueAsync(context);
+    Assert(pending.Status == BoardAgentDeliveryStatuses.NeedsConfirmation, "internal delivery did not default to confirmation");
+    Assert(internalCalls == 0, "an unconfirmed internal delivery executed");
+
+    BoardAgentDelivery queued = await service.EnqueueAsync(context, pending.ConfirmationHash);
+    Assert(queued.Status == BoardAgentDeliveryStatuses.Queued, "confirmed internal delivery did not queue");
+    await service.DrainAsync();
+    Assert(internalCalls == 1 && runner.Calls.Count == 0, "internal delivery did not run exactly once through the internal executor");
+    Assert((await service.GetDeliveryAsync(context))?.Status == BoardAgentDeliveryStatuses.Submitted, "internal delivery did not reach submitted");
+    BoardAgentHostInfo internalHost = (await service.DiscoverAsync(refresh: true)).Single(info => info.Host == "internal");
+    Assert(internalHost.Available && internalHost.Mode == "internal" && internalHost.SupportsSession, "enabled internal host was not available");
+}
+
+static async Task InternalDeliveryUnavailableWithoutAssistantAsync()
+{
+    using var fixture = new Fixture();
+    var runner = new FakeRunner(new BoardAgentProcessResult(0, false, string.Empty));
+    int internalCalls = 0;
+    await using var service = fixture.CreateInternalService(new FakePlatform(fixture.Root, fixture.Root, []), runner,
+        () => false, (_, _, _) => { internalCalls++; return Task.FromResult(new BoardAgentProcessResult(0, false, string.Empty)); });
+    BoardAgentCommentContext context = Context(fixture.ProjectRoot, host: "internal", session: "session-internal");
+    BoardAgentDelivery delivery = await service.EnqueueAsync(context, BoardAgentService.GetConfirmationHash(context));
+    await service.DrainAsync();
+
+    Assert(delivery.Status == BoardAgentDeliveryStatuses.Failed && internalCalls == 0, "disabled internal host ran or queued");
+    BoardAgentHostInfo internalHost = (await service.DiscoverAsync(refresh: true)).Single(info => info.Host == "internal");
+    Assert(!internalHost.Available && internalHost.Mode == "internal", "disabled internal host stayed available");
+}
+
+static async Task InternalAgentRejectsInvalidClaimAsync()
+{
+    foreach ((string label, Action<FakeInternalBoard> mutate) in new (string, Action<FakeInternalBoard>)[]
+    {
+        ("unrouted", board => board.RoutedToInternal = false),
+        ("foreign", board => board.ClaimOwnedByActor = false),
+        ("expired", board => board.ClaimExpiresAt = DateTime.UtcNow.AddSeconds(-1))
+    })
+    {
+        using var fixture = new Fixture();
+        var board = new FakeInternalBoard(fixture.ProjectRoot);
+        mutate(board);
+        InternalBoardAgent agent = CreateInternalAgent(fixture, board);
+        BoardAgentProcessResult result = await agent.ExecuteAsync(board.AgentContext(), TimeSpan.FromSeconds(30), CancellationToken.None);
+        Assert(result.ExitCode != 0 && !result.TimedOut, $"{label} claim was not rejected");
+        Assert(board.TurnCalls == 0 && board.AcknowledgedAt is null, $"{label} claim ran a turn or acknowledgement");
+    }
+}
+
+static async Task InternalAgentRejectsExpiredCardLeaseAsync()
+{
+    using var fixture = new Fixture();
+    var board = new FakeInternalBoard(fixture.ProjectRoot)
+    {
+        HasCardClaim = true,
+        CardClaimOwned = true,
+        CardClaimExpiresAt = DateTime.UtcNow.AddSeconds(-1)
+    };
+    InternalBoardAgent agent = CreateInternalAgent(fixture, board);
+    BoardAgentProcessResult result = await agent.ExecuteAsync(board.AgentContext(), TimeSpan.FromSeconds(30), CancellationToken.None);
+    Assert(result.ExitCode != 0 && board.TurnCalls == 0, "an expired card lease ran a turn");
+}
+
+static async Task InternalAgentRecoversAckWithoutSecondTurnAsync()
+{
+    using var fixture = new Fixture();
+    var board = new FakeInternalBoard(fixture.ProjectRoot) { FailAck = true };
+    InternalBoardAgent agent = CreateInternalAgent(fixture, board);
+
+    BoardAgentProcessResult first = await agent.ExecuteAsync(board.AgentContext(), TimeSpan.FromSeconds(30), CancellationToken.None);
+    Assert(first.ExitCode != 0 && board.TurnCalls == 1, "first attempt did not run exactly one turn");
+    Assert(board.AcknowledgedAt is null, "a failed ack still acknowledged the comment");
+
+    board.FailAck = false;
+    BoardAgentProcessResult second = await agent.ExecuteAsync(board.AgentContext(), TimeSpan.FromSeconds(30), CancellationToken.None);
+    Assert(second.ExitCode == 0 && board.AcknowledgedAt is not null, "recovery did not verify the reply and acknowledge");
+    Assert(board.TurnCalls == 1, "recovery re-ran the turn and risked a duplicate reply");
+    Assert(board.LastAckFields is { } fields && fields.TryGetValue("claimId", out JsonElement claimId) &&
+        claimId.GetString() == board.ClaimId.ToString("D") &&
+        fields.TryGetValue("actor", out JsonElement actor) && actor.GetString() == board.Actor.ToString("D") &&
+        fields.TryGetValue("host", out JsonElement host) && host.GetString() == "internal" &&
+        fields.TryGetValue("revision", out JsonElement revision) && revision.GetInt64() == 7,
+        "ack did not bind the original claimId, identity and revision");
+}
+
+static async Task InternalAgentVerifiesReplyAfterTurnCrashAsync()
+{
+    using var fixture = new Fixture();
+    var board = new FakeInternalBoard(fixture.ProjectRoot) { TurnThrows = true };
+    InternalBoardAgent agent = CreateInternalAgent(fixture, board);
+    BoardAgentProcessResult result = await agent.ExecuteAsync(board.AgentContext(), TimeSpan.FromSeconds(30), CancellationToken.None);
+    Assert(result.ExitCode == 0 && board.AcknowledgedAt is not null, "a reply that survived a turn crash was not verified and acknowledged");
+    Assert(board.TurnCalls == 1, "a turn crash caused a duplicate run");
+}
+
+static async Task InternalAgentUnknownTurnStaysManualAsync()
+{
+    using var fixture = new Fixture();
+    var board = new FakeInternalBoard(fixture.ProjectRoot) { TurnThrows = true, AddReplyOnTurn = false };
+    InternalBoardAgent agent = CreateInternalAgent(fixture, board);
+
+    BoardAgentProcessResult first = await agent.ExecuteAsync(board.AgentContext(), TimeSpan.FromSeconds(30), CancellationToken.None);
+    Assert(first.TimedOut && board.TurnCalls == 1, "an unknown turn without a reply was not reported as unknown");
+    BoardAgentProcessResult second = await agent.ExecuteAsync(board.AgentContext(), TimeSpan.FromSeconds(30), CancellationToken.None);
+    Assert(second.TimedOut && board.TurnCalls == 1 && board.AcknowledgedAt is null, "an unknown state reran the turn without human verification");
+}
+
+static async Task OriginalHostsRemainUnchangedAsync()
+{
+    using var fixture = new Fixture();
+    await using var service = fixture.CreateService(new FakePlatform(fixture.Root, fixture.Root, []), new FakeRunner());
+    IReadOnlyList<BoardAgentHostInfo> hosts = await service.DiscoverAsync(refresh: true);
+    string[] originals = ["codex", "claude", "codebuddy", "opencode", "zcode", "qoder", "trae", "workbuddy"];
+    Assert(hosts.Count == 9 && originals.All(name => hosts.Any(info => info.Host == name)), "the original host set changed");
+    BoardAgentCommentContext sessionless = Context(fixture.ProjectRoot, host: "trae", session: null);
+    Assert((await service.EnqueueAsync(sessionless)).Status == BoardAgentDeliveryStatuses.ManualPullRequired, "an original no-session route no longer stays manual pull");
+}
+
+static InternalBoardAgent CreateInternalAgent(Fixture fixture, FakeInternalBoard board) =>
+    new(new InternalBoardAgentOptions
+    {
+        AppDataDirectory = fixture.AppData,
+        BoardExecutor = (request, cancellationToken) => board.ExecuteAsync(request, cancellationToken),
+        TurnRunner = (turn, cancellationToken) => board.RunTurnAsync(turn, cancellationToken),
+        ResolveSessionActor = _ => board.Actor
+    });
+
 static BoardAgentCommentContext Context(string root, string host = "claude", string? session = "session-1") =>
     new("comment-1", "card-1", root, host, session, "Send this comment safely.");
 
@@ -913,6 +1056,20 @@ sealed class Fixture : IDisposable
     public BoardAgentService CreateService(IBoardAgentDiscoveryPlatform platform, IBoardAgentProcessRunner runner) =>
         new(new BoardAgentServiceOptions { AppDataDirectory = AppData, DiscoveryPlatform = platform, ProcessRunner = runner });
 
+    public BoardAgentService CreateInternalService(
+        IBoardAgentDiscoveryPlatform platform,
+        IBoardAgentProcessRunner runner,
+        Func<bool> internalEnabled,
+        Func<BoardAgentCommentContext, TimeSpan, CancellationToken, Task<BoardAgentProcessResult>> internalExecutor) =>
+        new(new BoardAgentServiceOptions
+        {
+            AppDataDirectory = AppData,
+            DiscoveryPlatform = platform,
+            ProcessRunner = runner,
+            InternalEnabled = internalEnabled,
+            InternalExecutor = internalExecutor
+        });
+
     public void Dispose()
     {
         try { Directory.Delete(Root, recursive: true); } catch (IOException) { }
@@ -976,5 +1133,118 @@ sealed class FaultingRunner : IBoardAgentProcessRunner
     {
         Calls++;
         return Task.FromException<BoardAgentProcessResult>(new IOException("simulated pipe write failure after process start"));
+    }
+}
+
+sealed class FakeInternalBoard
+{
+    private readonly List<ProjectBoardComment> comments = [];
+    private readonly DateTime sourceCreatedAt = DateTime.UtcNow.AddMinutes(-1);
+
+    public FakeInternalBoard(string projectRoot) => ProjectRoot = projectRoot;
+
+    public Guid Actor { get; } = Guid.Parse("00000000-0000-0000-0000-0000000000aa");
+    public string Session { get; } = "session-internal";
+    public Guid CardId { get; } = Guid.Parse("00000000-0000-0000-0000-000000000102");
+    public Guid CommentId { get; } = Guid.Parse("00000000-0000-0000-0000-000000000101");
+    public Guid ClaimId { get; } = Guid.Parse("00000000-0000-0000-0000-000000000103");
+    public Guid ReplyId { get; } = Guid.Parse("00000000-0000-0000-0000-000000000104");
+    public string ProjectRoot { get; }
+    public bool RoutedToInternal { get; set; } = true;
+    public bool HasClaim { get; set; } = true;
+    public bool ClaimOwnedByActor { get; set; } = true;
+    public DateTime ClaimExpiresAt { get; set; } = DateTime.UtcNow.AddMinutes(5);
+    public bool HasCardClaim { get; set; }
+    public bool CardClaimOwned { get; set; } = true;
+    public DateTime CardClaimExpiresAt { get; set; } = DateTime.UtcNow.AddMinutes(30);
+    public bool FailAck { get; set; }
+    public bool TurnThrows { get; set; }
+    public bool AddReplyOnTurn { get; set; } = true;
+    public DateTime? AcknowledgedAt { get; private set; }
+    public int TurnCalls { get; private set; }
+    public int AckCalls { get; private set; }
+    public int CardClaimRenewCalls { get; private set; }
+    public Dictionary<string, JsonElement>? LastAckFields { get; private set; }
+
+    public BoardAgentCommentContext AgentContext() =>
+        new(CommentId.ToString("D"), CardId.ToString("D"), ProjectRoot, "internal", Session, "Please handle this comment.");
+
+    public Task RunTurnAsync(InternalBoardTurn turn, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        TurnCalls++;
+        if (AddReplyOnTurn) AddReply(turn.ActorId);
+        if (TurnThrows) throw new IOException("simulated internal turn crash");
+        return Task.CompletedTask;
+    }
+
+    public Task<TaskResponse> ExecuteAsync(TaskRequest request, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(request.Operation switch
+        {
+            "board.comment.get" => TaskResponse.Success(request, BuildContext()),
+            "board.card.get" => TaskResponse.Success(request, new { card = new { deletedAt = (DateTime?)null, claim = BuildCardClaim() } }),
+            "board.comment.list" => TaskResponse.Success(request, new { comments = comments.ToArray(), nextCursor = (string?)null }),
+            "board.comment.ack" => Acknowledge(request),
+            "board.card.claim" => RenewCardClaim(request),
+            _ => TaskResponse.Failure(request, "NOT_FOUND", "unexpected operation")
+        });
+    }
+
+    private void AddReply(Guid actorId)
+    {
+        DateTime now = DateTime.UtcNow.AddSeconds(1);
+        comments.Add(new ProjectBoardComment(
+            ReplyId,
+            CommentId,
+            "Done.",
+            new ProjectBoardAssignee("agent", actorId.ToString("D"), "Assistant", "internal", Session),
+            new ProjectBoardCommentOrigin("internal", Session),
+            null,
+            now,
+            now,
+            null));
+    }
+
+    private ProjectBoardCommentContext BuildContext() => new(
+        new ProjectBoardRegistration(Guid.Parse("00000000-0000-0000-0000-000000000100"), "demo", ProjectRoot),
+        CardId,
+        BuildComment(),
+        7,
+        11);
+
+    private ProjectBoardComment BuildComment() => new(
+        CommentId,
+        null,
+        "Please handle this comment.",
+        new ProjectBoardAssignee("human", "author", "Author", "internal", Session),
+        new ProjectBoardCommentOrigin("internal", Session),
+        new ProjectBoardCommentRouting(RoutedToInternal ? "internal" : "claude", Session),
+        sourceCreatedAt,
+        sourceCreatedAt,
+        null,
+        AcknowledgedAt,
+        AcknowledgedAt is null ? null : "internal",
+        HasClaim ? new ProjectBoardInboxClaim(ClaimOwnedByActor ? Actor.ToString("D") : "00000000-0000-0000-0000-0000000000ff", "internal", Session, ClaimId, ClaimExpiresAt) : null);
+
+    private ProjectBoardClaim? BuildCardClaim() => HasCardClaim
+        ? new ProjectBoardClaim("internal", CardClaimOwned ? Actor.ToString("D") : "other-actor", Session, DateTime.UtcNow, DateTime.UtcNow, CardClaimExpiresAt)
+        : null;
+
+    private TaskResponse Acknowledge(TaskRequest request)
+    {
+        AckCalls++;
+        LastAckFields = request.Payload?.EnumerateObject().ToDictionary(property => property.Name, property => property.Value.Clone(), StringComparer.Ordinal);
+        if (FailAck) return TaskResponse.Failure(request, "IO_ERROR", "simulated ack failure");
+        AcknowledgedAt = DateTime.UtcNow;
+        return TaskResponse.Success(request, new { comment = BuildComment(), revision = 7 });
+    }
+
+    private TaskResponse RenewCardClaim(TaskRequest request)
+    {
+        CardClaimRenewCalls++;
+        CardClaimExpiresAt = DateTime.UtcNow.AddMinutes(30);
+        return TaskResponse.Success(request, new { card = new { deletedAt = (DateTime?)null, claim = BuildCardClaim() } });
     }
 }

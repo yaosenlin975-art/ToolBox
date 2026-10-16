@@ -207,7 +207,8 @@ public class ToolBoxOption
                 ClipboardIgnoredApps = Data.ClipboardIgnoredApps,
                 OcrEngine = Data.OcrEngine,
                 OcrLanguage = Data.OcrLanguage,
-                AutoHideEnabled = Data.AutoHideEnabled
+                AutoHideEnabled = Data.AutoHideEnabled,
+                AssistantEnabled = Data.AssistantEnabled
             },
             Scrap = new ScrapOption
             {
@@ -301,6 +302,7 @@ public class ToolBoxOptionData
     public bool PreviewCardSkipInPinMode { get; set; }
     /// <summary>小窗口靠边自动隐藏（默认开启）</summary>
     public bool AutoHideEnabled { get; set; } = true;
+    public bool AssistantEnabled { get; set; }
 }
 
 public class ScrapOption

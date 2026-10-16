@@ -2,8 +2,10 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Windows;
+using ToolBox.Core.Assistant;
 using ToolBox.Core.Boards;
 using ToolBox.Core.Todo;
+using ToolBox.Models;
 
 namespace ToolBox;
 
@@ -120,6 +122,9 @@ public partial class App : Application
             return;
         }
 
+        try { AssistantHost.Initialize(ToolBoxOption.Load().Data.AssistantEnabled); }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] 助手初始化失败: {ex.Message}"); }
+
         try
         {
             // Construct the shared store before accepting commands or starting timers.
@@ -146,7 +151,9 @@ public partial class App : Application
     }
 
     private Task<TaskResponse> DispatchTaskAsync(TaskRequest request, CancellationToken cancellationToken) =>
-        Dispatcher.InvokeAsync(() => HandleTaskAsync(request, cancellationToken)).Task.Unwrap();
+        TaskProtocol.IsToolsOperation(request.Operation)
+            ? AssistantHost.Tools.ExecuteAsync(request, cancellationToken)
+            : Dispatcher.InvokeAsync(() => HandleTaskAsync(request, cancellationToken)).Task.Unwrap();
 
     private async Task<TaskResponse> HandleTaskAsync(TaskRequest request, CancellationToken cancellationToken)
     {

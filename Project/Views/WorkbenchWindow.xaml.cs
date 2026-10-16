@@ -3,11 +3,13 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using ToolBox.Core.Assistant;
 using ToolBox.Views.ClipboardHistory;
 using ToolBox.Views.Dashboard;
 using ToolBox.Views.NetworkDiagnosis;
 using ToolBox.Views.Todo;
 using ToolBox.Views.Boards;
+using ToolBox.Views.Chat;
 
 namespace ToolBox.Views;
 
@@ -20,6 +22,7 @@ public partial class WorkbenchWindow : Window
     private NetworkDiagnosisView? networkView;
     private SettingsView? settingsView;
     private BoardsView? boardsView;
+    private ChatView? assistantView;
     private string? activePage;
 
     private const double PageTransitionOffset = 5;
@@ -29,6 +32,7 @@ public partial class WorkbenchWindow : Window
     {
         InitializeComponent();
         TheSidebar.NavigationRequested += OnNavigationRequested;
+        AssistantHost.EnabledChanged += OnAssistantEnabledChanged;
         App.LanguageChanged += OnLanguageChanged;
         IsVisibleChanged += WorkbenchWindow_IsVisibleChanged;
         SystemParameters.StaticPropertyChanged += SystemParametersChanged;
@@ -39,11 +43,14 @@ public partial class WorkbenchWindow : Window
 
     public void LoadPage(string page)
     {
+        if (page == "assistant" && !AssistantHost.IsEnabled) page = "dashboard";
+
         object? content = page switch
         {
             "dashboard" => GetDashboard(),
             "todos" => GetTodoView(),
             "boards" => GetBoardsView(),
+            "assistant" => GetAssistantView(),
             "screenshots" => GetHistoryView(),
             "clipboard" => GetClipboard(),
             "network" => GetNetwork(),
@@ -56,6 +63,7 @@ public partial class WorkbenchWindow : Window
             "dashboard" => (FindResource("Lang_Page_Dashboard") as string) ?? "工作台",
             "todos" => (FindResource("Lang_Page_Todos") as string) ?? "待办管理",
             "boards" => (FindResource("Lang_Page_Boards") as string) ?? "项目看板",
+            "assistant" => (FindResource("Lang_Page_Assistant") as string) ?? "AI 助手",
             "screenshots" => (FindResource("Lang_Page_Screenshots") as string) ?? "截图历史",
             "clipboard" => (FindResource("Lang_Page_Clipboard") as string) ?? "剪贴板",
             "network" => (FindResource("Lang_Page_Network") as string) ?? "网络诊断",
@@ -129,14 +137,29 @@ public partial class WorkbenchWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         SystemParameters.StaticPropertyChanged -= SystemParametersChanged;
+        AssistantHost.EnabledChanged -= OnAssistantEnabledChanged;
         App.LanguageChanged -= OnLanguageChanged;
         base.OnClosed(e);
     }
 
+    private void OnAssistantEnabledChanged(bool enabled)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            if (!Dispatcher.HasShutdownStarted)
+                Dispatcher.BeginInvoke(new Action(() => OnAssistantEnabledChanged(enabled)));
+            return;
+        }
+
+        TheSidebar.RefreshAssistantVisibility();
+        if (!enabled && activePage == "assistant") LoadPage("dashboard");
+    }
+
     private void OnLanguageChanged()
     {
-        if (activePage != "boards") return;
-        PageTitle.Text = FindResource("Lang_Page_Boards") as string ?? "项目看板";
+        if (activePage is not ("boards" or "assistant")) return;
+        PageTitle.Text = FindResource(activePage == "boards" ? "Lang_Page_Boards" : "Lang_Page_Assistant") as string ??
+            (activePage == "boards" ? "项目看板" : "AI 助手");
         TheHeader.Title = PageTitle.Text;
     }
 
@@ -165,6 +188,8 @@ public partial class WorkbenchWindow : Window
         boardsView.Refresh();
         return boardsView;
     }
+
+    private ChatView GetAssistantView() => assistantView ??= new ChatView();
 
     private HistoryView GetHistoryView()
     {

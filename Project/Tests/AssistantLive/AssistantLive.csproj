@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <UseWPF>true</UseWPF>
+    <UseAppHost>false</UseAppHost>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>AssistantLive</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <Reference Include="ToolBox">
+      <HintPath>$(ToolBoxBuildDirectory)\ToolBox.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <Target Name="CopyToolBoxRuntimeFiles" AfterTargets="Build">
+    <ItemGroup>
+      <ToolBoxRuntimeFile Include="$(ToolBoxBuildDirectory)\**\*"
+                          Exclude="$(ToolBoxBuildDirectory)\ToolBox.exe;$(ToolBoxBuildDirectory)\ToolBox.deps.json;$(ToolBoxBuildDirectory)\ToolBox.runtimeconfig.json;$(ToolBoxBuildDirectory)\*.pdb;$(ToolBoxBuildDirectory)\toolbox-cli.exe;$(ToolBoxBuildDirectory)\toolbox-cli.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ToolBoxRuntimeFile)"
+          DestinationFiles="@(ToolBoxRuntimeFile->'$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

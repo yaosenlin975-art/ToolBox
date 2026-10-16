@@ -9,9 +9,19 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
+    <Compile Include="..\..\Core\Llm\ChatChunk.cs" Link="ChatChunk.cs" />
+    <Compile Include="..\..\Core\Llm\ChatMessage.cs" Link="ChatMessage.cs" />
+    <Compile Include="..\..\Core\Providers\AnthropicProvider.cs" Link="AnthropicProvider.cs" />
+    <Compile Include="..\..\Core\Providers\ILlmProvider.cs" Link="ILlmProvider.cs" />
+    <Compile Include="..\..\Core\Providers\IProvider.cs" Link="IProvider.cs" />
+    <Compile Include="..\..\Core\Providers\ModelInfo.cs" Link="ModelInfo.cs" />
+    <Compile Include="..\..\Core\Providers\OllamaProvider.cs" Link="OllamaProvider.cs" />
+    <Compile Include="..\..\Core\Providers\OpenAiProvider.cs" Link="OpenAiProvider.cs" />
+    <Compile Include="..\..\Core\Providers\ProviderManager.cs" Link="ProviderManager.cs" />
     <Compile Include="..\..\Core\Security\ConfirmDialog.cs" Link="ConfirmDialog.cs" />
     <Compile Include="..\..\Core\Security\FileAccessWhitelist.cs" Link="FileAccessWhitelist.cs" />
     <Compile Include="..\..\Core\Tools\FileTools.cs" Link="FileTools.cs" />
+    <Compile Include="..\..\Core\Tools\ImageTools.cs" Link="ImageTools.cs" />
     <Compile Include="..\..\Core\Tools\ToolAttribute.cs" Link="ToolAttribute.cs" />
     <Compile Include="..\..\Core\Tools\ToolInfo.cs" Link="ToolInfo.cs" />
     <Compile Include="..\..\Core\Tools\ToolParamAttribute.cs" Link="ToolParamAttribute.cs" />

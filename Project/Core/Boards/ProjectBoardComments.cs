@@ -45,6 +45,8 @@ public sealed partial class ProjectBoardStore
         }
 
         DateTime now = DateTime.UtcNow;
+        if (identity.HostId == "internal")
+            EnsureInternalCommentClaim(card, parent, identity, now);
         string body = RequiredBody(payload);
         var author = CreateCommentAuthor(identity);
         var comment = new ProjectBoardComment(Guid.NewGuid(), parentId, body, author,
@@ -58,6 +60,20 @@ public sealed partial class ProjectBoardStore
         SaveComments(registration.Path, snapshot, updated, result);
         NotifyChanged();
         return result;
+    }
+
+    // 内部身份评论门禁：只有持有本卡有效认领，或所回复父评论的有效收件认领时才允许写入；
+    // 其他宿主的正常评论协作语义保持不变。
+    private static void EnsureInternalCommentClaim(ProjectBoardCard card, ProjectBoardComment? parent, BoardIdentity identity, DateTime now)
+    {
+        if (parent?.InboxClaim is { } inbox && inbox.ExpiresAt > now &&
+            string.Equals(inbox.HostId, identity.HostId, StringComparison.Ordinal) &&
+            string.Equals(inbox.ActorId, identity.ActorId, StringComparison.Ordinal) &&
+            string.Equals(inbox.SessionId, identity.SessionId, StringComparison.Ordinal))
+            return;
+        if (card.Claim is { } claim && claim.ExpiresAt > now && SameIdentity(claim, identity))
+            return;
+        throw new TaskCommandException("CONFLICT", "The internal assistant must hold a valid claim on this item before commenting.", "id");
     }
 
     private TaskResponse CommentGet(JsonElement payload)

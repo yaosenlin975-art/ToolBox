@@ -42,7 +42,7 @@ public class ProviderManager
             ApiKey = "",
             BaseUrl = "https://api.openai.com/v1",
             IsBuiltin = true,
-            Models = [new ModelInfo { ModelId = "gpt-4o", DisplayName = "GPT-4o", ProviderName = "OpenAI Compatible", MaxContextLength = 128000, MaxOutputTokens = 16384 }]
+            Models = [new ModelInfo { ModelId = "gpt-4o", DisplayName = "GPT-4o", ProviderName = "OpenAI Compatible", SupportsMultimodal = true, MaxContextLength = 128000, MaxOutputTokens = 16384 }]
         });
         builtinConfigs.Add(new ProviderConfig
         {

@@ -294,6 +294,7 @@
                                 </Grid>
                             </StackPanel>
                         </Border>
+
                     </StackPanel>
 
                     <!-- ── Section: 截图动作链 ── -->
@@ -637,6 +638,63 @@
                                     <TextBlock Grid.Column="0" Text="{DynamicResource Lang_TestConnection}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                     <Button Grid.Column="1" Content="{DynamicResource Lang_Test}" Style="{StaticResource OutlineButton}" Click="TestConnection_Click" Width="80" HorizontalAlignment="Left" Padding="0,5"/>
                                 </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource SettingsSection}" Margin="0,12,0,0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                    <Path Data="{StaticResource IconChat}" Fill="{DynamicResource AccentBrush}" Width="16" Height="16" Stretch="Uniform"
+                                          VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="{DynamicResource Lang_AssistantSettings}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </StackPanel>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="{DynamicResource Lang_AssistantEnabled}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_AssistantEnabledHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <CheckBox x:Name="chkAssistantEnabled" Grid.Column="1" Style="{StaticResource ModernCheckBox}" VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <StackPanel Margin="0,12,0,12">
+                                    <TextBlock Text="{DynamicResource Lang_AssistantSessionPath}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock x:Name="txtAssistantSessionsPath" FontSize="11" FontFamily="{StaticResource FontMono}" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    <TextBlock Text="{DynamicResource Lang_AssistantSessionFilesHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <Border BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="0,1,0,0"/>
+
+                                <Grid Style="{StaticResource SettingRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="{DynamicResource Lang_AssistantWhitelist}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{DynamicResource Lang_AssistantWhitelistHint}" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Content="{DynamicResource Lang_AssistantAddFolder}" Style="{StaticResource OutlineButton}" Padding="12,5" FontSize="12" Click="AddAssistantFolder_Click"/>
+                                        <Button Content="{DynamicResource Lang_AssistantRemoveFolder}" Style="{StaticResource OutlineButton}" Padding="12,5" FontSize="12" Margin="8,0,0,0" Click="RemoveAssistantFolder_Click"/>
+                                    </StackPanel>
+                                </Grid>
+                                <ListBox x:Name="AssistantWhitelistList" Height="128" Margin="0,0,0,12"
+                                         Background="{DynamicResource BgTertiaryBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                         BorderBrush="{DynamicResource BorderDefaultBrush}" BorderThickness="1"/>
+
+                                <Border Background="{DynamicResource BgTertiaryBrush}" CornerRadius="6" Padding="12">
+                                    <TextBlock Text="{DynamicResource Lang_AssistantPrivacy}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                </Border>
+
+                                <Button Content="{DynamicResource Lang_AssistantClear}" Style="{StaticResource OutlineButton}" Padding="12,6" FontSize="12"
+                                        HorizontalAlignment="Left" Margin="0,12,0,0" Click="ClearAssistantData_Click"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

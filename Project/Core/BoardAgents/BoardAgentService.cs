@@ -17,7 +17,7 @@ public sealed class BoardAgentService : IAsyncDisposable
     private const int MAXIMUM_HOST_TIMEOUT_SECONDS = 3600;
     private static readonly TimeSpan DiscoveryCacheTtl = TimeSpan.FromSeconds(30);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
-    private static readonly string[] HostIds = ["codex", "claude", "codebuddy", "opencode", "zcode", "qoder", "trae", "workbuddy"];
+    private static readonly string[] HostIds = ["codex", "claude", "codebuddy", "opencode", "zcode", "qoder", "trae", "workbuddy", "internal"];
     private static readonly Lazy<BoardAgentService> DefaultInstance = new(CreateDefault);
     private readonly string appDataDirectory;
     private readonly string statePath;
@@ -25,6 +25,8 @@ public sealed class BoardAgentService : IAsyncDisposable
     private readonly IBoardAgentDiscoveryPlatform platform;
     private readonly IBoardAgentProcessRunner processRunner;
     private readonly TimeSpan defaultTimeout;
+    private Func<bool>? internalEnabled;
+    private Func<BoardAgentCommentContext, TimeSpan, CancellationToken, Task<BoardAgentProcessResult>>? internalExecutor;
     private readonly SemaphoreSlim stateGate = new(1, 1);
     private readonly Channel<string> queue = Channel.CreateBounded<string>(new BoundedChannelOptions(128)
     {
@@ -62,8 +64,24 @@ public sealed class BoardAgentService : IAsyncDisposable
         deliveryPath = Path.Combine(appDataDirectory, "board-deliveries.json");
         platform = options.DiscoveryPlatform ?? new WindowsBoardAgentDiscoveryPlatform();
         processRunner = options.ProcessRunner ?? new SystemBoardAgentProcessRunner();
+        internalEnabled = options.InternalEnabled;
+        internalExecutor = options.InternalExecutor;
         defaultTimeout = options.DefaultTimeout > TimeSpan.Zero ? options.DefaultTimeout : TimeSpan.FromSeconds(120);
         worker = Task.Run(WorkerAsync);
+    }
+
+    public void ConfigureInternal(
+        Func<bool> isEnabled,
+        Func<BoardAgentCommentContext, TimeSpan, CancellationToken, Task<BoardAgentProcessResult>> executeAsync)
+    {
+        ArgumentNullException.ThrowIfNull(isEnabled);
+        ArgumentNullException.ThrowIfNull(executeAsync);
+        internalEnabled = isEnabled;
+        internalExecutor = executeAsync;
+        resolutions.TryRemove("internal", out _);
+        discoveryStampUtc = DateTime.MinValue;
+        Interlocked.Exchange(ref deliveryChangePending, 1);
+        RaisePendingChanged();
     }
 
     public string GetConfigPath() => statePath;
@@ -89,7 +107,14 @@ public sealed class BoardAgentService : IAsyncDisposable
             if (!refresh && resolutions.Count == HostIds.Length && DateTime.UtcNow - discoveryStampUtc < DiscoveryCacheTtl)
             {
                 var cached = new List<BoardAgentHostInfo>(HostIds.Length);
-                foreach (string host in HostIds) cached.Add(ToHostInfo(resolutions[host]));
+                foreach (string host in HostIds)
+                {
+                    BoardAgentHostResolution resolution = host == "internal"
+                        ? CreateInternalResolution()
+                        : resolutions[host];
+                    resolutions[host] = resolution;
+                    cached.Add(ToHostInfo(resolution));
+                }
                 return cached;
             }
             var result = new List<BoardAgentHostInfo>(HostIds.Length);
@@ -131,7 +156,7 @@ public sealed class BoardAgentService : IAsyncDisposable
             if (existing is not null)
             {
                 if (existing.Status == BoardAgentDeliveryStatuses.NeedsConfirmation && context.Session is not null &&
-                    resolution.SupportsSession && resolution.Mode == "cli" &&
+                    resolution.Enabled && resolution.SupportsSession && (resolution.Mode == "cli" || resolution.Mode == "internal") &&
                     (string.Equals(state.Policy, "always", StringComparison.Ordinal) || FixedEquals(confirmedHash, key)))
                 {
                     existing.Status = BoardAgentDeliveryStatuses.Queued;
@@ -155,10 +180,12 @@ public sealed class BoardAgentService : IAsyncDisposable
             {
                 status = BoardAgentDeliveryStatuses.ManualPullRequired;
             }
-            else if (!resolution.SupportsSession || resolution.Mode != "cli")
+            else if (!resolution.Enabled || !resolution.SupportsSession || (resolution.Mode != "cli" && resolution.Mode != "internal"))
             {
                 status = BoardAgentDeliveryStatuses.Failed;
-                error = "Exact session delivery is unavailable for this host. Use its inbox pull or manual launch.";
+                error = resolution.Mode == "internal"
+                    ? "The internal assistant is unavailable. Enable Assistant and configure its executor."
+                    : "Exact session delivery is unavailable for this host. Use its inbox pull or manual launch.";
             }
             else if (!string.Equals(state.Policy, "always", StringComparison.Ordinal) && !FixedEquals(confirmedHash, key))
             {
@@ -282,7 +309,7 @@ public sealed class BoardAgentService : IAsyncDisposable
                 return delivery is null ? null : ToDelivery(delivery);
             if (delivery.Status == BoardAgentDeliveryStatuses.Unknown && !userVerifiedUnknown) return ToDelivery(delivery);
             BoardAgentHostResolution resolution = resolutions[context.Host];
-            if (context.Session is null || !resolution.SupportsSession || resolution.Mode != "cli")
+            if (context.Session is null || !resolution.Enabled || !resolution.SupportsSession || (resolution.Mode != "cli" && resolution.Mode != "internal"))
             {
                 delivery.Status = BoardAgentDeliveryStatuses.ManualPullRequired;
                 delivery.Error = null;
@@ -355,6 +382,7 @@ public sealed class BoardAgentService : IAsyncDisposable
     {
         host = NormalizeHost(host);
         if (!HostIds.Contains(host, StringComparer.Ordinal)) throw new ArgumentException("Unknown host.", nameof(host));
+        if (host == "internal") throw new ArgumentException("The internal host does not use an executable path.", nameof(host));
         string fullPath = Path.GetFullPath(path);
         if (!File.Exists(fullPath)) throw new FileNotFoundException("The selected host path does not exist.", fullPath);
         if (IsShellShim(fullPath)) throw new ArgumentException("Select the native executable or the host's JavaScript entry, not a command shim.", nameof(path));
@@ -382,6 +410,7 @@ public sealed class BoardAgentService : IAsyncDisposable
     public BoardAgentLaunchTarget? ResolveLaunch(string host, string projectRoot)
     {
         host = NormalizeHost(host);
+        if (host == "internal") return null;
         string fullRoot = NormalizeProjectRoot(projectRoot);
         if (!resolutions.TryGetValue(host, out BoardAgentHostResolution? resolution)) return null;
         if (!resolution.Enabled) return null;
@@ -427,7 +456,12 @@ public sealed class BoardAgentService : IAsyncDisposable
         string? testRoot = Environment.GetEnvironmentVariable("TOOLBOX_TASK_TEST_ROOT");
         if (!string.IsNullOrWhiteSpace(testRoot)) appDataDirectory = Path.Combine(testRoot, "ToolBox");
 #endif
-        return new BoardAgentService(new BoardAgentServiceOptions { AppDataDirectory = appDataDirectory });
+        return new BoardAgentService(new BoardAgentServiceOptions
+        {
+            AppDataDirectory = appDataDirectory,
+            InternalEnabled = () => InternalBoardAgent.Instance.IsConfigured,
+            InternalExecutor = InternalBoardAgent.Instance.ExecuteAsync
+        });
     }
 
     private async Task WorkerAsync()
@@ -467,6 +501,11 @@ public sealed class BoardAgentService : IAsyncDisposable
             await SetDeliveryErrorAsync(key, BoardAgentDeliveryStatuses.ManualPullRequired, null).ConfigureAwait(false);
             return;
         }
+        if (resolution.Mode == "internal")
+        {
+            await ProcessInternalDeliveryAsync(key, delivery, resolution, cancellationToken).ConfigureAwait(false);
+            return;
+        }
         if (resolution.Mode != "cli" || !resolution.SupportsSession || !File.Exists(resolution.ExecutablePath) ||
             (resolution.EntryPath is not null && !File.Exists(resolution.EntryPath)))
         {
@@ -495,6 +534,62 @@ public sealed class BoardAgentService : IAsyncDisposable
         catch (Exception exception)
         {
             await MarkUnknownBestEffortAsync(key, "Could not persist the host result; delivery may have occurred. " + exception.Message).ConfigureAwait(false);
+        }
+    }
+
+    private async Task ProcessInternalDeliveryAsync(
+        string key,
+        PersistedDelivery delivery,
+        BoardAgentHostResolution resolution,
+        CancellationToken cancellationToken)
+    {
+        Func<BoardAgentCommentContext, TimeSpan, CancellationToken, Task<BoardAgentProcessResult>>? executeAsync = internalExecutor;
+        if (!resolution.Enabled || executeAsync is null || !IsInternalEnabled())
+        {
+            await SetDeliveryErrorAsync(key, BoardAgentDeliveryStatuses.Failed, "The internal assistant is unavailable.").ConfigureAwait(false);
+            return;
+        }
+        if (!await TrySetSendingAsync(key).ConfigureAwait(false)) return;
+
+        TimeSpan timeout = TimeSpan.FromSeconds(resolution.TimeoutSeconds);
+        using var timeoutCancellation = new CancellationTokenSource(timeout);
+        using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCancellation.Token);
+        BoardAgentProcessResult result;
+        try
+        {
+            result = await executeAsync(new BoardAgentCommentContext(
+                delivery.CommentId, delivery.CardId, delivery.ProjectRoot, delivery.Host, delivery.Session, delivery.Body),
+                timeout,
+                linkedCancellation.Token).WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (OperationCanceledException) when (timeoutCancellation.IsCancellationRequested)
+        {
+            await MarkUnknownBestEffortAsync(key, "Internal assistant timed out; its board side effects may have occurred.").ConfigureAwait(false);
+            return;
+        }
+        catch (TimeoutException)
+        {
+            timeoutCancellation.Cancel();
+            await MarkUnknownBestEffortAsync(key, "Internal assistant timed out; its board side effects may have occurred.").ConfigureAwait(false);
+            return;
+        }
+        catch (Exception exception)
+        {
+            await MarkUnknownBestEffortAsync(key, "Internal assistant failed after execution began; its board side effects may have occurred. " + exception.Message).ConfigureAwait(false);
+            return;
+        }
+
+        string finalStatus = result.TimedOut
+            ? BoardAgentDeliveryStatuses.Unknown
+            : result.ExitCode == 0 ? BoardAgentDeliveryStatuses.Submitted : BoardAgentDeliveryStatuses.Failed;
+        string? finalError = result.TimedOut
+            ? LimitUtf8("Internal assistant timed out; its board side effects may have occurred. " + result.ErrorSummary, 2048)
+            : result.ExitCode == 0 ? null : LimitUtf8(result.ErrorSummary, 2048);
+        try { await SetDeliveryErrorAsync(key, finalStatus, finalError).ConfigureAwait(false); }
+        catch (Exception exception)
+        {
+            await MarkUnknownBestEffortAsync(key, "Could not persist the internal assistant result; side effects may have occurred. " + exception.Message).ConfigureAwait(false);
         }
     }
 
@@ -654,6 +749,7 @@ public sealed class BoardAgentService : IAsyncDisposable
     private BoardAgentHostResolution ResolveHost(string host, PersistedState state, bool refresh, out bool configChanged)
     {
         configChanged = false;
+        if (host == "internal") return CreateInternalResolution();
         PersistedHost configuration = state.Hosts.GetValueOrDefault(host) ?? new PersistedHost();
         if (!configuration.Enabled)
             return ApplyHostSettings(new BoardAgentHostResolution(host, "none", null, null, "disabled", UriScheme(host), false, true), configuration);
@@ -927,6 +1023,23 @@ public sealed class BoardAgentService : IAsyncDisposable
         return new BoardAgentHostResolution(host, "app", Path.GetFullPath(exePath), null, via, scheme, false, true);
     }
 
+    private BoardAgentHostResolution CreateInternalResolution() => new(
+        "internal", "internal", null, null, "assistant", null, true, true,
+        Enabled: internalExecutor is not null && IsInternalEnabled(),
+        TimeoutSeconds: Math.Clamp((int)Math.Ceiling(defaultTimeout.TotalSeconds), 1, MAXIMUM_HOST_TIMEOUT_SECONDS));
+
+    private bool IsInternalEnabled()
+    {
+        Func<bool>? isEnabled = internalEnabled;
+        if (isEnabled is null || internalExecutor is null) return false;
+        try { return isEnabled(); }
+        catch (Exception exception)
+        {
+            Debug.WriteLine($"[ToolBox] Internal assistant availability check failed: {exception.Message}");
+            return false;
+        }
+    }
+
     private BoardAgentHostResolution? ResolveManual(string host, string path, string via)
     {
         if (!File.Exists(path) || IsShellShim(path)) return null;
@@ -1122,7 +1235,8 @@ public sealed class BoardAgentService : IAsyncDisposable
         resolution.Host switch
         {
             "codex" => "Codex", "claude" => "Claude Code", "codebuddy" => "CodeBuddy", "opencode" => "OpenCode",
-            "zcode" => "ZCode", "qoder" => "Qoder", "trae" => "Trae", "workbuddy" => "WorkBuddy", _ => resolution.Host
+            "zcode" => "ZCode", "qoder" => "Qoder", "trae" => "Trae", "workbuddy" => "WorkBuddy",
+            "internal" => "ToolBox Assistant", _ => resolution.Host
         },
         resolution.Mode,
         resolution.ExecutablePath,

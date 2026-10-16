@@ -4,7 +4,7 @@
 
 ToolBox 是一款 Windows 桌面截图+贴图工具，基于 .NET 8.0 WPF 构建。在传统截图贴图功能基础上，集成了待办与提醒管理、剪贴板历史、截图历史与标签、OCR 文本识别与在线翻译、定时截图与日报、网络环境诊断、定时关机等能力，并以 Agent CLI + 命名管道对外提供受控的待办/OCR/截图查询。
 
-> 原「AI 助手」（会话式 Agent + 工具调用）已在 2026-10-08 移除；LLM Provider 层保留，仅服务于定时日报与贴图「识别待办」两个内部调用点。
+> 原「AI 助手」（会话式 Agent + 工具调用）曾在 2026-10-08 移除，2026-10-16 恢复并接回工作台（设计见「AI 助手与 Agent 运行时」）；LLM Provider 层同时服务于助手、定时日报与贴图「识别待办」。
 
 ## 技术栈
 
@@ -36,12 +36,21 @@ OCR 复用 Tesseract/WindowsOCR，仅读取本次显式指定的本地图片，�
 Project/
 ├── App.xaml / App.xaml.cs             # 应用入口，单例守卫，语言加载
 ├── GlobalUsings.cs                     # 全局 using
+├── AssistantWeb/                       # 助手前端（React + Vite，构建为静态 dist 随 WPF 发布）
 ├── Core/
 │   ├── HotkeyManager.cs               # 全局热键注册与分发（命名空间 ToolBox.Core.Native）
-│   ├── Llm/                           # LLM 消息模型（供日报、贴图识别待办使用；助手会话已移除）
-│   │   ├── ChatMessage.cs             # 消息模型（含 ToolCalls 字段，当前无调用方写入）
+│   ├── Llm/                           # LLM 运行时（助手会话/流式聊天；日报与贴图识别待办复用其消息模型）
+│   │   ├── AssistantRuntime.cs        # 助手运行时（开关、会话运行队列、取消、generation、工具目录）
+│   │   ├── ChatSession.cs             # 会话模型与持久化
+│   │   ├── Agent.cs                   # 单轮 Agent 循环（流式文本 + 工具步骤）
+│   │   ├── ContextCompressor.cs       # 上下文压缩
+│   │   ├── ISystemPromptBuilder.cs / DefaultSystemPromptBuilder.cs  # 系统提示词组装
+│   │   ├── ChatMessage.cs             # 消息模型（含 ToolCalls 字段与可选 runId）
 │   │   └── ChatChunk.cs               # 流式输出片段
-│   ├── Providers/                     # LLM 供应商适配（活：设置页 + ReportGenerator + ScrapWindow 识别待办）
+│   ├── Assistant/                     # 助手宿主与 CLI 工具作业
+│   │   ├── AssistantHost.cs           # 静态宿主（Initialize/SetEnabledAsync/IsEnabled/EnabledChanged/Tools）
+│   │   └── ToolsCommandService.cs     # tools.list/get/call/result/cancel 作业队列（4 MiB、requestId 幂等）
+│   ├── Providers/                     # LLM 供应商适配（活：助手 + 设置页 + ReportGenerator + ScrapWindow 识别待办）
 │   │   ├── ILlmProvider.cs            # 流式聊天接口
 │   │   ├── IProvider.cs               # 供应商元数据接口（含 CheckConnectionAsync）
 │   │   ├── ModelInfo.cs               # 模型信息
@@ -51,19 +60,23 @@ Project/
 │   │   └── AnthropicProvider.cs       # Anthropic Claude
 │   ├── Translation/                   # 非 LLM 翻译
 │   │   └── TranslationService.cs      # 免费公开在线翻译接口（不依赖 LLM Provider，文本外发第三方）
-│   ├── Tools/                         # ⚠ 工具系统：原供 LLM Agent 调用，随助手移除已无注册入口（见「未接线模块」）
+│   ├── Tools/                         # 工具系统（由 AssistantHost 注册 File/Image/Todo/WebSearch/Board 五类）
 │   │   ├── ToolAttribute.cs           # [Tool("name", "desc")] 标记静态方法
 │   │   ├── ToolParamAttribute.cs      # [ToolParam("desc")] 标记参数
-│   │   ├── ToolInfo.cs                # 工具元数据（仍被 ILlmProvider 签名引用，实参恒为空）
-│   │   ├── ToolRegistry.cs            # 反射扫描 + 执行器（全仓无 Register 调用点）
-│   │   ├── FileTools.cs               # 文件 CRUD（受 FileAccessWhitelist 约束，白名单无 UI 写入入口）
-│   │   ├── TodoTools.cs               # 待办 CRUD（外部读写现由 Agent CLI 承担）
+│   │   ├── ToolInfo.cs                # 工具元数据
+│   │   ├── ToolRegistry.cs            # 反射扫描 + 执行器（逐个参数做 JSON 类型/必需/未知校验）
+│   │   ├── FileTools.cs               # 文件 CRUD（受 FileAccessWhitelist 约束）
+│   │   ├── ImageTools.cs              # describe_image（白名单 → 大小 → 真实格式/MIME → 解码/像素校验）
+│   │   ├── TodoTools.cs               # 待办 CRUD（供助手调用；外部读写由 Agent CLI 承担）
+│   │   ├── BoardTools.cs              # 看板工具（身份由运行时注入，host 固定 internal）
 │   │   └── WebSearchTools.cs          # 网络搜索（DuckDuckGo API）
+│   ├── Memory/                        # 助手会话记忆
+│   │   └── MemoryStore.cs             # SQLite 记忆（%AppData%/ToolBox/Data/memory.db）
 │   ├── Todo/
 │   │   ├── TodoItem.cs                # 待办数据模型（Id/Title/Description/IsCompleted/Priority/Tags/DueDate/ParentId）
 │   │   ├── TodoStore.cs               # 待办持久化 + ItemsChanged 事件 + 重复待办重置与提醒续订
 │   │   ├── TodoStore.Commands.cs      # Agent CLI 命令处理（task.*）
-│   │   ├── TaskProtocol.cs / TaskIpc.cs / TaskPipeHost.cs  # 命名管道协议、客户端与宿主
+│   │   ├── TaskProtocol.cs / TaskIpc.cs / TaskPipeHost.cs  # 命名管道协议（含 task.*/board.*/tools.*）、客户端与宿主
 │   │   ├── AgentCapabilities.cs / AgentOcrCommand.cs / AgentScreenshotCommand.cs  # 能力发现与只读查询
 │   │   ├── RepeatCalculator.cs / RepeatConfig.cs  # 重复规则计算
 │   │   └── SmartDateParser.cs         # 自然语言日期解析
@@ -73,8 +86,9 @@ Project/
 │   │   ├── ProjectBoardComments.cs    # 评论、双 revision、sidecar 外置与迁移 journal
 │   │   └── ProjectBoardAttachments.cs # 图片附件、SHA256 去重、删除 journal 与恢复
 │   ├── BoardAgents/                   # 宿主发现与评论投递（本机配置/状态）
-│   │   ├── BoardAgentService.cs       # 适配器、投递确认、失效重探
+│   │   ├── BoardAgentService.cs       # 适配器、投递确认、失效重探（注入 InternalEnabled/InternalExecutor）
 │   │   ├── BoardCommandService.cs     # UI 与 IPC 共享的看板命令分发
+│   │   ├── InternalBoardAgent.cs      # 第 9 宿主（internal）：门禁、同会话串行、租约截止、写前校验、回帖 ack 恢复
 │   │   ├── BoardAgentModels.cs        # 适配器与投递状态模型
 │   │   └── WindowsBoardAgentDiscoveryPlatform.cs  # PATH/注册表/目录探测
 │   ├── Reminder/                      # 定时提醒（CRH/CSH-28）
@@ -93,7 +107,7 @@ Project/
 │   │   ├── ReportGenerator.cs         # 日报/周报 Markdown 生成
 │   │   └── ShutdownScheduler.cs       # 定时关机（错过时刻不补关机，见「稳定性兜底」）
 │   ├── Security/
-│   │   ├── FileAccessWhitelist.cs     # 文件访问白名单（仅被 Tools 孤儿引用，无 UI 写入入口）
+│   │   ├── FileAccessWhitelist.cs     # 文件访问白名单（助手与工具共享；设置页可增删）
 │   │   └── ConfirmDialog.cs           # 危险操作确认弹窗
 │   ├── Native/
 │   │   ├── NativeMethods.cs           # P/Invoke
@@ -108,7 +122,7 @@ Project/
 │       ├── PreviewCardManager.cs      # 截图后预览卡
 │       └── WindowsFilter.cs           # ⚠ 无调用方
 ├── Models/
-│   ├── SetunaOption.cs                # 全局配置 ToolBoxOption（XML 序列化 + 代理属性；文件名仍是历史名）
+│   ├── SetunaOption.cs                # 全局配置 ToolBoxOption（XML 序列化 + 代理属性；含助手开关 AssistantEnabled）
 │   ├── CStyle.cs                      # 样式定义（IStyleItem 通过代理属性序列化）
 │   ├── ScrapWindow.cs                 # 贴图窗口模型
 │   ├── KeyItem.cs / KeyItemBook.cs    # 快捷键映射
@@ -129,13 +143,14 @@ Project/
 ├── Views/
 │   ├── MainWindow.cs                  # 主窗口（隐藏宿主，管理托盘、热键、截图流程）
 │   ├── CompactToolboxWindow.xaml/.cs  # 迷你模式（Topmost，右下角常驻，待办/截图两面板，靠边自动隐藏）
-│   ├── WorkbenchWindow.xaml/.cs       # 全屏工作台（左侧侧边栏 + 6 页面导航，关闭请求转隐藏）
+│   ├── WorkbenchWindow.xaml/.cs       # 全屏工作台（左侧侧边栏 + 7 页面导航，关闭请求转隐藏）
 │   ├── Shell/Sidebar.xaml / TopHeader.xaml  # 工作台侧边栏与顶栏
 │   ├── SplashWindow.xaml/.cs          # 启动画面（Loading/Error/Complete 三态）
 │   ├── Capture/CaptureWindow.cs       # 截图选区
 │   ├── Dashboard/                     # 仪表盘（统计卡片 + 快捷入口）
 │   ├── Todo/                          # 待办视图、共享详情面板、重复提醒卡片、日历（⚠ 日历未接线）
 │   ├── Boards/                        # 看板视图（BoardsView）、卡片详情（BoardCardDetailsWindow）、主题化弹窗（ProjectBoardDialogs）
+│   ├── Chat/                          # 助手页（ChatView + WebView2 承载、AssistantWebProtocol 桥接协议）
 │   ├── Clipboard/                     # 剪贴板工作台页 + Ctrl+Shift+V 浮窗
 │   ├── Ocr/                           # OCR 结果浮层、选字 Adorner、翻译入口
 │   ├── Color/                         # 取色覆盖层、取色历史、取色 Toast
@@ -173,21 +188,22 @@ ToolBox 采用**启动画面 + 迷你模式 + 全屏工作台**的三组件设�
 - `WindowStyle=None`, `AllowsTransparency=True`, `Topmost=True`
 - 常驻右下角，圆角 14；宽度按面板切换（待办 / 截图缩略两个面板），透明度由设置项 `CompactOpacity` 控制
 - 显示：未完成待办（按 `DueDate` 升序，无截止日期排末尾，可直接切换状态、快速添加、递归显示子任务）+ 最近截图网格
-- 底部按钮跳转：✅待办 / 📸截图 / ⚙设置（原 💬聊天入口随 AI 助手移除）
+- 底部按钮跳转：✅待办 / 📸截图 / ⚙设置（助手入口仅在工作台侧栏，不在迷你窗）
 - 关闭请求（Alt+F4 等）一律转为隐藏：实例由 App 缓存，真关闭后再唤回会抛异常
 - **自动隐藏**：鼠标离开窗口区域后自动淡出隐藏（设置页开关），鼠标移入或全局热键触发时恢复；支持多显示器边缘检测（`MonitorFromWindow` P/Invoke），吸附屏幕边缘时只露出触发条
 
 **全屏工作台（WorkbenchWindow）**：
 - 960×640px（可最大化），普通窗口
 - **布局**：左侧深色侧边栏（Logo + RadioButton 导航项 + 底部区）+ 右侧主内容区（TopHeader + PageHost）
-- **6 个页面**（每页的 View 实例懒创建后复用，避免重复订阅事件）：
+- **7 个页面**（每页的 View 实例懒创建后复用，避免重复订阅事件）：
   - `dashboard` — DashboardView：统计卡片 + 快捷入口，通过 `NavigationRequested` 让工作台跳转
   - `todos` — TodoView：65/35 双栏（左侧筛选+列表，右侧共享详情面板）
   - `screenshots` — HistoryView：网格/列表切换 + 时间筛选（today/week/month/all）+ 标签与搜索 + 分页
   - `clipboard` — ClipboardView：剪贴板历史（搜索/筛选/置顶/收藏）
   - `network` — NetworkDiagnosisView：网络环境诊断与修复
+  - `assistant` — ChatView：助手会话页（侧栏导航项默认折叠，需在设置开启；WebView2 承载 Web 前端，禁用时回落）
   - `settings` — SettingsView：平铺式 Section 布局
-- 从托盘菜单或迷你窗口打开（原 `assistant` 页已随 AI 助手移除）
+- 从托盘菜单或迷你窗口打开（`assistant` 页见「AI 助手与 Agent 运行时」）
 
 ### 窗口层级
 
@@ -231,16 +247,18 @@ Layer 0: 全屏截图 CaptureWindow (覆盖层)
 - `ShutdownScheduler.Instance` — 定时关机
 - `ActionChainStore.Instance` / `ActionChainEngine.Instance` — 动作链存储与执行
 - `ThemeManager.Instance` — 主题管理（Light/Dark/System 三态 + 持久化到 `ToolBoxOption.Data.Theme`）
+- `AssistantRuntime.Instance` — 助手运行时（懒加载；开关、会话运行队列、取消、generation、工具目录）
 
-### LLM 调用点（AI 助手移除后）
+### LLM 调用点
 
-会话式 Agent、上下文压缩、工具调用循环、记忆存储均已移除。当前仅两处调用 LLM：
+会话式 Agent（流式文本 + 工具调用循环 + 上下文压缩 + SQLite 记忆）已接回，与日报、识别待办共三处调用 LLM：
 
+- **AI 助手**：`AssistantRuntime` 驱动 `Agent` 循环，按配置供应商流式回答并在授权范围内调用工具（见「AI 助手与 Agent 运行时」）。
 - **定时日报**：`ReportGenerator` 把当日窗口活动记录（应用名 + 窗口标题）交给活跃 Provider 生成 Markdown。
 - **贴图右键「识别待办」**：`ScrapWindow` 把该贴图区域/整图交给 LLM 解析出候选待办。
 
-两处都会把本机内容发往所配置的第三方端点，属需用户确认的隐私边界；`ILlmProvider.ChatAsync` 的 `tools`
-参数在移除 Agent 后恒为 null。
+三处都会把本机内容发往所配置的第三方端点，属需用户确认的隐私边界；`ILlmProvider.ChatAsync` 的 `tools`
+参数仅由助手运行时传入，日报与识别待办恒为 null。
 
 ### 配置持久化
 
@@ -252,6 +270,7 @@ Layer 0: 全屏截图 CaptureWindow (覆盖层)
 - `ProviderManager` — `%AppData%/ToolBox/active_model.json` + `providers.json`（API Key 目前明文存放）
 - `ClipboardStore` — `%LocalAppData%/ToolBox/clipboard.json` + `clipboard_thumbnails/`
 - `ThemeManager` — 通过 `ToolBoxOption.Data.Theme` 持久化（无独立文件）
+- `AssistantRuntime` — 会话 `%AppData%/ToolBox/chats.json` + `sessions/*.json`；记忆 `Data/memory.db`（SQLite）；白名单 `file_whitelist.json`；工具作业与内部投递元数据同应用目录
 - 旧版 `Setuna` 目录在 `CacheManager.Init` 时一次性迁移到 `ToolBox`
 
 ### 启动流程（App.OnStartup / InitializeDesktop）
@@ -296,7 +315,7 @@ Layer 0: 全屏截图 CaptureWindow (覆盖层)
 - **迷你窗口** — 仅显示未完成项（`IsDone=false`），按 `DueDate` 升序，无 `DueDate` 排末尾；checkbox 切换状态 + 快速添加；递归显示子任务层级（子任务 depth×16px 缩进，父任务进度由子任务自动聚合）
 - **工作台 todos 页** — 65/35 双栏布局：左侧筛选（全部/待办/已完成 胶囊样式）+ 快速添加 + 列表（checkbox + 优先级点 + 标题 + 标签 + 截止日期）；右侧详情面板使用共享 `TodoDetailPanel` 组件
 - **共享 TodoDetailPanel** — 提取为独立 `UserControl`（`Project/Views/Todo/TodoDetailPanel.xaml(.cs)`），统一大窗口（TodoView）和小窗口（TodoDetailWindow）的任务详情展示；包含：可编辑标题、状态徽章、完成复选框、分类输入（带自动补全）、优先级单选按钮、截止日期选择器、进度滑块、重复配置、描述文本框、时间戳、子任务列表、操作按钮
-- **外部读写** — 待办的增删改查/状态/回收站由 Agent CLI 经命名管道进入 `TodoStore`（`TodoStore.Commands.cs`）；原供 LLM 调用的 `TodoTools` 随助手移除已无注册入口
+- **外部读写** — 待办的增删改查/状态/回收站由 Agent CLI 经命名管道进入 `TodoStore`（`TodoStore.Commands.cs`）；`TodoTools` 供助手运行时调用（同一存储）
 - **同级排序** — "全部"视图中，已完成待办项自动下沉至同级未完成项下方（层级关系不变，仅调整显示顺序）
 - **详情面板联动** — 按"重复频率"下拉值联动显隐字段：频率=不重复时显示截止日期与完成进度；频率≠不重复时显示提醒时间与结束日期
 - **进度与完成 toggle 交互约束**：
@@ -313,7 +332,7 @@ Layer 0: 全屏截图 CaptureWindow (覆盖层)
 ### 设置
 
 - 通过迷你窗口按钮或托盘菜单打开 WorkbenchWindow，导航至 `settings` 页
-- 设置视图 `SettingsView` 嵌入工作台主内容区：**页内左侧导航 + 每次只显示一个 Section**（`Section*` 面板默认 Collapsed，按对应 `Nav*` 选中项切换），当前共 13 节
+- 设置视图 `SettingsView` 嵌入工作台主内容区：**页内左侧导航 + 每次只显示一个 Section**（`Section*` 面板默认 Collapsed，按对应 `Nav*` 选中项切换），当前共 14 节
 
 | Section | 内容 |
 |---------|------|
@@ -322,7 +341,8 @@ Layer 0: 全屏截图 CaptureWindow (覆盖层)
 | 截图 | 选区透明度、边框线型与颜色（**当前无消费者**，见「未接线模块」） |
 | 剪贴板 | 条目数上限、忽略应用 |
 | OCR | 引擎选择（WindowsOCR / Tesseract）、识别语言 |
-| 模型（Provider） | 供应商选择/模型发现、API Key/Base URL、测试连接、自定义供应商管理；仅供日报与识别待办使用 |
+| 模型（Provider） | 供应商选择/模型发现、API Key/Base URL、测试连接、自定义供应商管理；供助手、日报与识别待办使用 |
+| AI 助手 | 启用开关、会话数据路径、文件访问白名单增删、隐私说明、清空全部会话与记忆（默认关闭） |
 | 动作链 | 链列表、设为默认、删除、新建（节点名取 `NodeFactory.GetAvailableNodeTypes()`） |
 | 定时任务 | 定时全屏截图（Cron 表达式）、每日行为总结（时间设置） |
 | 提醒管理 | 定时提醒列表、启停、删除（托盘「提醒管理」直达此节） |
@@ -416,6 +436,7 @@ Layer 0: 全屏截图 CaptureWindow (覆盖层)
 | 定时截图 | AutoScreenshotCron | `0 */30 * * * *`（6 段含秒） |
 | 每日总结 | DailyReportEnabled | false |
 | 每日总结 | DailyReportTime | 18:00 |
+| 助手 | `AssistantEnabled` | false |
 
 
 ## 稳定性兜底
@@ -433,7 +454,7 @@ Layer 0: 全屏截图 CaptureWindow (覆盖层)
 
 | 模块 | 现状 | 设计出处 |
 |------|------|---------|
-| `Core/Tools/*`（ToolRegistry、File/Todo/WebSearch/Screenshot/ActionChain/Ocr/Clipboard/Color Tools） | 注册入口随 ChatView 删除，反射扫描无调用点；`FileAccessWhitelist` 因此恒为空表 | 助手移除说明 + `04-Action-Chain.md` |
+| `Core/Tools/*` 中 Screenshot/ActionChain/Ocr/Clipboard/Color 等工具 | 助手恢复后注册入口已接回（`AssistantHost` 仅注册 File/Image/Todo/WebSearch/Board 五类），其余工具仍无调用点 | 助手设计 + `04-Action-Chain.md` |
 | `Core/StepCapture` + `Views/StepCapture` | 鼠标钩子从未安装（`_hookId` 恒 0），预览窗两个按钮是「功能待实现」，且缺 `.xaml` | `10-Quick-Designs.md` P2-04 步骤捕获 |
 | `Core/SmartRedaction` | `ApplyBlur` 原样克隆画回（无模糊）、`DetectSensitiveRegions` 恒返回零矩形 → 整条链路 no-op | P2-05 智能打码 |
 | `Core/QrCode` / `Core/CloudShare` | 两个 stub 方法恒返回 null | P3-02 QR 码识别、云分享 |
@@ -461,6 +482,9 @@ Layer 0: 全屏截图 CaptureWindow (覆盖层)
 | 活跃模型 | `%AppData%/ToolBox/active_model.json` |
 | 看板宿主适配器配置 | `%AppData%/ToolBox/board-agents.json`（本机，不入项目目录） |
 | 看板投递状态 | `%AppData%/ToolBox/board-deliveries.json`（本机） |
+| 助手会话 | `%AppData%/ToolBox/chats.json` + `sessions/*.json` |
+| 助手记忆 | `%AppData%/ToolBox/Data/memory.db`（SQLite） |
+| 助手文件白名单 | `%AppData%/ToolBox/file_whitelist.json` |
 | 活动记录（日报数据源） | `%AppData%/ToolBox/Data/activity/{yyyy-MM-dd}.jsonl` |
 | 日报/周报 | `%AppData%/ToolBox/Data/reports/{daily,weekly}/*.md` |
 | 截图缓存（贴图恢复源） | `%LocalAppData%/ToolBox/{17位时间戳}/` |
@@ -469,7 +493,7 @@ Layer 0: 全屏截图 CaptureWindow (覆盖层)
 | 日志 | `%LocalAppData%/ToolBox/Logs/{crash,shutdown}.log` |
 
 > 旧版 `%AppData%/Setuna`、`%LocalAppData%/Setuna` 在 `CacheManager.Init` 时一次性迁移到 `ToolBox`，历史文档中的 Setuna 路径不再有效。
-> `%AppData%/ToolBox/chats.json` 与 `sessions/` 是 AI 助手遗留数据，现已无读写方（是否清理由「未接线模块」一并决定）。
+> 助手恢复后，`chats.json`、`sessions/`、`Data/memory.db`、`file_whitelist.json` 重新成为活动数据（见「AI 助手与 Agent 运行时」）。
 
 ## 项目规则
 
@@ -515,6 +539,22 @@ WPF 与 `project`/`board` CLI 经同一 `ProjectBoardStore` 处理；命名管�
 - **评论自动外置与迁移 journal**：候选序列化严格大于 2 MiB（2,097,152 字节）或单卡评论严格超过 500 条时，触发写入即把评论外置到 `.toolbox/comments.json`（`commentsExternal=true`，独立 revision）。迁移用一次性 journal + 旧 board 备份 + 新文件 hash：两新 hash 齐备则提交，否则回滚旧 board 并只清除 hash 匹配的临时文件，未知 hash 拒绝写入并保留证据。之后评论在 sidecar 上单独原子更新；IPC 仍限 4 MiB。
 - **图片附件**：元数据内嵌卡片 `attachments`，图片本体存项目内 `.toolbox/board-assets/<cardId>/<attachmentId>.<ext>`。允许 `png/jpg/jpeg/gif/bmp`、单张 ≤ 10 MiB；按 SHA256 去重（同卡片同哈希直接返回已有项）；先写临时文件再原子改名，路径拒绝重解析点与越界。删除先写限定 `attachments.journal.json`（tombstone + 文件当前 hash）再删元数据；读取时按 journal 恢复——删除已完成则清理、未完成则按 hash 还原、未知或不符 hash 的条目不自动清除。卡片软删除不删除图片，缺失/篡改只返回 `exists`/`missing` 标记。
 - **宿主适配器与投递**：回复投递由共享 `BoardAgentService` 路由（UI 与 IPC 同一入口）；适配器配置存本机 `%AppData%/ToolBox/board-agents.json`，投递状态（`needsConfirmation / queued / sending / submitted / acknowledged / failed / unknown / manualPullRequired` + 错误摘要）存 `%AppData%/ToolBox/board-deliveries.json`，两者都不写入项目目录、不入 Git。宿主发现按本机配置 → PATH/npm → URL 协议与卸载注册表 → 版本目录 → 常见目录兜底，失败进入 `mode=none` 并允许手工指定；原生 exe 与 Node 入口用参数数组传递、消息优先走 stdin，不拼接 shell、不加权限绕过参数、不把 cmd/ps1 shim 当 exe。无 CLI 的 GUI 宿主走宿主内拉取（技能首步 `comment inbox` 后 `ack`）或按 URI 协议/可执行路径手工唤起（`ResolveLaunch`），未确认前标 `manualPullRequired`。
-- **CLI**：`board.*` 共 32 项能力（`capabilities list` 合计 49 项），其中状态 5 项（claim/release/submit/close/reopen）、评论 10 项（add/get/list/update/delete/inbox/ack/bind/deliver/delivery）、附件 3 项（add/list/remove）；列/卡片既有命令扩展 `--actor/--host/--session/--parent-id/--clear-parent-id/--status/--available/--mine/--ttl-minutes/--transition/--comment-revision` 等字段。完整参数以 `--help` 与 `capabilities get` 为准。
+- **CLI**：`board.*` 共 32 项能力（`capabilities list` 合计 54 项，含助手 `tools.*` 5 项），其中状态 5 项（claim/release/submit/close/reopen）、评论 10 项（add/get/list/update/delete/inbox/ack/bind/deliver/delivery）、附件 3 项（add/list/remove）；列/卡片既有命令扩展 `--actor/--host/--session/--parent-id/--clear-parent-id/--status/--available/--mine/--ttl-minutes/--transition/--comment-revision` 等字段。完整参数以 `--help` 与 `capabilities get` 为准。
 - **技能**：新增 `Docs/skills/toolbox-board/SKILL.md`（随 `ToolBox.Cli.csproj` 链接复制到发布包 `skills/toolbox-board/SKILL.md`）承载看板协作流程；`cli-anything-toolbox` 的看板章节收敛为指向该技能的指针。CLI/host 版本为 2.1.0。
 - **v1→v2 兼容**：v1 读取时在内存迁移（不落盘，下次成功写入保存 v2）；旧版“进行中”缺执行身份时置 `notStarted` 并返回迁移提示。旧版 ToolBox 读到 v2 按未知 schema 拒绝并保留原文件（`DATA_CORRUPT`），降级前需备份。
+
+## AI 助手与 Agent 运行时
+
+工作台 `assistant` 页承载会话式助手，唯一 WPF 入口是 `Views/Chat/ChatView.cs`：内嵌 WebView2（新增 `Microsoft.Web.WebView2` 依赖），以虚拟 origin `https://toolbox.assistant.local` 加载随应用发布的 `AssistantWeb/dist/index.html`，首次进入页时初始化；运行时缺失时显示安装说明，其它功能不受影响。前端在 `Project/AssistantWeb`，由 Vite 把 assistant-ui React 应用构建成纯静态资源（运行期不依赖 Node、前端服务器或 CDN），`Views/Chat/AssistantWebProtocol.cs` 定义桥接协议。
+
+桥接契约：消息 envelope 为 `{version,id,type,sessionId?,payload}`；Web→C# 含 ready、会话 list/create/select/rename/delete、message.send、run.cancel、sessions.clear、link.open；C#→Web 回 snapshot 与 run/text/tool/status 事件、error、theme/locale。命令响应回带原 id；拒绝未知 type、额外权限、错误 schema、超长消息与错误来源。仅允许固定虚拟 origin，阻止任意导航、弹窗与下载；link.open 只由真实用户点击、经 C# 校验后打开 http/https。C# 是消息、会话、工具权限、供应商凭据与存储的唯一权威，React 仅用 external-store runtime 展示快照与增量事件，不启用云端历史或前端模型调用。
+
+运行时（`Core/Llm/`）：`AssistantRuntime.Instance` 懒加载，管理开关、会话运行队列、取消、generation 守卫与工具目录。每次发送捕获不可变 sessionId/runId/generation/provider，迟到事件不得写入别的会话或已清空 generation；同一会话同一时间最多一个轮次，不同会话相互独立。`ChatSession`、`Agent`、`ContextCompressor`、`ISystemPromptBuilder/DefaultSystemPromptBuilder` 承载会话持久化、单轮 Agent 循环、上下文压缩与系统提示词；记忆由 `Core/Memory/MemoryStore.cs`（SQLite）承担。
+
+工具与权限边界：宿主 `Core/Assistant/AssistantHost.cs` 是静态入口（`Initialize/SetEnabledAsync/IsEnabled/EnabledChanged/Tools`，`DataDirectory` 在 DEBUG 下可由 `TOOLBOX_TASK_TEST_ROOT` 重定向），其 `Tools` 只注册 `Core/Tools/{FileTools,ImageTools,TodoTools,WebSearchTools,BoardTools}.cs` 五类，不自动注册 Clipboard/Screenshot/ActionChain 等范围外工具。所有文件读写检查同一 `Core/Security/FileAccessWhitelist.cs`：目录匹配取自身或分隔符后代，拒绝设备/UNC/网络路径与越过白名单的 reparse point。`ImageTools.cs` 的 `describe_image` 走「白名单 → 大小 → 真实格式/MIME → 解码/像素校验」，≤10 MiB，空白名单即拒绝；Provider 按真实 MIME 发送图片，`ProviderManager` 为 `gpt-4o` 置 `SupportsMultimodal=true`，不支持图片的模型返回可操作错误。`BoardTools.cs` 暴露 `board_list_cards/list_comments/claim_card/reply_comment/ack_comment`，执行身份由运行时注入（模型/CLI 参数不能覆盖 actor/host，host 固定 `internal`），看板写入经 `BoardCommandService` 携带 revision 与完整 claim。
+
+CLI 工具作业：`Core/Assistant/ToolsCommandService.cs` 提供 `tools.list/get/call/result/cancel`。list/get 同步返回、关闭助手时返回 `ASSISTANT_DISABLED`；call 快速返回 `{callId,status:"queued"}`，再经 result 取终态（queued/running/completed/failed/canceled），result/cancel 在关闭后仍可查询或取消已有作业但不启动新调用；单帧 4 MiB，requestId+请求指纹保证同进程重复请求不重复执行，重启把在途作业标 `unknown` 不重放有副作用操作。`Core/Todo/TaskProtocol.cs` 识别 `tools.*` 并校验 `tools.call` 参数，`App.xaml.cs` 把 `tools.*` 分流到 `AssistantHost.Tools`。
+
+内部看板宿主：`internal` 作为第 9 个投递宿主（`BoardAgentService` 注入 `InternalEnabled/InternalExecutor`），不创建外部进程；`Core/BoardAgents/InternalBoardAgent.cs` 负责门禁、同会话串行、租约截止、每次写入前校验 claim 与回帖 ack 崩溃恢复。内部会话持久保存一个独立 GUID actor（host=`internal`、session=会话 id），不继承启动进程的外部 actor。`Core/Boards/ProjectBoardComments.cs` 的 `CommentAdd` 增加 internal 有效 claim 门禁，其余宿主语义不变。
+
+开关与持久化：`Models/SetunaOption.cs` 的 `AssistantEnabled` 默认 false（`DeepCopy` 同步）；侧栏导航项默认折叠，工作台对禁用页回落，设置页提供开关、会话路径、白名单增删、隐私说明与「清空全部会话与记忆」。数据落在 `%AppData%/ToolBox/`：会话 `chats.json` 与 `sessions/*.json`、记忆 `Data/memory.db`、白名单 `file_whitelist.json`、工具作业与内部投递元数据同目录；清空流程先关闭新轮次、递增 generation、取消并等待在途轮次与工具，再串行删除。系统提示词、文件白名单、图片与搜索外发、会话/记忆持久化边界均由用户在 2026-10-16 确认，详见 `恢复LLM助手与Agent运行时.md`。

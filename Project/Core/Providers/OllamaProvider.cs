@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
@@ -22,11 +22,11 @@ public class OllamaProvider : IProvider, ILlmProvider
     public IReadOnlyList<ModelInfo> Models => [model];
     public IReadOnlyList<ModelInfo> ExtraModels => [];
 
-    public OllamaProvider(string baseUrl, ModelInfo model)
+    public OllamaProvider(string baseUrl, ModelInfo model, HttpMessageHandler? httpMessageHandler = null)
     {
         this.baseUrl = baseUrl.TrimEnd('/');
         this.model = model;
-        httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+        httpClient = new HttpClient(httpMessageHandler ?? new HttpClientHandler()) { Timeout = TimeSpan.FromSeconds(120) };
     }
 
     public async Task<bool> CheckConnectionAsync(CancellationToken ct = default)
@@ -63,7 +63,7 @@ public class OllamaProvider : IProvider, ILlmProvider
 
     public async IAsyncEnumerable<ChatChunk> ChatAsync(
         IReadOnlyList<ChatMessage> messages,
-        IReadOnlyList<ToolInfo> tools,
+        IReadOnlyList<ToolInfo>? tools = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         var request = new OllamaChatRequest
@@ -71,10 +71,13 @@ public class OllamaProvider : IProvider, ILlmProvider
             Model = model.ModelId,
             Messages = messages.Select(m =>
             {
-                var ollamaMsg = new OllamaMessage { Role = m.Role, Content = m.Content };
-                if (!string.IsNullOrEmpty(m.ImagePath) && File.Exists(m.ImagePath))
+                var ollamaMsg = new OllamaMessage { Role = m.Role, Content = m.Content ?? "" };
+                if (!string.IsNullOrEmpty(m.ImagePath))
                 {
-                    var base64 = Convert.ToBase64String(File.ReadAllBytes(m.ImagePath));
+                    if (!model.SupportsMultimodal)
+                        throw new NotSupportedException($"当前模型「{model.ModelId}」未声明支持图片输入。");
+                    byte[] image = ImageTools.ReadImageBytes(m.ImagePath);
+                    var base64 = Convert.ToBase64String(image);
                     ollamaMsg.Images = [base64];
                 }
                 return ollamaMsg;

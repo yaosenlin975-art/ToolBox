@@ -16,7 +16,8 @@
 | 定时工具 | 定时截图、日报与定时关机 |
 | 迷你窗口 | 快速查看待办和截图，支持折叠、靠边隐藏与握柄唤起 |
 | 项目看板 | 数据随项目目录保存，支持列/卡片/子事项、拖放排序、回收站与复制到个人待办，并提供四态认领、评论与图片附件协作 |
-| Agent CLI | 能力发现、个人待办、项目看板（含协作与附件）、指定图片本地 OCR、截图标签查询 |
+| AI 助手 | 工作台会话式 Agent：Markdown 流式回复、工具执行过程、会话管理与会话记忆；默认关闭，需在设置中开启 |
+| Agent CLI | 能力发现、个人待办、项目看板（含协作与附件）、指定图片本地 OCR、截图标签查询、AI 助手工具作业 |
 
 迷你窗口靠近或部分超出屏幕外侧的任意一边，静置后先对齐工作区，再自动收起；指针留在窗口内时只回靠，移开后才收起。悬停或点击窄握柄可展开。动画支持中途反向，并遵循 Windows 的动画效果开关。页面切换、折叠和按钮也提供轻量反馈。
 
@@ -79,6 +80,8 @@ CLI 在 ToolBox 未运行时会自动启动无窗口后台；之后正常打开 
 项目看板使用 `project` 和 `board` 命令，个人待办继续使用 `task`。首次初始化使用 `project register --path <目录> --init`；已有看板登记时省略 `--init`。项目数据位于 `.toolbox/board.json`，取消登记不删除文件。
 
 看板 v2 增加协作：卡片四态（未开始／进行中／待验收／已关闭），`board card claim/release/submit/close/reopen` 原子认领与租约；`board comment inbox/ack/deliver` 处理评论与回复投递；`board attachment add/list/remove` 管理图片附件（`png/jpg/jpeg/gif/bmp`，单张 ≤ 10 MiB，存于项目 `.toolbox/board-assets/`）。具体参数以 `capabilities list` 与 `board <命令> --help` 为准。
+
+AI 助手默认关闭，需在设置（设置 → AI 助手）中显式开启。开启后可通过 `tools list` / `tools get <name>` / `tools call <name> --input <json>` 让外部 Agent 执行受控工具，并用 `tools result <callId>` / `tools cancel <callId>` 查询或取消长调用；关闭助手时 `tools list/get/call` 返回 `ASSISTANT_DISABLED`（`tools result/cancel` 对已有作业仍可用）。
 
 详细命令、错误处理与能力边界见 [CLI 使用说明](Docs/task-cli-usage.md)。Agent 可使用 [cli-anything-toolbox 技能](Docs/skills/cli-anything-toolbox/SKILL.md) 与 [toolbox-board 技能](Docs/skills/toolbox-board/SKILL.md)（看板协作流程），发布包中也会附带 `skills/cli-anything-toolbox/SKILL.md` 与 `skills/toolbox-board/SKILL.md`；按所用 Agent 的技能目录约定安装，并配置实际的 CLI 路径。生成含 CLI 与技能的完整发布包使用：
 

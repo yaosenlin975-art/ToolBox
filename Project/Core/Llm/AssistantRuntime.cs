@@ -91,6 +91,19 @@ public sealed class AssistantRuntime
         get { lock (stateLock) return enabled; }
     }
 
+    public long Generation
+    {
+        get { lock (stateLock) return generation; }
+    }
+
+    public bool IsCurrentSession(string sessionId, Guid actorId, long expectedGeneration)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || actorId == Guid.Empty) return false;
+        lock (stateLock)
+            return enabled && !clearing && generation == expectedGeneration &&
+                sessions.Any(session => session.Id == sessionId && session.ActorId == actorId);
+    }
+
     public Guid GetSessionActorId(string sessionId)
     {
         lock (stateLock)

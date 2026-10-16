@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
@@ -29,12 +29,12 @@ public class AnthropicProvider : IProvider, ILlmProvider
         new() { ModelId = "claude-haiku-4-20250414", DisplayName = "Claude Haiku 4", ProviderName = "Anthropic", SupportsMultimodal = true, MaxContextLength = 200000, MaxOutputTokens = 8192 },
     ];
 
-    public AnthropicProvider(string apiKey, string baseUrl, ModelInfo model)
+    public AnthropicProvider(string apiKey, string baseUrl, ModelInfo model, HttpMessageHandler? httpMessageHandler = null)
     {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl.TrimEnd('/');
         this.model = model;
-        httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        httpClient = new HttpClient(httpMessageHandler ?? new HttpClientHandler()) { Timeout = TimeSpan.FromSeconds(60) };
     }
 
     public async Task<bool> CheckConnectionAsync(CancellationToken ct = default)
@@ -62,7 +62,7 @@ public class AnthropicProvider : IProvider, ILlmProvider
 
     public async IAsyncEnumerable<ChatChunk> ChatAsync(
         IReadOnlyList<ChatMessage> messages,
-        IReadOnlyList<ToolInfo> tools,
+        IReadOnlyList<ToolInfo>? tools = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         var systemMsg = messages.FirstOrDefault(m => m.Role == "system");
@@ -198,7 +198,7 @@ public class AnthropicProvider : IProvider, ILlmProvider
     /// 将 ChatMessage 转换为 Anthropic Messages API 格式。
     /// 处理 tool_use（assistant 消息中的工具调用）和 tool_result（tool 角色的工具结果）。
     /// </summary>
-    private static object BuildAnthropicMessage(ChatMessage msg)
+    private object BuildAnthropicMessage(ChatMessage msg)
     {
         // 工具结果消息 → Anthropic user 消息，content 为 tool_result 块
         if (msg.Role == "tool")
@@ -257,9 +257,12 @@ public class AnthropicProvider : IProvider, ILlmProvider
         }
 
         // 带图片的消息
-        if (!string.IsNullOrEmpty(msg.ImagePath) && File.Exists(msg.ImagePath))
+        if (!string.IsNullOrEmpty(msg.ImagePath))
         {
-            var base64 = Convert.ToBase64String(File.ReadAllBytes(msg.ImagePath));
+            if (!model.SupportsMultimodal)
+                throw new NotSupportedException($"当前模型「{model.ModelId}」未声明支持图片输入。");
+            byte[] image = ImageTools.ReadImageBytes(msg.ImagePath);
+            var base64 = Convert.ToBase64String(image);
             return new Dictionary<string, object>
             {
                 ["role"] = msg.Role,
@@ -276,7 +279,7 @@ public class AnthropicProvider : IProvider, ILlmProvider
                         ["source"] = new Dictionary<string, object>
                         {
                             ["type"] = "base64",
-                            ["media_type"] = "image/png",
+                            ["media_type"] = ImageTools.GetMimeType(image),
                             ["data"] = base64
                         }
                     }

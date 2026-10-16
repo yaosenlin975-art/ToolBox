@@ -2,6 +2,18 @@
 
 本文件记录每次功能开发/修复的变更内容。
 
+## [2026-10-16] 恢复 LLM 助手与 Agent 运行时
+
+- 恢复助手入口：新增 `Project/AssistantWeb`（assistant-ui React 0.15.29 / React 19.2.0 / react-markdown 10.1.0 / remark-gfm 4.0.1，由 Vite 构建为随应用发布的静态 `dist`）；WPF 侧新增 `Microsoft.Web.WebView2` 依赖与 `Project/Views/Chat/ChatView.cs`（虚拟 origin `https://toolbox.assistant.local`，加载 `<AppBase>\AssistantWeb\dist\index.html`，桥接协议见 `Project/Views/Chat/AssistantWebProtocol.cs`）；同时新增默认折叠的侧栏导航项、工作台 `assistant` 页路由与禁用回落，以及设置页 AI 助手区块（开关、会话路径、白名单增删、隐私说明、清空按钮）。
+- 恢复运行时与 CLI：`ToolBox.Core.Llm.AssistantRuntime.Instance`（懒加载、开关、会话运行队列、取消、generation 守卫、工具目录）与 `Core/Assistant/AssistantHost.cs` 静态宿主（`Initialize/SetEnabledAsync/IsEnabled/EnabledChanged/Tools`）；新增 `Core/Assistant/ToolsCommandService.cs` 提供 `tools.list/get/call/result/cancel` 作业（单帧 4 MiB、requestId 幂等、重启把在途作业标 `unknown` 不重放有副作用操作）；`Core/Todo/TaskProtocol.cs` 识别 `tools.*` 并校验 `tools.call` 参数，`App.xaml.cs` 接线并把 `tools.*` 分流到 `AssistantHost.Tools`。
+- 工具与权限边界：`AssistantHost` 仅注册 `FileTools/ImageTools/TodoTools/WebSearchTools/BoardTools` 五类；`Core/Security/FileAccessWhitelist.cs` 统一白名单；新增 `Core/Tools/ImageTools.cs`（实解码、真实 MIME、≤10 MiB、像素上限，空白名单即拒绝）与 `Core/Tools/BoardTools.cs`（`board_list_cards/list_comments/claim_card/reply_comment/ack_comment`，执行身份由运行时注入，host 固定 `internal`）。
+- 内部看板宿主：`internal` 成为第 9 个投递宿主（`BoardAgentService` 注入 `InternalEnabled/InternalExecutor`；新增 `Core/BoardAgents/InternalBoardAgent.cs` 负责门禁、同会话串行、租约截止、写前校验 claim、回帖 ack 崩溃恢复）；`Core/Boards/ProjectBoardComments.cs` 的 `CommentAdd` 新增 internal 有效 claim 门禁，其余宿主语义不变。
+- Provider 与图片：`Core/Providers/{OpenAiProvider,AnthropicProvider,OllamaProvider}.cs` 支持按真实 MIME 发送图片，OpenAI 多个 `tool_calls` 按 index 累积；`ProviderManager.cs` 为 `gpt-4o` 置 `SupportsMultimodal=true`；不支持图片的模型返回可操作错误。
+- 配置与隐私：`Models/SetunaOption.cs` 新增 `AssistantEnabled`（默认 false，`DeepCopy` 同步）；中英文语言包各新增 15 个键；会话数据落在 `%AppData%\ToolBox\chats.json` 与 `sessions\*.json`、记忆 `Data\memory.db`、白名单 `file_whitelist.json`、作业元数据同应用目录；清空流程先关闭新轮次、递增 generation、取消并等待在途，再串行删除。
+- 前端 i18n 修正：`Project/Views/Chat/ChatView.cs` 中两处原本硬编码中文的用户可见文案（页面加载失败提示、链接校验异常）改为跟随 `IsEnglish()` 的双语形式。
+- 新增验收工程：`Project/Tests/AssistantLive/`（`AssistantLive.csproj` + `Program.cs`），以 `ipc` / `wpf` 两种模式用真实 `toolbox-cli.exe` 与真实 `ChatView+WebView2` 做联合验收，数据经 `TOOLBOX_TASK_TEST_ROOT` 隔离。
+- 验证：主程序 Debug 0 error / 194 warning（与历史基线一致），产物含 `ToolBox.exe`、`toolbox-cli.exe`、`AssistantWeb/dist/*`；看板回归 `board-v2-cli-integration.ps1` 640 项、`run-board-ui-live.ps1` 47 项、`BoardAgents.Tests` 35/35、`BoardsProtocolChecks` 261 项全通过；助手联合验收 IPC 模式 21 项（开关关闭返回 `ASSISTANT_DISABLED`、`tools.call` 快速返回 `{callId,status:"queued"}` 后经 `tools.result` 得终态、requestId 幂等与 `CONFLICT`、4 MiB 上限 `INVALID_ARGUMENT`、未知 callId `NOT_FOUND`）、WPF 模式 3 项通过，全程未读写真实 `%AppData%`、未发起真实模型请求。
+
 ## [2026-10-16] 项目看板 v2：架构级评审整改
 
 - 死代码清理：删除全仓零调用的 `ProjectBoardStore.ProjectGetOrListRequest`、`BoardsView` 的死赋值与两处 `await Task.CompletedTask` 占位、`BoardAgentService` 恒等 no-op 局部变量与冗余 `with` 复制、`ProjectBoardComments` 冗余 revision 判据及其死参数，以及全仓无引用的语言键 `Lang_Board_DeliveryConfirmation`（中英同步删除）。

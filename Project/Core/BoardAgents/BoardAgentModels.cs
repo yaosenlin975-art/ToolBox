@@ -81,6 +81,8 @@ public sealed class BoardAgentServiceOptions
     public string? AppDataDirectory { get; init; }
     public IBoardAgentDiscoveryPlatform? DiscoveryPlatform { get; init; }
     public IBoardAgentProcessRunner? ProcessRunner { get; init; }
+    public Func<bool>? InternalEnabled { get; init; }
+    public Func<BoardAgentCommentContext, TimeSpan, CancellationToken, Task<BoardAgentProcessResult>>? InternalExecutor { get; init; }
     public TimeSpan DefaultTimeout { get; init; } = TimeSpan.FromSeconds(120);
 }
 
