@@ -4,6 +4,7 @@ public class ChatChunk
 {
     public string? Text { get; set; }
     public ToolCallInfo? ToolCall { get; set; }
+    public IList<ToolCallInfo>? ToolCalls { get; set; }
     public bool IsDone { get; set; }
     public string? Error { get; set; }
 }

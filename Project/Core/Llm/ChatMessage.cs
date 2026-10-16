@@ -7,6 +7,9 @@ public class ChatMessage
     [JsonPropertyName("id")]
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
 
+    [JsonPropertyName("runId")]
+    public string? RunId { get; set; }
+
     [JsonPropertyName("role")]
     public string Role { get; set; } = string.Empty; // system/user/assistant/tool
 

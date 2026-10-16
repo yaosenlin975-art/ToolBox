@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="ProviderManagerStub.cs" />
+    <Compile Include="../../Core/Llm/Agent.cs" Link="Core/Llm/Agent.cs" />
+    <Compile Include="../../Core/Llm/AssistantRuntime.cs" Link="Core/Llm/AssistantRuntime.cs" />
+    <Compile Include="../../Core/Llm/ChatChunk.cs" Link="Core/Llm/ChatChunk.cs" />
+    <Compile Include="../../Core/Llm/ChatMessage.cs" Link="Core/Llm/ChatMessage.cs" />
+    <Compile Include="../../Core/Llm/ChatSession.cs" Link="Core/Llm/ChatSession.cs" />
+    <Compile Include="../../Core/Llm/ContextCompressor.cs" Link="Core/Llm/ContextCompressor.cs" />
+    <Compile Include="../../Core/Llm/DefaultSystemPromptBuilder.cs" Link="Core/Llm/DefaultSystemPromptBuilder.cs" />
+    <Compile Include="../../Core/Llm/ISystemPromptBuilder.cs" Link="Core/Llm/ISystemPromptBuilder.cs" />
+    <Compile Include="../../Core/Memory/MemoryStore.cs" Link="Core/Memory/MemoryStore.cs" />
+    <Compile Include="../../Core/Providers/ILlmProvider.cs" Link="Core/Providers/ILlmProvider.cs" />
+    <Compile Include="../../Core/Tools/ToolAttribute.cs" Link="Core/Tools/ToolAttribute.cs" />
+    <Compile Include="../../Core/Tools/ToolInfo.cs" Link="Core/Tools/ToolInfo.cs" />
+    <Compile Include="../../Core/Tools/ToolParamAttribute.cs" Link="Core/Tools/ToolParamAttribute.cs" />
+    <Compile Include="../../Core/Tools/ToolRegistry.cs" Link="Core/Tools/ToolRegistry.cs" />
+  </ItemGroup>
+</Project>
