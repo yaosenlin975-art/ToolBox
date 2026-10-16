@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ToolBox Assistant UI Fixture</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { display: flex; flex-direction: column; }
+      #mock-controls { display: flex; gap: 8px; padding: 8px; background: #e2e4e9; font: 12px "Segoe UI", sans-serif; }
+      #root { flex: 1; min-height: 0; height: auto; }
+    </style>
+  </head>
+  <body>
+    <div id="mock-controls" aria-label="Mock host controls"></div>
+    <div id="root"></div>
+    <script type="module" src="/mock-main.tsx"></script>
+  </body>
+</html>
