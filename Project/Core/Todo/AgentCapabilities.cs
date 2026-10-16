@@ -295,7 +295,36 @@ public static class AgentCapabilities
                 ["cursor"] = new { type = "string", minLength = 17, maxLength = 17, pattern = "^[0-9]{17}$", description = "lastCacheKey from the previous page; continue in ordinal public CacheKey order." }
             }),
             ["items[].cacheKey", "items[].tags", "items[].rating", "items[].notes", "items[].taggedAt", "nextCursor"], ["reads existing screenshot metadata only"],
-            ["The ToolBox host and screenshot cache metadata are checked only when screenshot.search is invoked; this listing does not check availability."])
+            ["The ToolBox host and screenshot cache metadata are checked only when screenshot.search is invoked; this listing does not check availability."]),
+
+        RuntimeChecked("tools.list", "List the currently registered Assistant tools and their schemas.", EmptyObjectSchema(),
+            ["tools[].name", "tools[].description", "tools[].parameters", "tools[].inputSchema", "tools[].isAsync"],
+            ["reads the in-process Assistant tool registry"], ["AssistantEnabled must be true; the host checks this at invocation."]),
+
+        RuntimeChecked("tools.get", "Read one registered Assistant tool and its input schema.", ObjectSchema(
+            new Dictionary<string, object?> { ["name"] = new { type = "string", minLength = 1, maxLength = 128 } }, ["name"]),
+            ["tool.name", "tool.description", "tool.parameters", "tool.inputSchema", "tool.isAsync"],
+            ["reads the in-process Assistant tool registry"], ["AssistantEnabled must be true; the host checks this at invocation."]),
+
+        RuntimeChecked("tools.call", "Queue one Assistant tool invocation with a request ID for safe retries.", ObjectSchema(
+            new Dictionary<string, object?>
+            {
+                ["name"] = new { type = "string", minLength = 1, maxLength = 128 },
+                ["arguments"] = new { type = "object", description = "Flat JSON scalar arguments matching the schema returned by tools.get.", additionalProperties = true },
+                ["requestId"] = new { type = "string", format = "uuid" }
+            }, ["name", "arguments"]),
+            ["callId", "status"], ["executes the named local Assistant tool at most once per requestId while its bounded idempotency entry is retained"],
+            ["AssistantEnabled must be true; the host checks this at invocation. A retry with the same requestId must use the same tool and arguments."]),
+
+        RuntimeChecked("tools.result", "Read the status and result of one tool call by D-format call ID.", ObjectSchema(
+            new Dictionary<string, object?> { ["callId"] = new { type = "string", format = "uuid" } }, ["callId"]),
+            ["callId", "status", "result", "error", "errorCode"], ["reads one bounded in-memory tool job"],
+            ["The call ID is checked against the persisted local job index at invocation; results from before a restart are unknown."]),
+
+        RuntimeChecked("tools.cancel", "Request cancellation of one queued or running tool call by D-format call ID.", ObjectSchema(
+            new Dictionary<string, object?> { ["callId"] = new { type = "string", format = "uuid" } }, ["callId"]),
+            ["callId", "status", "cancellationRequested"], ["cancels the matching local tool job"],
+            ["The call ID is checked against the persisted local job index at invocation; user-confirmed effects are rechecked after confirmation."])
     ];
 
     public static IReadOnlyList<AgentCapability> All => Capabilities;
@@ -325,6 +354,9 @@ public static class AgentCapabilities
         "task.create" or "ocr.file" or "screenshot.search" => " --input <json-file|->",
         "task.update" => " <id> --input <json-file|-> (id is positional; omit it from JSON)",
         "task.list" => " [--status <status>]",
+        "tools.call" => " <name> --input <json-file|-> [--request-id <guid>]",
+        "tools.get" => " <name>",
+        "tools.result" or "tools.cancel" => " <call-id>",
         "project.register" => " --path <directory> [--init] [--replace-path]",
         "project.get" or "project.unregister" => " [--project <project>] [--cwd <directory>]",
         "board.get" or "board.column.list" => " [--project <project>] [--cwd <directory>]",
@@ -361,6 +393,11 @@ public static class AgentCapabilities
     private static AgentCapability LocalBoardCapability(string name, string description, JsonElement inputSchema,
         string[] outputFields, string[] effects, string requirement) =>
         Create(name, description, inputSchema, outputFields, effects, [requirement]);
+
+    private static AgentCapability RuntimeChecked(string name, string description, JsonElement inputSchema,
+        string[] outputFields, string[] effects, string[] requirements) =>
+        new(name, CommandSyntax(name), description, inputSchema, outputFields, effects,
+            new AgentCapabilityAvailability(true, requirements));
 
     private static Dictionary<string, object?> ProjectContextProperties() => new()
     {

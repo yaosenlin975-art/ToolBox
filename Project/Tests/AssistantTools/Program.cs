@@ -75,6 +75,16 @@ internal static class Program
             Directory.CreateSymbolicLink(insideLink, insideTarget);
             Check(whitelist.IsAllowed(Path.Combine(insideLink, "missing.txt")), "reparse point inside root remains allowed");
 
+            var projectRoot = Path.Combine(root, "project");
+            var projectEscapeTarget = Path.Combine(root, "project-escape-target");
+            Directory.CreateDirectory(projectRoot);
+            Directory.CreateDirectory(projectEscapeTarget);
+            var projectEscapeLink = Path.Combine(projectRoot, "escape-link");
+            Directory.CreateSymbolicLink(projectEscapeLink, projectEscapeTarget);
+            var projectEscapePath = Path.Combine(projectEscapeLink, "missing.txt");
+            Check(whitelist.IsAllowed(projectEscapePath), "project escape link remains inside whitelist");
+            Check(!whitelist.IsAllowedWithin(projectEscapePath, projectRoot), "project root intersection rejects a link into another allowed directory");
+
             var explicitLink = Path.Combine(temp, "explicit-root-link");
             Directory.CreateSymbolicLink(explicitLink, outside);
             var explicitWhitelist = new FileAccessWhitelist(Path.Combine(temp, "explicit-root-whitelist.json"));
@@ -100,6 +110,12 @@ internal static class Program
 
         var allowedFile = Path.Combine(root, "sample.txt");
         File.WriteAllText(allowedFile, "before");
+        using (var canceled = new CancellationTokenSource())
+        {
+            canceled.Cancel();
+            Throws<OperationCanceledException>(() => FileTools.DeleteFile(allowedFile, canceled.Token));
+            Throws<OperationCanceledException>(() => FileTools.MoveFile(allowedFile, Path.Combine(root, "moved.txt"), canceled.Token));
+        }
         Check(FileTools.ReadFile(allowedFile) == "before", "read_file reads allowed path");
         Check(FileTools.FileExists(allowedFile) == "true", "file_exists checks allowed path");
         Check(FileTools.FileExists(Path.Combine(root, "missing.txt")) == "false", "file_exists checks allowed missing path");

@@ -121,9 +121,11 @@ function Initialize-BoardProject {
         'board.comment.inbox', 'board.comment.ack', 'board.comment.bind', 'board.comment.deliver', 'board.comment.delivery',
         'board.attachment.add', 'board.attachment.list', 'board.attachment.remove'
     )
+    $expectedToolsOperations = @('tools.list', 'tools.get', 'tools.call', 'tools.result', 'tools.cancel')
     $operations = @($capabilities | Where-Object { $_.name -like 'project.*' -or $_.name -like 'board.*' } | ForEach-Object { $_.name })
     $allNames = @($capabilities | ForEach-Object { $_.name })
-    Assert-Board ($allNames.Count -eq 49) 'Capability list did not return 49 operations.'
+    Assert-Board ($allNames.Count -eq 54) 'Capability list did not return 54 operations.'
+    Assert-Board (@($expectedToolsOperations | Where-Object { $_ -notin $allNames }).Count -eq 0) 'Capability list is missing a tools operation.'
     Assert-Board ($operations.Count -eq $expected.Count -and @($expected | Where-Object { $_ -notin $operations }).Count -eq 0) 'Capability list does not contain all 36 board operations.'
     Assert-Board ((Get-BoardTestHosts).Count -eq 0) 'Static capability discovery started a ToolBox task host.'
 

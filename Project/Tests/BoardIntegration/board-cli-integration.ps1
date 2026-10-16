@@ -119,6 +119,7 @@ try {
 
     $capabilities = Invoke-BoardCli @('capabilities', 'list')
     $expectedLegacyOperations = @('task.create', 'task.list', 'task.get', 'task.update', 'task.complete', 'task.reopen', 'task.delete', 'task.restore', 'host.stop', 'capabilities.list', 'capabilities.get', 'ocr.file', 'screenshot.search')
+    $expectedToolsOperations = @('tools.list', 'tools.get', 'tools.call', 'tools.result', 'tools.cancel')
     $expectedOperations = @(
         'project.register', 'project.list', 'project.get', 'project.unregister', 'board.get',
         'board.column.list', 'board.column.create', 'board.column.update', 'board.column.delete', 'board.column.move',
@@ -131,8 +132,9 @@ try {
     )
     $actualOperations = @($capabilities.data | Where-Object { $_.name -like 'project.*' -or $_.name -like 'board.*' } | ForEach-Object { $_.name })
     $allCapabilityNames = @($capabilities.data | ForEach-Object { $_.name })
-    Assert-Board ($capabilities.ok -and $allCapabilityNames.Count -eq 49) 'Capability list did not return the expected 49 entries.'
-    Assert-Board (@($expectedLegacyOperations | Where-Object { $_ -notin $allCapabilityNames }).Count -eq 0) 'The project-board changes removed a legacy capability.'
+    Assert-Board ($capabilities.ok -and $allCapabilityNames.Count -eq 54) 'Capability list did not return the expected 54 entries.'
+    $expectedExistingAndTools = $expectedLegacyOperations + $expectedToolsOperations
+    Assert-Board (@($expectedExistingAndTools | Where-Object { $_ -notin $allCapabilityNames }).Count -eq 0) 'A legacy capability or tools operation is missing.'
     Assert-Board ($capabilities.ok -and $expectedOperations.Count -eq $actualOperations.Count -and @($expectedOperations | Where-Object { $_ -notin $actualOperations }).Count -eq 0) 'Capability list does not contain the 36 project-board operations.'
     $expectedOutputFields = [ordered]@{
         'project.register' = @('boardId', 'name', 'path')

@@ -15,6 +15,7 @@ internal static class Program
             CheckResponseWarnings();
             CheckRejectedRequests();
             CheckExistingOperations();
+            CheckToolsOperations();
             Console.WriteLine($"PASS ({checks} checks)");
             return 0;
         }
@@ -147,8 +148,40 @@ internal static class Program
         Check(true, "existing task, OCR, and screenshot operations remain accepted");
     }
 
+    private static void CheckToolsOperations()
+    {
+        string[] names = ["tools.list", "tools.get", "tools.call", "tools.result", "tools.cancel"];
+        Check(AgentCapabilities.All.Count == 54, "five tools capabilities extend the existing 49 entries");
+        foreach (string name in names)
+        {
+            Check(TaskProtocol.IsToolsOperation(name), name + " is recognized as a tools operation");
+            Check(AgentCapabilities.TryGet(name, out var capability) && capability.InputSchema.ValueKind == JsonValueKind.Object,
+                name + " capability exists");
+            Check(capability.Availability.RuntimeChecked && capability.Availability.Requirements.Length > 0,
+                name + " publishes runtime requirements");
+            Check(capability.Command.StartsWith("toolbox-cli tools ", StringComparison.Ordinal), name + " publishes CLI syntax");
+        }
+
+        TaskProtocol.Validate(new TaskRequest { Operation = "tools.list" });
+        TaskProtocol.Validate(new TaskRequest { Operation = "tools.get", Id = "read_file" });
+        TaskProtocol.Validate(ToolsCall("read_file", "{\"path\":\"C:\\\\test.txt\"}"));
+        string callId = Guid.NewGuid().ToString("D");
+        TaskProtocol.Validate(new TaskRequest { Operation = "tools.result", Id = callId });
+        TaskProtocol.Validate(new TaskRequest { Operation = "tools.cancel", Id = callId });
+
+        MustReject(new TaskRequest { Operation = "tools.list", Id = "unexpected" }, "tools.list id field");
+        MustReject(new TaskRequest { Operation = "tools.get", Id = "invalid name" }, "invalid tool name");
+        MustReject(ToolsCall("read_file", "{\"path\":{\"nested\":1}}"), "nested tool argument");
+        MustReject(ToolsCall("read_file", "{\"path\":\"x\",\"path\":\"y\"}"), "duplicate tool argument");
+        MustReject(new TaskRequest { Operation = "tools.result", Id = callId.Replace('-', 'x') }, "non-D call ID");
+        MustReject(new TaskRequest { Operation = "tools.cancel", Id = callId, Status = "running" }, "tools.cancel extra field");
+    }
+
     private static TaskRequest Request(string operation, string payload) =>
         new() { Operation = operation, Payload = Element(payload) };
+
+    private static TaskRequest ToolsCall(string name, string payload) =>
+        new() { Operation = "tools.call", Id = name, Payload = Element(payload) };
 
     private static JsonElement Element(string json)
     {

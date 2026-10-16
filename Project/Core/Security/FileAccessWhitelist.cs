@@ -17,9 +17,7 @@ public class FileAccessWhitelist
         get { lock (sync) return allowedPaths.ToArray(); }
     }
 
-    private FileAccessWhitelist() : this(Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "ToolBox", "file_whitelist.json")) { }
+    private FileAccessWhitelist() : this(GetDefaultConfigPath()) { }
 
     public FileAccessWhitelist(string configPath)
     {
@@ -37,6 +35,15 @@ public class FileAccessWhitelist
         string[] roots;
         lock (sync) roots = [.. allowedPaths];
         return roots.Any(root => IsWithin(resolved, root));
+    }
+
+    public bool IsAllowedWithin(string path, string root)
+    {
+        if (!TryNormalizePath(path, out var normalizedPath) || !TryResolveLinks(normalizedPath, out var resolvedPath) ||
+            !TryNormalizePath(root, out var normalizedRoot) || !TryResolveLinks(normalizedRoot, out var resolvedRoot))
+            return false;
+
+        return IsWithin(resolvedPath, resolvedRoot) && IsAllowed(path);
     }
 
     public void Add(string path)
@@ -86,6 +93,17 @@ public class FileAccessWhitelist
             }
         }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ToolBox] {ex.Message}"); }
+    }
+
+    private static string GetDefaultConfigPath()
+    {
+#if DEBUG
+        string? testRoot = Environment.GetEnvironmentVariable("TOOLBOX_TASK_TEST_ROOT");
+        if (!string.IsNullOrWhiteSpace(testRoot))
+            return Path.Combine(testRoot, "assistant", "file_whitelist.json");
+#endif
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "ToolBox", "file_whitelist.json");
     }
 
     private void Save()

@@ -77,6 +77,7 @@ internal static partial class Program
         root.Subcommands.Add(screenshot);
 
         AddBoardCommands(root);
+        AddToolsCommands(root);
         return root;
     }
 

@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Text;
+using System.Threading;
 using ToolBox.Core.Security;
 
 namespace ToolBox.Core.Tools;
@@ -75,12 +76,15 @@ public static class FileTools
 
     [Tool("delete_file", "删除文件或空目录")]
     public static string DeleteFile(
-        [ToolParam("文件或目录路径")] string path)
+        [ToolParam("文件或目录路径")] string path,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!FileAccessWhitelist.Instance.IsAllowed(path))
             return "安全限制: 路径不在白名单内: " + path;
         if (!ConfirmDialog.Show(path, "delete"))
             return "用户取消删除操作: " + path;
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             if (File.Exists(path)) { File.Delete(path); return "已删除文件: " + path; }
@@ -112,14 +116,17 @@ public static class FileTools
     [Tool("move_file", "移动或重命名文件")]
     public static string MoveFile(
         [ToolParam("源文件路径")] string source,
-        [ToolParam("目标文件路径")] string destination)
+        [ToolParam("目标文件路径")] string destination,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!FileAccessWhitelist.Instance.IsAllowed(source))
             return "安全限制: 源路径不在白名单内: " + source;
         if (!FileAccessWhitelist.Instance.IsAllowed(destination))
             return "安全限制: 目标路径不在白名单内: " + destination;
         if (!ConfirmDialog.Show(source, "move", destination))
             return "用户取消移动操作: " + source;
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             var dir = Path.GetDirectoryName(destination);

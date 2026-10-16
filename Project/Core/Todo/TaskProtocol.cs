@@ -33,7 +33,7 @@ public sealed class TaskResponse
     {
         "INVALID_ARGUMENT" => 2,
         "NOT_FOUND" => 3,
-        "CONFLICT" or "RESULT_TOO_LARGE" or "ENGINE_UNAVAILABLE" => 4,
+        "CONFLICT" or "RESULT_TOO_LARGE" or "ENGINE_UNAVAILABLE" or "ASSISTANT_DISABLED" or "JOB_LIMIT" => 4,
         "HOST_UNAVAILABLE" or "TIMEOUT" or "ACCESS_DENIED" => 5,
         "IO_ERROR" or "DATA_CORRUPT" => 6,
         _ => 7
@@ -67,6 +67,11 @@ public static class TaskProtocol
             throw new TaskCommandException("PROTOCOL_ERROR", "Unsupported protocol version.");
         if (!Guid.TryParse(request.RequestId, out _))
             throw new TaskCommandException("PROTOCOL_ERROR", "requestId must be a GUID.");
+        if (IsToolsOperation(request.Operation))
+        {
+            ValidateToolsRequest(request);
+            return;
+        }
         if (IsBoardOperation(request.Operation))
         {
             if (request.Id != null) Invalid("id is not accepted for this operation.", "id");
@@ -117,9 +122,17 @@ public static class TaskProtocol
         "board.comment.deliver" or "board.comment.delivery" or
         "board.attachment.add" or "board.attachment.list" or "board.attachment.remove";
 
+    public static bool IsToolsOperation(string operation) => operation is
+        "tools.list" or "tools.get" or "tools.call" or "tools.result" or "tools.cancel";
+
     public static void ValidatePayload(string operation, JsonElement payload)
     {
         if (payload.ValueKind != JsonValueKind.Object) Invalid("A JSON object is required.", "payload");
+        if (operation == "tools.call")
+        {
+            ValidateToolArguments(payload);
+            return;
+        }
         if (operation is "ocr.file" or "screenshot.search")
         {
             ValidateAgentPayload(operation, payload);
@@ -251,4 +264,57 @@ public static class TaskProtocol
 
     private static void Invalid(string message, string field) =>
         throw new TaskCommandException("INVALID_ARGUMENT", message, field);
+
+    private static void ValidateToolsRequest(TaskRequest request)
+    {
+        switch (request.Operation)
+        {
+            case "tools.list":
+                if (request.Id != null) Invalid("id is not accepted for this operation.", "id");
+                if (request.Status != null) Invalid("status is not accepted for this operation.", "status");
+                if (request.Payload != null) Invalid("payload is not accepted for this operation.", "payload");
+                if (request.Arguments != null) Invalid("arguments are not accepted for this operation.", "arguments");
+                break;
+            case "tools.get":
+                ValidateToolName(request.Id);
+                ValidateEmptyToolsFields(request);
+                break;
+            case "tools.call":
+                ValidateToolName(request.Id);
+                if (request.Status != null) Invalid("status is not accepted for this operation.", "status");
+                if (request.Arguments != null) Invalid("arguments are not accepted for this operation.", "arguments");
+                if (request.Payload is not { ValueKind: JsonValueKind.Object })
+                    Invalid("A JSON object is required.", "payload");
+                ValidateToolArguments(request.Payload!.Value);
+                break;
+            case "tools.result":
+            case "tools.cancel":
+                if (request.Id is not { } id || !Guid.TryParseExact(id, "D", out _))
+                    Invalid("A D-format call GUID is required.", "id");
+                ValidateEmptyToolsFields(request);
+                break;
+        }
+    }
+
+    private static void ValidateEmptyToolsFields(TaskRequest request)
+    {
+        if (request.Status != null) Invalid("status is not accepted for this operation.", "status");
+        if (request.Payload != null) Invalid("payload is not accepted for this operation.", "payload");
+        if (request.Arguments != null) Invalid("arguments are not accepted for this operation.", "arguments");
+    }
+
+    private static void ValidateToolName(string? name)
+    {
+        if (name is null || name.Length is 0 or > 128 || !char.IsAsciiLetter(name[0]) ||
+            name.Any(ch => !char.IsAsciiLetterOrDigit(ch) && ch is not ('_' or '.' or '-')))
+            Invalid("A valid tool name is required.", "id");
+    }
+
+    private static void ValidateToolArguments(JsonElement payload)
+    {
+        RejectDuplicateProperties(payload);
+        foreach (JsonProperty property in payload.EnumerateObject())
+            if (property.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.Undefined)
+                Invalid("Tool parameters must be flat JSON scalar values.", property.Name);
+    }
 }
